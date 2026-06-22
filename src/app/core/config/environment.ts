@@ -10,7 +10,11 @@ export const ENVIRONMENT_TOKEN = new InjectionToken<Environment>('ENVIRONMENT_TO
 
 export function provideEnvironment(env: Environment) {
   if (!env.supabaseUrl || !env.supabaseKey) {
-    console.warn('Advertencia: Supabase URL o Key no han sido configuradas en el entorno.');
+    const errorMsg = 'Error CRÍTICO: Supabase URL o Key no han sido configuradas en el entorno.';
+    if (env.production) {
+      throw new Error(errorMsg);
+    }
+    console.error(errorMsg);
   }
   return { provide: ENVIRONMENT_TOKEN, useValue: env };
 }

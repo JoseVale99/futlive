@@ -37,7 +37,7 @@ export class MatchService {
       params = params.set('status', `eq.${status}`);
     }
 
-    return this.http.get<Match[]>(`${this.env.supabaseUrl}/rest/v1/matches`, {
+    return this.http.get<Match[]>(`${this.env.supabaseUrl}/matches`, {
       params,
       headers: {
         'apikey': this.env.supabaseKey,

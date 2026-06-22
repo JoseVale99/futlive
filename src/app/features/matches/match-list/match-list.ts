@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { MatchService } from '../../../core/services/match-service';
 import { MatchCardComponent } from '../match-card/match-card';
 import { CommonModule } from '@angular/common';
@@ -8,11 +8,11 @@ import { CommonModule } from '@angular/common';
   standalone: true,
   imports: [CommonModule, MatchCardComponent],
   template: `
-    <div class="max-w-2xl mx-auto px-4 pb-20">
+    <div class="max-w-2xl mx-auto px-4 pb-20 animate-fade-in">
       <!-- Loading State -->
       @if (matchService.loading() && matchService.matches().length === 0) {
         <div class="flex flex-col items-center justify-center py-20">
-          <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+          <div class="motion-safe:animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
           <p class="text-gray-500 font-medium">Cargando partidos...</p>
         </div>
       }
@@ -39,13 +39,18 @@ import { CommonModule } from '@angular/common';
       <!-- Match List -->
       @if (!matchService.error() && matchService.matches().length > 0) {
         <div class="space-y-4">
-          @for (match of matchService.matches(); track match.id) {
-            <app-match-card [match]="match" />
+          @for (match of matchService.matches(); track match.id; let index = $index) {
+            <div 
+              class="animate-fade-in"
+              [style.animation-delay]="index < 20 ? index * 50 + 'ms' : '0ms'"
+            >
+              <app-match-card [match]="match" />
+            </div>
           }
         </div>
       }
 
-      <!-- Empty State -->
+      <!-- Empty State - Status Specific -->
       @if (!matchService.loading() && !matchService.error() && matchService.matches().length === 0) {
         <div class="text-center py-20">
           <div class="bg-gray-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -53,8 +58,21 @@ import { CommonModule } from '@angular/common';
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
           </div>
-          <h3 class="text-gray-900 font-bold text-xl mb-2">No hay partidos</h3>
-          <p class="text-gray-500">No se encontraron partidos para este criterio de búsqueda.</p>
+          
+          @switch (matchService.activeStatus()) {
+            @case ('live') {
+              <h3 class="text-gray-900 font-bold text-xl mb-2">No hay partidos en vivo</h3>
+              <p class="text-gray-500">No hay partidos jugándose en este momento.</p>
+            }
+            @case ('scheduled') {
+              <h3 class="text-gray-900 font-bold text-xl mb-2">No hay partidos programados</h3>
+              <p class="text-gray-500">No hay partidos programados para hoy.</p>
+            }
+            @case ('finished') {
+              <h3 class="text-gray-900 font-bold text-xl mb-2">No hay partidos finalizados</h3>
+              <p class="text-gray-500">No hay partidos que hayan terminado.</p>
+            }
+          }
         </div>
       }
     </div>

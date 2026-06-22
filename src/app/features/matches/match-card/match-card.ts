@@ -9,7 +9,7 @@ import { APP_CONSTANTS } from '../../../shared/constants/app-constants';
   standalone: true,
   imports: [CommonModule],
   template: `
-    <div class="bg-white rounded-2xl shadow-sm hover:shadow-lg transition-shadow duration-200 p-5 mb-4 border border-gray-100 group">
+    <div class="bg-white rounded-2xl shadow-sm hover:shadow-lg motion-safe:transition-shadow duration-200 p-5 mb-4 border border-gray-100 group">
       <!-- Header Info -->
       <div class="flex justify-between items-center mb-4 text-xs font-medium text-gray-400">
         <span>{{ match().competition }}</span>
@@ -39,10 +39,10 @@ import { APP_CONSTANTS } from '../../../shared/constants/app-constants';
             @if (match().status === 'live') {
               <div class="flex items-center mt-1">
                 <span class="relative flex h-2 w-2 mr-2">
-                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                  <span class="motion-safe:animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                   <span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
                 </span>
-                <span class="text-xs font-bold text-red-500 animate-pulse">{{ match().time_elapsed }}'</span>
+                <span class="text-xs font-bold text-red-500 motion-safe:animate-pulse">{{ match().time_elapsed }}'</span>
               </div>
             } @else {
               <span class="text-[10px] text-gray-400 mt-1 uppercase tracking-widest font-bold">Finalizado</span>

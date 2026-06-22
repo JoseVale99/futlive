@@ -1,3 +1,18 @@
 /* You can add global styles to this file, and also import other style files */
 
 @import 'tailwindcss';
+
+/* Custom animations for NexaTV */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Custom Tailwind utility class for fade-in animation */
+.animate-fade-in {
+  animation: fadeIn 200ms ease-out forwards;
+}

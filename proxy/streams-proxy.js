@@ -37,19 +37,19 @@ function fetchRSC() {
 }
 
 /**
- * Fetch RSC from the specific match page on lacancha.tv
- * This page has streams specific to that match (including DSports+ NO ADS)
+ * Fetch the match page HTML from lacancha.tv and extract channel names + build embed URLs.
+ * The match page has channel buttons in HTML but embed URLs are resolved client-side.
+ * We extract channel names and construct embedindia.st URLs using the pattern:
+ * https://embedindia.st/embed/wc/{date}/{team1}-{team2}/{channel-slug}
  */
-function fetchMatchPageRSC(matchId) {
+function fetchMatchPageHTML(matchId) {
   return new Promise((resolve, reject) => {
-    const reqUrl = `https://lacancha.tv/es/partido/${matchId}?_rsc=${RSC_VALUE}`;
+    const reqUrl = `https://lacancha.tv/es/partido/${matchId}`;
     https.get(reqUrl, {
       headers: {
-        'Accept': '*/*',
+        'Accept': 'text/html',
         'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36',
-        'Referer': `https://lacancha.tv/es/partido/${matchId}`,
-        'RSC': '1',
-        'Next-Url': `/es/partido/${matchId}`,
+        'Referer': 'https://lacancha.tv/es/en-vivo',
       }
     }, (res) => {
       let data = '';
@@ -57,6 +57,73 @@ function fetchMatchPageRSC(matchId) {
       res.on('end', () => resolve(data));
     }).on('error', reject);
   });
+}
+
+/**
+ * Parse match page HTML to extract channel names and construct embed URLs.
+ */
+function parseMatchPageStreams(html, matchId) {
+  // Extract channel names from buttons: <span class="chlabel"><span>NAME</span></span>
+  const channelRegex = /<span class="chlabel"><span>([^<]+)<\/span><\/span>/g;
+  const channels = [];
+  let m;
+  while ((m = channelRegex.exec(html)) !== null) {
+    channels.push(m[1]);
+  }
+
+  if (channels.length === 0) return [];
+
+  // Extract team codes from team links: href="/es/equipo/XXX"
+  const teamRegex = /href="\/es\/equipo\/([^"]+)"/g;
+  const teams = [];
+  while ((m = teamRegex.exec(html)) !== null) {
+    teams.push(m[1].toLowerCase());
+  }
+
+  // Extract kickoff date from hydration data
+  // In Next.js SSR HTML, JSON is escaped with \" so kickoff_at looks like: kickoff_at\":\"2026-06-23T...
+  const kickoffRegex = /kickoff_at\\?":\\?"?(\d{4}-\d{2}-\d{2})/;
+  const kickoffMatch = html.match(kickoffRegex);
+  const kickoffDate = kickoffMatch ? kickoffMatch[1] : null;
+
+  if (teams.length < 2 || !kickoffDate) {
+    console.log(`[parseMatchPage] teams=${teams.join(',')}, date=${kickoffDate} — insufficient data`);
+    return [];
+  }
+
+  const team1 = teams[0];
+  const team2 = teams[1];
+  const baseUrl = `https://embedindia.st/embed/wc/${kickoffDate}/${team1}-${team2}`;
+
+  console.log(`[parseMatchPage] Building URLs: ${baseUrl}/{slug} for ${channels.length} channels`);
+
+  // Convert channel names to URL slugs
+  const seen = new Set();
+  return channels
+    .map((name, i) => {
+      const slug = name
+        .toLowerCase()
+        .replace(/\+/g, '-plus')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+
+      if (seen.has(name)) return null;
+      seen.add(name);
+
+      return {
+        id: `proxy-${i}`,
+        match_id: matchId,
+        channel_id: null,
+        embed_name: name,
+        embed_url: `${baseUrl}/${slug}`,
+        source: 'lacancha-proxy',
+        stream_param: null,
+        created_at: new Date().toISOString()
+      };
+    })
+    .filter(Boolean)
+    .slice(0, 20);
 }
 
 function fetchLiveData(matchId) {
@@ -148,18 +215,27 @@ const server = http.createServer(async (req, res) => {
     try {
       console.log(`[${new Date().toISOString()}] Fetching streams for match: ${matchId}`);
 
-      // Primero: intentar la página específica del partido (tiene DSports+ NO ADS y más canales)
-      let rscText = '';
+      let streams = [];
+
+      // Strategy 1: Fetch match page HTML and extract channels + build embed URLs
       try {
-        rscText = await fetchMatchPageRSC(matchId);
-        console.log(`[${new Date().toISOString()}] Got match page RSC (${rscText.length} bytes)`);
+        const html = await fetchMatchPageHTML(matchId);
+        console.log(`[${new Date().toISOString()}] Got match page HTML (${html.length} bytes)`);
+        streams = parseMatchPageStreams(html, matchId);
       } catch (e) {
-        // Fallback: usar la página de en-vivo
-        console.log(`[${new Date().toISOString()}] Match page failed, falling back to en-vivo`);
-        rscText = await fetchRSC();
+        console.log(`[${new Date().toISOString()}] Match page HTML failed: ${e.message}`);
       }
 
-      const streams = parseStreams(rscText, matchId);
+      // Strategy 2: If no streams from HTML, try en-vivo RSC (for featured match)
+      if (streams.length === 0) {
+        try {
+          console.log(`[${new Date().toISOString()}] Falling back to en-vivo RSC`);
+          const rscText = await fetchRSC();
+          streams = parseStreams(rscText, matchId);
+        } catch (e) {
+          console.log(`[${new Date().toISOString()}] en-vivo RSC also failed: ${e.message}`);
+        }
+      }
 
       console.log(`[${new Date().toISOString()}] Found ${streams.length} streams`);
       res.writeHead(200);

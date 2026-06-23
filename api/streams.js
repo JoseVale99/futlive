@@ -1,6 +1,10 @@
 /**
  * Vercel Serverless Function — Proxy de streams de lacancha.tv
  * Se despliega automáticamente en /api/streams?matchId={id}
+ *
+ * Strategy:
+ * 1. Fetch match page HTML → extract channel names from buttons → build embed URLs
+ * 2. Fallback: Fetch en-vivo RSC → extract streams from featured match data
  */
 
 const LACANCHA_URL = 'https://lacancha.tv/es/en-vivo';
@@ -20,17 +24,84 @@ async function fetchRSC() {
   return res.text();
 }
 
-async function fetchMatchPageRSC(matchId) {
-  const res = await fetch(`https://lacancha.tv/es/partido/${matchId}?_rsc=${RSC_VALUE}`, {
+/**
+ * Fetch the match page HTML from lacancha.tv.
+ * The HTML contains channel buttons and match metadata in hydration data.
+ */
+async function fetchMatchPageHTML(matchId) {
+  const res = await fetch(`https://lacancha.tv/es/partido/${matchId}`, {
     headers: {
-      'Accept': '*/*',
+      'Accept': 'text/html',
       'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36',
-      'Referer': `https://lacancha.tv/es/partido/${matchId}`,
-      'RSC': '1',
-      'Next-Url': `/es/partido/${matchId}`,
+      'Referer': 'https://lacancha.tv/es/en-vivo',
     }
   });
   return res.text();
+}
+
+/**
+ * Parse match page HTML to extract channel names and construct embed URLs.
+ * Channel names come from: <span class="chlabel"><span>NAME</span></span>
+ * Team codes from: href="/es/equipo/XXX"
+ * Date from: kickoff_at in hydration data
+ */
+function parseMatchPageStreams(html, matchId) {
+  // Extract channel names from buttons
+  const channelRegex = /<span class="chlabel"><span>([^<]+)<\/span><\/span>/g;
+  const channels = [];
+  let m;
+  while ((m = channelRegex.exec(html)) !== null) {
+    channels.push(m[1]);
+  }
+
+  if (channels.length === 0) return [];
+
+  // Extract team codes from team links
+  const teamRegex = /href="\/es\/equipo\/([^"]+)"/g;
+  const teams = [];
+  while ((m = teamRegex.exec(html)) !== null) {
+    teams.push(m[1].toLowerCase());
+  }
+
+  // Extract kickoff date from hydration data
+  // In Next.js SSR HTML, JSON is escaped with \" so kickoff_at looks like: kickoff_at\":\"2026-06-23T...
+  const kickoffRegex = /kickoff_at\\?":\\?"?(\d{4}-\d{2}-\d{2})/;
+  const kickoffMatch = html.match(kickoffRegex);
+  const kickoffDate = kickoffMatch ? kickoffMatch[1] : null;
+
+  if (teams.length < 2 || !kickoffDate) return [];
+
+  const team1 = teams[0];
+  const team2 = teams[1];
+  const baseUrl = `https://embedindia.st/embed/wc/${kickoffDate}/${team1}-${team2}`;
+
+  // Convert channel names to URL slugs and build stream objects
+  const seen = new Set();
+  return channels
+    .map((name, i) => {
+      const slug = name
+        .toLowerCase()
+        .replace(/\+/g, '-plus')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+
+      if (seen.has(name)) return null;
+      seen.add(name);
+
+      return {
+        id: `proxy-${i}`,
+        match_id: matchId,
+        channel_id: null,
+        embed_name: name,
+        embed_url: `${baseUrl}/${slug}`,
+        source: 'lacancha-proxy',
+        stream_param: null,
+        created_at: new Date().toISOString()
+      };
+    })
+    .filter(Boolean)
+    .slice(0, 20);
 }
 
 function parseStreams(rscText, matchId) {
@@ -65,7 +136,7 @@ function parseStreams(rscText, matchId) {
       }
     }
 
-    return embedUrls.slice(0, 20); // Max 20 canales
+    return embedUrls.slice(0, 20);
   } catch (err) {
     return [];
   }
@@ -102,20 +173,19 @@ module.exports = async function handler(req, res) {
       return res.status(200).json(liveData);
     }
 
-    // Default: fetch streams from match page RSC (has all channels including DSports+ NO ADS)
-    let rscText = '';
+    // Strategy 1: Fetch match page HTML and extract channels
     let streams = [];
     try {
-      rscText = await fetchMatchPageRSC(matchId);
-      streams = parseStreams(rscText, matchId);
+      const html = await fetchMatchPageHTML(matchId);
+      streams = parseMatchPageStreams(html, matchId);
     } catch (e) {
       // ignore, will fallback below
     }
 
-    // Fallback to en-vivo page if match page failed or returned no streams
+    // Strategy 2: Fallback to en-vivo RSC if no streams from HTML
     if (streams.length === 0) {
       try {
-        rscText = await fetchRSC();
+        const rscText = await fetchRSC();
         streams = parseStreams(rscText, matchId);
       } catch (e) {
         // both sources failed, streams stays empty

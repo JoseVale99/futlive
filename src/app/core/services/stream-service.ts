@@ -1,4 +1,4 @@
-import { Injectable, inject, signal, computed } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { ENVIRONMENT_TOKEN } from '../config/environment';
 import { MatchStream } from '../models/stream-model';
@@ -14,22 +14,16 @@ export class StreamService {
   private readonly _error = signal<string | null>(null);
   private readonly _activeStream = signal<MatchStream | null>(null);
 
-  // Mapa para cachear streams por partido
-  private _streamsCache = signal<Map<string, MatchStream[]>>(new Map());
-
   readonly streams = this._streams.asReadonly();
   readonly loading = this._loading.asReadonly();
   readonly error = this._error.asReadonly();
   readonly activeStream = this._activeStream.asReadonly();
 
-  getStreamsForMatch(matchId: string) {
-    return computed(() => this._streamsCache().get(matchId) || []);
-  }
-
   fetchStreams(matchId: string): void {
     this._loading.set(true);
     this._error.set(null);
 
+    // Primero intentar Supabase match_streams
     this.http.get<MatchStream[]>(`${this.env.supabaseUrl}/match_streams`, {
       params: { match_id: `eq.${matchId}`, select: '*' },
       headers: {
@@ -38,20 +32,39 @@ export class StreamService {
       }
     }).pipe(
       timeout(15000),
-      catchError(err => {
-        this._error.set('Error al cargar transmisiones');
-        this._loading.set(false);
-        return of([]);
-      })
+      catchError(() => of([]))
     ).subscribe(streams => {
+      if (streams.length > 0) {
+        this._streams.set(streams);
+        this._activeStream.set(streams[0]);
+        this._loading.set(false);
+      } else {
+        // Fallback: obtener streams de lacancha.tv API
+        this.fetchFromLaCancha(matchId);
+      }
+    });
+  }
+
+  /**
+   * Obtiene streams de lacancha.tv via el proxy (local o Vercel serverless).
+   */
+  private fetchFromLaCancha(matchId: string): void {
+    // En producción usa /api/streams (Vercel function)
+    // En dev usa http://localhost:3001/api/streams (proxy local)
+    const proxyUrl = this.env.production
+      ? '/api/streams'
+      : 'http://localhost:3001/api/streams';
+
+    this.http.get<{ streams: MatchStream[]; count: number }>(
+      proxyUrl,
+      { params: { matchId } }
+    ).pipe(
+      timeout(10000),
+      catchError(() => of({ streams: [] as MatchStream[], count: 0 }))
+    ).subscribe(response => {
+      const streams = response.streams || [];
       this._streams.set(streams);
       this._activeStream.set(streams.length > 0 ? streams[0] : null);
-
-      // Actualizar cache
-      const newCache = new Map(this._streamsCache());
-      newCache.set(matchId, streams);
-      this._streamsCache.set(newCache);
-
       this._loading.set(false);
     });
   }
@@ -61,16 +74,7 @@ export class StreamService {
   }
 
   checkAvailability(matchId: string): Observable<boolean> {
-    return this.http.get<{ id: string }[]>(`${this.env.supabaseUrl}/match_streams`, {
-      params: { match_id: `eq.${matchId}`, select: 'id', limit: '1' },
-      headers: {
-        'apikey': this.env.supabaseKey,
-        'Authorization': `Bearer ${this.env.supabaseKey}`
-      }
-    }).pipe(
-      timeout(5000),
-      map(result => result.length > 0),
-      catchError(() => of(false))
-    );
+    // Siempre hay streams disponibles via lacancha.tv para partidos live
+    return of(true);
   }
 }

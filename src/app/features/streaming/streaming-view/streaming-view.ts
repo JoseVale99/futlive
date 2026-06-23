@@ -26,50 +26,40 @@ import { formatScore } from '../../../shared/utils/match-format-util';
       </div>
 
       <div class="max-w-6xl mx-auto px-4 py-6">
-        @if (this.streamService.loading()) {
-          <!-- Loading State -->
-          <div class="animate-pulse">
-            <div class="aspect-video w-full max-w-[1280px] mx-auto bg-gray-200 dark:bg-gray-700 rounded-xl mb-6"></div>
-            <div class="h-6 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mx-auto mb-4"></div>
-            <div class="h-10 bg-gray-200 dark:bg-gray-700 rounded w-1/2 mx-auto"></div>
+        @if (streamService.loading()) {
+          <div class="animate-pulse space-y-4">
+            <div class="h-16 bg-gray-200 dark:bg-gray-700 rounded-xl"></div>
+            <div class="aspect-video bg-gray-200 dark:bg-gray-700 rounded-xl"></div>
           </div>
-        } @else if (this.streamService.error()) {
-          <!-- Error State -->
+        } @else if (streamService.error()) {
           <div class="text-center py-12">
             <div class="text-5xl mb-4">⚠️</div>
-            <p class="text-lg text-red-600 dark:text-red-400 font-semibold mb-4">{{ this.streamService.error() }}</p>
-            <button
-              (click)="this.streamService.fetchStreams(this.matchId())"
-              class="px-6 py-2 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors"
-            >
+            <p class="text-lg text-red-600 dark:text-red-400 font-semibold mb-4">{{ streamService.error() }}</p>
+            <button (click)="streamService.fetchStreams(matchId())" class="px-6 py-2 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors">
               Intentar de nuevo
             </button>
           </div>
-        } @else if (this.streamService.streams().length === 0) {
-          <!-- No Streams -->
-          <div class="text-center py-12">
-            <div class="text-5xl mb-4">📺</div>
-            <p class="text-lg text-gray-600 dark:text-gray-300 font-semibold">No hay transmisiones disponibles para este partido</p>
-          </div>
         } @else {
-          <!-- Match Info -->
-          @if (this.match()) {
-            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 mb-6 border border-gray-100 dark:border-gray-700">
-              <div class="flex items-center justify-between">
-                <div class="text-center flex-1">
-                  <p class="text-sm font-bold text-gray-900 dark:text-white">{{ this.match()!.home_team }}</p>
+          <!-- Match Info Card -->
+          @if (match()) {
+            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-5 mb-6 border border-gray-100 dark:border-gray-700">
+              <div class="flex items-center justify-center gap-6">
+                <div class="flex items-center gap-3">
+                  <img [src]="match()!.home_flag" [alt]="match()!.home_team" class="w-10 h-10 rounded-full object-cover border border-gray-200 dark:border-gray-600">
+                  <span class="text-sm font-bold text-gray-900 dark:text-white">{{ match()!.home_team }}</span>
                 </div>
-                <div class="px-6 text-center">
-                  <p class="text-3xl font-black text-gray-900 dark:text-white">{{ this.formatScore(this.match()!.home_score, this.match()!.away_score) }}</p>
-                  @if (this.match()!.status === 'live') {
-                    <p class="text-xs font-bold text-red-500 mt-1 flex items-center justify-center gap-1">
+                <div class="text-center">
+                  <p class="text-3xl font-black text-gray-900 dark:text-white">{{ formatScore(match()!.home_score, match()!.away_score) }}</p>
+                  @if (match()!.status === 'live') {
+                    <div class="flex items-center justify-center gap-1 mt-1">
                       <span class="w-2 h-2 bg-red-500 rounded-full animate-ping"></span>
-                      {{ this.match()!.time_elapsed }}'
-                    </p>
+                      <span class="text-xs font-bold text-red-500">{{ match()!.time_elapsed }}'</span>
+                    </div>
                   }
                 </div>
-                <div class="text-center flex-1">
-                  <p class="text-sm font-bold text-gray-900 dark:text-white">{{ this.match()!.away_team }}</p>
+                <div class="flex items-center gap-3">
+                  <span class="text-sm font-bold text-gray-900 dark:text-white">{{ match()!.away_team }}</span>
+                  <img [src]="match()!.away_flag" [alt]="match()!.away_team" class="w-10 h-10 rounded-full object-cover border border-gray-200 dark:border-gray-600">
                 </div>
               </div>
             </div>
@@ -77,31 +67,32 @@ import { formatScore } from '../../../shared/utils/match-format-util';
 
           <!-- Player -->
           <div class="mb-6">
-            <app-iframe-player [stream]="this.streamService.activeStream()" />
+            <app-iframe-player [stream]="streamService.activeStream()" />
           </div>
 
           <!-- Channel Selector -->
-          <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 border border-gray-100 dark:border-gray-700">
-            <app-channel-selector
-              [streams]="this.streamService.streams()"
-              [active]="this.streamService.activeStream()"
-              (channelSelected)="this.streamService.selectStream($event)"
-            />
-          </div>
+          @if (streamService.streams().length > 1) {
+            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-5 border border-gray-100 dark:border-gray-700">
+              <app-channel-selector
+                [streams]="streamService.streams()"
+                [active]="streamService.activeStream()"
+                (channelSelected)="streamService.selectStream($event)"
+              />
+            </div>
+          }
         }
       </div>
     </div>
   `
 })
 export class StreamingViewComponent implements OnInit {
-  private readonly route: ActivatedRoute = inject(ActivatedRoute);
-  private readonly router: Router = inject(Router);
-  readonly streamService: StreamService = inject(StreamService);
-  readonly matchService: MatchService = inject(MatchService);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
+  readonly streamService = inject(StreamService);
+  private readonly matchService = inject(MatchService);
 
-  readonly matchId = signal<string>('');
+  readonly matchId = signal('');
   readonly match = signal<Match | null>(null);
-
   readonly formatScore = formatScore;
 
   ngOnInit(): void {

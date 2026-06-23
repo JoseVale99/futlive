@@ -8,13 +8,14 @@ import { buildSafeEmbedUrl } from '../../../shared/utils/stream-url-util';
   standalone: true,
   template: `
     @if (stream() && safeUrl()) {
-      <div class="aspect-video w-full max-w-[1280px] mx-auto rounded-xl overflow-hidden shadow-2xl">
+      <div class="aspect-video w-full max-w-[1280px] mx-auto rounded-xl overflow-hidden shadow-2xl border border-gray-200 dark:border-gray-700">
         <iframe
           [src]="safeUrl()!"
           [title]="stream()?.embed_name || 'Transmisión en vivo'"
           class="w-full h-full border-0"
-          allow="autoplay; fullscreen; encrypted-media"
-          sandbox="allow-scripts allow-same-origin allow-presentation"
+          allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+          allowfullscreen
+          referrerpolicy="no-referrer"
         ></iframe>
       </div>
     } @else {

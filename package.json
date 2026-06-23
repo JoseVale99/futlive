@@ -4,6 +4,8 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
+    "proxy": "node proxy/streams-proxy.js",
+    "dev": "concurrently \"ng serve\" \"node proxy/streams-proxy.js\"",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test"

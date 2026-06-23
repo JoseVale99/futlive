@@ -1,0 +1,9 @@
+{
+  "buildCommand": "ng build --configuration production",
+  "outputDirectory": "dist/nexatv/browser",
+  "framework": null,
+  "rewrites": [
+    { "source": "/api/streams", "destination": "/api/streams" },
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
+  ]
+}

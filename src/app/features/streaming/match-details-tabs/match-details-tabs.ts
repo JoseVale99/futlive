@@ -19,14 +19,14 @@ export interface Tab {
   template: `
     <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 overflow-hidden">
       <!-- Tab Bar -->
-      <div class="flex overflow-x-auto border-b border-gray-200 dark:border-gray-700 scrollbar-hide">
+      <div class="flex overflow-x-auto border-b border-gray-200 dark:border-gray-700 scrollbar-hide max-h-10">
         @for (tab of tabs; track tab.id) {
           <button
             type="button"
             (click)="activeTab.set(tab.id)"
             [class]="activeTab() === tab.id
-              ? 'flex-1 min-w-[120px] px-4 py-3 text-sm font-semibold text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400 bg-blue-50/50 dark:bg-blue-950/20 whitespace-nowrap'
-              : 'flex-1 min-w-[120px] px-4 py-3 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 whitespace-nowrap transition-colors'"
+              ? 'flex-1 min-w-[120px] px-4 py-2 text-sm font-semibold text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400 bg-blue-50/50 dark:bg-blue-950/20 whitespace-nowrap'
+              : 'flex-1 min-w-[120px] px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 whitespace-nowrap transition-colors'"
           >
             {{ tab.label }}
           </button>
@@ -36,11 +36,11 @@ export interface Tab {
       <!-- Tab Panels -->
       <div class="p-4">
         @if (activeTab() === 'cronologia') {
-          <app-cronologia-tab [events]="events()" />
+          <app-cronologia-tab [events]="events()" [hasError]="hasError()" />
         } @else if (activeTab() === 'alineaciones') {
           <app-alineaciones-tab [lineups]="lineups()" />
         } @else if (activeTab() === 'estadisticas') {
-          <app-estadisticas-tab [stats]="stats()" />
+          <app-estadisticas-tab [stats]="stats()" [consecutiveErrors]="consecutiveErrors()" />
         }
       </div>
     </div>
@@ -50,6 +50,8 @@ export class MatchDetailsTabsComponent {
   events = input<MatchEvent[]>([]);
   stats = input<MatchStats[]>([]);
   lineups = input<MatchLineup[]>([]);
+  hasError = input<boolean>(false);
+  consecutiveErrors = input<number>(0);
 
   readonly tabs: Tab[] = [
     { id: 'cronologia', label: 'Cronología' },

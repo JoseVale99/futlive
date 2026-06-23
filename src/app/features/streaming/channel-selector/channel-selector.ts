@@ -42,32 +42,29 @@ export function groupStreamsByQuality(streams: MatchStream[]): StreamGroup[] {
   standalone: true,
   template: `
     @if (streams().length > 0) {
-      <div class="space-y-4">
+      <div [class]="needsScroll() ? 'max-h-[200px] overflow-y-auto space-y-3' : 'space-y-3'">
         @for (group of groupedStreams(); track group.category) {
           <div>
-            <h3 class="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">
+            <span class="text-xs h-3 uppercase tracking-wider text-gray-500 dark:text-gray-400 font-semibold">
               {{ group.category }}
-            </h3>
-            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            </span>
+            <div class="flex flex-wrap gap-2 mt-1">
               @for (stream of group.streams; track stream.id) {
                 <button
                   type="button"
                   (click)="channelSelected.emit(stream)"
                   [class]="active()?.embed_url === stream.embed_url
-                    ? 'flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-blue-500 bg-blue-50 dark:bg-blue-950/30 shadow-lg shadow-blue-500/10 transition-all'
-                    : 'flex flex-col items-center gap-2 p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-blue-300 dark:hover:border-blue-600 hover:shadow-md transition-all'"
+                    ? 'inline-flex items-center gap-2 max-h-8 px-3 py-1 rounded-full border border-blue-500 bg-blue-50 dark:bg-blue-950/30 text-sm font-medium transition-colors'
+                    : 'inline-flex items-center gap-2 max-h-8 px-3 py-1 rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-blue-300 dark:hover:border-blue-600 text-sm font-medium transition-colors'"
                 >
-                  <svg class="w-8 h-8 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
-                  </svg>
-                  <span class="text-xs font-semibold text-gray-800 dark:text-gray-100 text-center truncate w-full">
+                  <span class="truncate text-gray-800 dark:text-gray-100 text-xs">
                     {{ stream.embed_name }}
                   </span>
-                  <span [class]="isHD(stream)
-                    ? 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300'
-                    : 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'"
+                  <span [class]="classifyStreamQuality(stream.embed_name) === 'HD'
+                    ? 'text-[10px] font-bold px-1.5 py-0.5 rounded bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300'
+                    : 'text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'"
                   >
-                    {{ isHD(stream) ? 'HD' : 'SD' }}
+                    {{ classifyStreamQuality(stream.embed_name) }}
                   </span>
                 </button>
               }
@@ -91,8 +88,7 @@ export class ChannelSelectorComponent {
   channelSelected = output<MatchStream>();
 
   readonly groupedStreams = computed(() => groupStreamsByQuality(this.streams()));
+  readonly needsScroll = computed(() => this.streams().length > 20);
 
-  isHD(stream: MatchStream): boolean {
-    return classifyStreamQuality(stream.embed_name) === 'HD';
-  }
+  classifyStreamQuality = classifyStreamQuality;
 }

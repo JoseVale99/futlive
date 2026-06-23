@@ -75,22 +75,11 @@ function parseMatchPageStreams(html, matchId) {
 
   if (channels.length === 0) return [];
 
-  // Map channel names to known sudamericaplay2.com URLs
-  // These are the real embed URLs that lacancha.tv uses
+  // Map channel names to known embed URLs
   const channelUrlMap = {
     'DSports': 'https://sudamericaplay2.com/canal_8112/cza_dsports.html',
-    'DSports+': 'https://sudamericaplay2.com/canal_8112/cza_dsportsplus.html',
-    'DSports+ NO ADS': 'https://sudamericaplay2.com/canal_8112/cza_dsportsplus.html',
-    'ESPN': 'https://sudamericaplay2.com/canal_8112/cza_espn.html',
-    'ESPN 2': 'https://sudamericaplay2.com/canal_8112/cza_espn2.html',
-    'FOX': 'https://sudamericaplay2.com/canal_8112/cza_fox.html',
-    'FOX Sports': 'https://sudamericaplay2.com/canal_8112/cza_foxsports.html',
-    'DAZN Spain': 'https://sudamericaplay2.com/canal_8112/cza_dazn.html',
-    'Telemundo': 'https://sudamericaplay2.com/canal_8112/cza_telemundo.html',
-    'beIN Sports': 'https://sudamericaplay2.com/canal_8112/cza_bein.html',
-    'BBC/ITV': 'https://sudamericaplay2.com/canal_8112/cza_bbc.html',
-    'Peacock 4K (HEVC)': 'https://sudamericaplay2.com/canal_8112/cza_peacock4k.html',
-    'FOX 4K (HEVC)': 'https://sudamericaplay2.com/canal_8112/cza_fox4k.html',
+    'DSports+': 'https://latamplay1.click/channel/dsportsplus.html',
+    'DSports+ NO ADS': 'https://latamplay1.click/channel/dsportsplus.html',
   };
 
   // Build stream objects using the known URLs or construct a guess
@@ -100,9 +89,9 @@ function parseMatchPageStreams(html, matchId) {
       if (seen.has(name)) return null;
       seen.add(name);
 
-      // Use known URL or construct from pattern
-      const embedUrl = channelUrlMap[name] ||
-        `https://sudamericaplay2.com/canal_8112/cza_${name.toLowerCase().replace(/[^a-z0-9]/g, '')}.html`;
+      // Use known URL or skip if not mapped (RSC streams will provide the rest)
+      const embedUrl = channelUrlMap[name];
+      if (!embedUrl) return null;
 
       return {
         id: `proxy-${i}`,
@@ -231,6 +220,7 @@ const server = http.createServer(async (req, res) => {
         const existingNames = new Set(streams.map(s => s.embed_name));
         for (const rscStream of rscStreams) {
           if (!existingNames.has(rscStream.embed_name)) {
+            rscStream.id = `rsc-${streams.length}`;
             streams.push(rscStream);
             existingNames.add(rscStream.embed_name);
           }

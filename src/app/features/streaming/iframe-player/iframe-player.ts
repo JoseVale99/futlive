@@ -19,10 +19,15 @@ import { buildSafeEmbedUrl } from '../../../shared/utils/stream-url-util';
         ></iframe>
       </div>
     } @else {
-      <div class="aspect-video w-full max-w-[1280px] mx-auto bg-gray-100 dark:bg-gray-800 rounded-xl flex items-center justify-center shadow-xl">
-        <div class="text-center p-6">
-          <div class="text-4xl mb-3">📺</div>
-          <p class="text-gray-600 dark:text-gray-300 text-lg font-medium">No hay transmisión disponible</p>
+      <div class="aspect-video w-full max-w-[1280px] mx-auto bg-gray-900 rounded-xl flex items-center justify-center shadow-xl border border-gray-700">
+        <div class="text-center p-8">
+          <div class="w-20 h-20 mx-auto mb-4 bg-gray-800 rounded-full flex items-center justify-center border border-gray-700">
+            <svg class="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+            </svg>
+          </div>
+          <h3 class="text-white text-lg font-bold mb-1">Transmisión no disponible</h3>
+          <p class="text-gray-400 text-sm">Este partido no tiene señal activa en este momento</p>
         </div>
       </div>
     }

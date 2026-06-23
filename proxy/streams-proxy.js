@@ -36,6 +36,52 @@ function fetchRSC() {
   });
 }
 
+/**
+ * Fetch RSC from the specific match page on lacancha.tv
+ * This page has streams specific to that match (including DSports+ NO ADS)
+ */
+function fetchMatchPageRSC(matchId) {
+  return new Promise((resolve, reject) => {
+    const reqUrl = `https://lacancha.tv/es/partido/${matchId}?_rsc=${RSC_VALUE}`;
+    https.get(reqUrl, {
+      headers: {
+        'Accept': '*/*',
+        'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36',
+        'Referer': `https://lacancha.tv/es/partido/${matchId}`,
+        'RSC': '1',
+        'Next-Url': `/es/partido/${matchId}`,
+      }
+    }, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => resolve(data));
+    }).on('error', reject);
+  });
+}
+
+function fetchLiveData(matchId) {
+  return new Promise((resolve, reject) => {
+    const reqUrl = `https://lacancha.tv/api/match/${matchId}/live`;
+    https.get(reqUrl, {
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36',
+        'Referer': `https://lacancha.tv/es/partido/${matchId}`,
+      }
+    }, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try {
+          resolve(JSON.parse(data));
+        } catch (e) {
+          reject(new Error('Invalid JSON response'));
+        }
+      });
+    }).on('error', reject);
+  });
+}
+
 function parseStreams(rscText, matchId) {
   try {
     // Buscar el array de streams en el RSC text
@@ -122,7 +168,18 @@ const server = http.createServer(async (req, res) => {
 
     try {
       console.log(`[${new Date().toISOString()}] Fetching streams for match: ${matchId}`);
-      const rscText = await fetchRSC();
+
+      // Primero: intentar la página específica del partido (tiene DSports+ NO ADS y más canales)
+      let rscText = '';
+      try {
+        rscText = await fetchMatchPageRSC(matchId);
+        console.log(`[${new Date().toISOString()}] Got match page RSC (${rscText.length} bytes)`);
+      } catch (e) {
+        // Fallback: usar la página de en-vivo
+        console.log(`[${new Date().toISOString()}] Match page failed, falling back to en-vivo`);
+        rscText = await fetchRSC();
+      }
+
       const streams = parseStreams(rscText, matchId);
 
       console.log(`[${new Date().toISOString()}] Found ${streams.length} streams`);
@@ -133,9 +190,28 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(500);
       res.end(JSON.stringify({ error: 'Failed to fetch streams', detail: err.message }));
     }
+  } else if (parsed.pathname === '/api/live') {
+    const matchId = parsed.query.matchId;
+
+    if (!matchId) {
+      res.writeHead(400);
+      res.end(JSON.stringify({ error: 'matchId parameter required' }));
+      return;
+    }
+
+    try {
+      console.log(`[${new Date().toISOString()}] Fetching live data for match: ${matchId}`);
+      const liveData = await fetchLiveData(matchId);
+      res.writeHead(200);
+      res.end(JSON.stringify(liveData));
+    } catch (err) {
+      console.error('Live data error:', err);
+      res.writeHead(500);
+      res.end(JSON.stringify({ error: 'Failed to fetch live data', detail: err.message }));
+    }
   } else {
     res.writeHead(404);
-    res.end(JSON.stringify({ error: 'Not found. Use /api/streams?matchId={id}' }));
+    res.end(JSON.stringify({ error: 'Not found. Use /api/streams?matchId={id} or /api/live?matchId={id}' }));
   }
 });
 

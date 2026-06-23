@@ -1,32 +1,98 @@
-import { Component, input, output } from '@angular/core';
+import { Component, input, output, computed } from '@angular/core';
 import { MatchStream } from '../../../core/models/stream-model';
+
+export interface StreamGroup {
+  category: string;
+  streams: MatchStream[];
+}
+
+/** Pure function: classifies a stream as HD or SD based on embed_name */
+export function classifyStreamQuality(embedName: string): 'HD' | 'SD' {
+  const lower = embedName.toLowerCase();
+  return lower.includes('hd') ||
+    lower.includes('4k') ||
+    lower.includes('hevc') ||
+    lower.includes('1080') ||
+    lower.includes('720')
+    ? 'HD'
+    : 'SD';
+}
+
+/** Pure function: groups streams by quality category */
+export function groupStreamsByQuality(streams: MatchStream[]): StreamGroup[] {
+  const hd: MatchStream[] = [];
+  const sd: MatchStream[] = [];
+
+  for (const stream of streams) {
+    if (classifyStreamQuality(stream.embed_name) === 'HD') {
+      hd.push(stream);
+    } else {
+      sd.push(stream);
+    }
+  }
+
+  const groups: StreamGroup[] = [];
+  if (hd.length > 0) groups.push({ category: 'HD', streams: hd });
+  if (sd.length > 0) groups.push({ category: 'SD', streams: sd });
+  return groups;
+}
 
 @Component({
   selector: 'app-channel-selector',
   standalone: true,
   template: `
     @if (streams().length > 0) {
-      <div class="w-full">
-        <p class="text-sm text-gray-500 dark:text-gray-400 mb-3 font-semibold">Selecciona un canal:</p>
-        <div class="flex flex-wrap gap-2">
-          @for (stream of streams(); track stream.id) {
-            <button
-              type="button"
-              (click)="channelSelected.emit(stream)"
-              [class]="active()?.id === stream.id
-                ? 'px-4 py-2 rounded-xl font-semibold bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-500/25 scale-105'
-                : 'px-4 py-2 rounded-xl font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all'"
-            >
-              📺 {{ stream.embed_name }}
-            </button>
-          }
-        </div>
+      <div class="space-y-4">
+        @for (group of groupedStreams(); track group.category) {
+          <div>
+            <h3 class="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-2">
+              {{ group.category }}
+            </h3>
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+              @for (stream of group.streams; track stream.id) {
+                <button
+                  type="button"
+                  (click)="channelSelected.emit(stream)"
+                  [class]="active()?.id === stream.id
+                    ? 'flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-blue-500 bg-blue-50 dark:bg-blue-950/30 shadow-lg shadow-blue-500/10 transition-all'
+                    : 'flex flex-col items-center gap-2 p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-blue-300 dark:hover:border-blue-600 hover:shadow-md transition-all'"
+                >
+                  <svg class="w-8 h-8 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                  </svg>
+                  <span class="text-xs font-semibold text-gray-800 dark:text-gray-100 text-center truncate w-full">
+                    {{ stream.embed_name }}
+                  </span>
+                  <span [class]="isHD(stream)
+                    ? 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300'
+                    : 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'"
+                  >
+                    {{ isHD(stream) ? 'HD' : 'SD' }}
+                  </span>
+                </button>
+              }
+            </div>
+          </div>
+        }
+      </div>
+    } @else {
+      <div class="text-center py-8 text-gray-500 dark:text-gray-400">
+        <svg class="w-12 h-12 mx-auto mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+        </svg>
+        <p class="text-sm">No hay canales disponibles</p>
       </div>
     }
-  `
+  `,
 })
 export class ChannelSelectorComponent {
   streams = input<MatchStream[]>([]);
   active = input<MatchStream | null>(null);
   channelSelected = output<MatchStream>();
+
+  readonly groupedStreams = computed(() => groupStreamsByQuality(this.streams()));
+
+  isHD(stream: MatchStream): boolean {
+    return classifyStreamQuality(stream.embed_name) === 'HD';
+  }
 }

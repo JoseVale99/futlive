@@ -20,6 +20,19 @@ async function fetchRSC() {
   return res.text();
 }
 
+async function fetchMatchPageRSC(matchId) {
+  const res = await fetch(`https://lacancha.tv/es/partido/${matchId}?_rsc=${RSC_VALUE}`, {
+    headers: {
+      'Accept': '*/*',
+      'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36',
+      'Referer': `https://lacancha.tv/es/partido/${matchId}`,
+      'RSC': '1',
+      'Next-Url': `/es/partido/${matchId}`,
+    }
+  });
+  return res.text();
+}
+
 function parseStreams(rscText, matchId) {
   try {
     const embedUrls = [];
@@ -69,14 +82,33 @@ module.exports = async function handler(req, res) {
     return res.status(204).end();
   }
 
-  const { matchId } = req.query;
+  const { matchId, type } = req.query;
 
   if (!matchId) {
     return res.status(400).json({ error: 'matchId query parameter required' });
   }
 
   try {
-    const rscText = await fetchRSC();
+    // If type=live, proxy the live data API
+    if (type === 'live') {
+      const liveRes = await fetch(`https://lacancha.tv/api/match/${matchId}/live`, {
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36',
+          'Referer': `https://lacancha.tv/es/partido/${matchId}`,
+        }
+      });
+      const liveData = await liveRes.json();
+      return res.status(200).json(liveData);
+    }
+
+    // Default: fetch streams from match page RSC (has all channels including DSports+ NO ADS)
+    let rscText = '';
+    try {
+      rscText = await fetchMatchPageRSC(matchId);
+    } catch (e) {
+      rscText = await fetchRSC(); // fallback to en-vivo page
+    }
     const streams = parseStreams(rscText, matchId);
 
     return res.status(200).json({
@@ -85,6 +117,6 @@ module.exports = async function handler(req, res) {
       count: streams.length
     });
   } catch (err) {
-    return res.status(500).json({ error: 'Failed to fetch streams', detail: err.message });
+    return res.status(500).json({ error: 'Failed to fetch', detail: err.message });
   }
 };

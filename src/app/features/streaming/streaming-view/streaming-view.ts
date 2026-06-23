@@ -1,16 +1,18 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, inject, OnInit, OnDestroy, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { StreamService } from '../../../core/services/stream-service';
 import { MatchService } from '../../../core/services/match-service';
+import { LiveDataService } from '../../../core/services/live-data-service';
 import { IframePlayerComponent } from '../iframe-player/iframe-player';
 import { ChannelSelectorComponent } from '../channel-selector/channel-selector';
+import { MatchDetailsTabsComponent } from '../match-details-tabs/match-details-tabs';
 import { Match } from '../../../core/models/match-model';
 import { formatScore } from '../../../shared/utils/match-format-util';
 
 @Component({
   selector: 'app-streaming-view',
   standalone: true,
-  imports: [RouterLink, IframePlayerComponent, ChannelSelectorComponent],
+  imports: [RouterLink, IframePlayerComponent, ChannelSelectorComponent, MatchDetailsTabsComponent],
   template: `
     <div class="min-h-screen bg-gray-50 dark:bg-gray-900 pb-24">
       <!-- Header -->
@@ -80,16 +82,26 @@ import { formatScore } from '../../../shared/utils/match-format-util';
               />
             </div>
           }
+
+          <!-- Match Details Tabs -->
+          <div class="mt-6">
+            <app-match-details-tabs
+              [events]="liveDataService.events()"
+              [stats]="liveDataService.stats()"
+              [lineups]="liveDataService.lineups()"
+            />
+          </div>
         }
       </div>
     </div>
   `
 })
-export class StreamingViewComponent implements OnInit {
+export class StreamingViewComponent implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   readonly streamService = inject(StreamService);
   private readonly matchService = inject(MatchService);
+  readonly liveDataService = inject(LiveDataService);
 
   readonly matchId = signal('');
   readonly match = signal<Match | null>(null);
@@ -101,9 +113,18 @@ export class StreamingViewComponent implements OnInit {
       this.matchId.set(id);
       this.streamService.fetchStreams(id);
       const found = this.matchService.matches().find((m: Match) => m.id === id);
-      if (found) this.match.set(found);
+      if (found) {
+        this.match.set(found);
+        this.liveDataService.startPolling(id, found.status === 'live');
+      } else {
+        this.liveDataService.startPolling(id, false);
+      }
     } else {
       this.router.navigate(['/']);
     }
+  }
+
+  ngOnDestroy(): void {
+    this.liveDataService.stopPolling();
   }
 }

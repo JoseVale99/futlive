@@ -23,7 +23,12 @@ import { formatScore } from '../../../shared/utils/match-format-util';
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
             </svg>
           </a>
-          <h1 class="text-xl font-bold text-gray-900 dark:text-white truncate">📺 Transmisión en vivo</h1>
+          <h1 class="text-xl font-bold text-gray-900 dark:text-white truncate flex items-center gap-2">
+            <svg class="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.636 18.364a9 9 0 010-12.728m12.728 0a9 9 0 010 12.728M9.172 15.828a5 5 0 010-7.656m5.656 0a5 5 0 010 7.656M12 12h.01"></path>
+            </svg>
+            Transmisión en vivo
+          </h1>
         </div>
       </div>
 

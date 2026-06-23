@@ -8,7 +8,7 @@ import { buildSafeEmbedUrl } from '../../../shared/utils/stream-url-util';
   standalone: true,
   template: `
     @if (stream() && safeUrl()) {
-      <div class="aspect-video w-full max-w-[1280px] mx-auto rounded-xl overflow-hidden shadow-2xl border border-gray-200 dark:border-gray-700">
+      <div class="aspect-video w-full overflow-hidden rounded-xl shadow-lg border border-gray-200 dark:border-gray-700">
         <iframe
           [src]="safeUrl()!"
           [title]="stream()?.embed_name || 'Transmisión en vivo'"
@@ -18,7 +18,7 @@ import { buildSafeEmbedUrl } from '../../../shared/utils/stream-url-util';
         ></iframe>
       </div>
     } @else {
-      <div class="aspect-video w-full max-w-[1280px] mx-auto bg-gray-900 rounded-xl flex items-center justify-center shadow-xl border border-gray-700">
+      <div class="aspect-video w-full bg-gray-900 rounded-xl flex items-center justify-center shadow-lg border border-gray-700">
         <div class="text-center p-8">
           <div class="w-20 h-20 mx-auto mb-4 bg-gray-800 rounded-full flex items-center justify-center border border-gray-700">
             <svg class="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

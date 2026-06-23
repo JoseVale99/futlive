@@ -17,7 +17,7 @@ import { Match } from '../../../core/models/match-model';
     <div class="min-h-screen bg-gray-50 dark:bg-gray-900 pb-24">
       <!-- Header -->
       <div class="sticky top-0 z-10 bg-white/80 dark:bg-gray-800/80 backdrop-blur-lg border-b border-gray-200 dark:border-gray-700 px-4 py-3">
-        <div class="max-w-3xl mx-auto flex items-center gap-4">
+        <div class="max-w-7xl mx-auto flex items-center gap-4">
           <a routerLink="/" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
             <svg class="w-6 h-6 text-gray-700 dark:text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
@@ -32,7 +32,7 @@ import { Match } from '../../../core/models/match-model';
         </div>
       </div>
 
-      <div class="max-w-3xl mx-auto px-4 py-6">
+      <div class="max-w-7xl mx-auto px-4 py-6">
         @if (streamService.loading()) {
           <div class="animate-pulse space-y-3">
             <div class="h-16 bg-gray-200 dark:bg-gray-700 rounded-xl"></div>

@@ -6,11 +6,10 @@
 export function buildSafeEmbedUrl(url: string): string {
   if (!url) return '';
 
-  // Si ya es una URL completa, la retornamos
+  // Retornar la URL directa — el iframe la carga tal cual
   if (url.startsWith('http')) {
     return url;
   }
 
-  // Lógica personalizada si es necesario (ej. para ciertos proveedores)
   return url;
 }

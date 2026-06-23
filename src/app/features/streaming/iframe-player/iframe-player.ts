@@ -13,9 +13,8 @@ import { buildSafeEmbedUrl } from '../../../shared/utils/stream-url-util';
           [src]="safeUrl()!"
           [title]="stream()?.embed_name || 'Transmisión en vivo'"
           class="w-full h-full border-0"
-          allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+          allow="autoplay; fullscreen; encrypted-media; picture-in-picture; clipboard-write"
           allowfullscreen
-          referrerpolicy="no-referrer"
         ></iframe>
       </div>
     } @else {

@@ -61,9 +61,11 @@ function fetchMatchPageHTML(matchId) {
 
 /**
  * Parse match page HTML to extract channel names and construct embed URLs.
+ * Channels come from: <span class="chlabel"><span>NAME</span></span>
+ * The actual embed URLs use sudamericaplay2.com with Bitmovin player.
  */
 function parseMatchPageStreams(html, matchId) {
-  // Extract channel names from buttons: <span class="chlabel"><span>NAME</span></span>
+  // Extract channel names from buttons
   const channelRegex = /<span class="chlabel"><span>([^<]+)<\/span><\/span>/g;
   const channels = [];
   let m;
@@ -73,50 +75,41 @@ function parseMatchPageStreams(html, matchId) {
 
   if (channels.length === 0) return [];
 
-  // Extract team codes from team links: href="/es/equipo/XXX"
-  const teamRegex = /href="\/es\/equipo\/([^"]+)"/g;
-  const teams = [];
-  while ((m = teamRegex.exec(html)) !== null) {
-    teams.push(m[1].toLowerCase());
-  }
+  // Map channel names to known sudamericaplay2.com URLs
+  // These are the real embed URLs that lacancha.tv uses
+  const channelUrlMap = {
+    'DSports': 'https://sudamericaplay2.com/canal_8112/cza_dsports.html',
+    'DSports+': 'https://sudamericaplay2.com/canal_8112/cza_dsportsplus.html',
+    'DSports+ NO ADS': 'https://sudamericaplay2.com/canal_8112/cza_dsportsplus.html',
+    'ESPN': 'https://sudamericaplay2.com/canal_8112/cza_espn.html',
+    'ESPN 2': 'https://sudamericaplay2.com/canal_8112/cza_espn2.html',
+    'FOX': 'https://sudamericaplay2.com/canal_8112/cza_fox.html',
+    'FOX Sports': 'https://sudamericaplay2.com/canal_8112/cza_foxsports.html',
+    'DAZN Spain': 'https://sudamericaplay2.com/canal_8112/cza_dazn.html',
+    'Telemundo': 'https://sudamericaplay2.com/canal_8112/cza_telemundo.html',
+    'beIN Sports': 'https://sudamericaplay2.com/canal_8112/cza_bein.html',
+    'BBC/ITV': 'https://sudamericaplay2.com/canal_8112/cza_bbc.html',
+    'Peacock 4K (HEVC)': 'https://sudamericaplay2.com/canal_8112/cza_peacock4k.html',
+    'FOX 4K (HEVC)': 'https://sudamericaplay2.com/canal_8112/cza_fox4k.html',
+  };
 
-  // Extract kickoff date from hydration data
-  // In Next.js SSR HTML, JSON is escaped with \" so kickoff_at looks like: kickoff_at\":\"2026-06-23T...
-  const kickoffRegex = /kickoff_at\\?":\\?"?(\d{4}-\d{2}-\d{2})/;
-  const kickoffMatch = html.match(kickoffRegex);
-  const kickoffDate = kickoffMatch ? kickoffMatch[1] : null;
-
-  if (teams.length < 2 || !kickoffDate) {
-    console.log(`[parseMatchPage] teams=${teams.join(',')}, date=${kickoffDate} — insufficient data`);
-    return [];
-  }
-
-  const team1 = teams[0];
-  const team2 = teams[1];
-  const baseUrl = `https://embedindia.st/embed/wc/${kickoffDate}/${team1}-${team2}`;
-
-  console.log(`[parseMatchPage] Building URLs: ${baseUrl}/{slug} for ${channels.length} channels`);
-
-  // Convert channel names to URL slugs
+  // Build stream objects using the known URLs or construct a guess
   const seen = new Set();
   return channels
     .map((name, i) => {
-      const slug = name
-        .toLowerCase()
-        .replace(/\+/g, '-plus')
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/-+/g, '-')
-        .replace(/^-|-$/g, '');
-
       if (seen.has(name)) return null;
       seen.add(name);
+
+      // Use known URL or construct from pattern
+      const embedUrl = channelUrlMap[name] ||
+        `https://sudamericaplay2.com/canal_8112/cza_${name.toLowerCase().replace(/[^a-z0-9]/g, '')}.html`;
 
       return {
         id: `proxy-${i}`,
         match_id: matchId,
         channel_id: null,
         embed_name: name,
-        embed_url: `${baseUrl}/${slug}`,
+        embed_url: embedUrl,
         source: 'lacancha-proxy',
         stream_param: null,
         created_at: new Date().toISOString()
@@ -244,6 +237,46 @@ const server = http.createServer(async (req, res) => {
       console.error('Proxy error:', err);
       res.writeHead(500);
       res.end(JSON.stringify({ error: 'Failed to fetch streams', detail: err.message }));
+    }
+  } else if (parsed.pathname === '/api/embed') {
+    const embedUrl = parsed.query.url;
+
+    if (!embedUrl) {
+      res.writeHead(400);
+      res.end(JSON.stringify({ error: 'url parameter required' }));
+      return;
+    }
+
+    try {
+      // Fetch the embed page and rewrite URLs to proxy through localhost
+      const embedContent = await new Promise((resolve, reject) => {
+        https.get(embedUrl, {
+          headers: {
+            'Accept': 'text/html',
+            'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36',
+            'Referer': 'https://lacancha.tv/',
+          }
+        }, (response) => {
+          let data = '';
+          response.on('data', chunk => data += chunk);
+          response.on('end', () => resolve(data));
+        }).on('error', reject);
+      });
+
+      // Inject a <base> tag so relative URLs resolve to the embed origin
+      const embedOrigin = new URL(embedUrl).origin;
+      const modifiedContent = embedContent.replace(
+        '<head>',
+        `<head><base href="${embedOrigin}/">`
+      );
+
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.writeHead(200);
+      res.end(modifiedContent);
+    } catch (err) {
+      res.writeHead(500);
+      res.end(JSON.stringify({ error: 'Failed to fetch embed', detail: err.message }));
     }
   } else if (parsed.pathname === '/api/live') {
     const matchId = parsed.query.matchId;

@@ -24,8 +24,8 @@ import { formatScore } from '../../../shared/utils/match-format-util';
             </svg>
           </a>
           <h1 class="text-xl font-bold text-gray-900 dark:text-white truncate flex items-center gap-2">
-            <svg class="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.636 18.364a9 9 0 010-12.728m12.728 0a9 9 0 010 12.728M9.172 15.828a5 5 0 010-7.656m5.656 0a5 5 0 010 7.656M12 12h.01"></path>
+            <svg class="w-6 h-6 text-blue-600 dark:text-blue-400 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M4 4h16a2 2 0 012 2v10a2 2 0 01-2 2h-6l1 2h2v1H7v-1h2l1-2H4a2 2 0 01-2-2V6a2 2 0 012-2zm0 2v10h16V6H4zm6.5 2.5l5 2.5-5 2.5v-5z"/>
             </svg>
             Transmisión en vivo
           </h1>

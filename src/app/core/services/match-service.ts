@@ -1,7 +1,7 @@
 import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { inject, Injectable, signal, computed } from '@angular/core';
 import { ENVIRONMENT_TOKEN } from '../config/environment';
-import { Match, MatchStatus, Goal, MatchEvent } from '../models/match-model';
+import { Match, MatchStatus, Goal, MatchEvent, MatchStats } from '../models/match-model';
 import { catchError, finalize, forkJoin, map, Observable, of, retry, Subscription, switchMap, timeout, timer, shareReplay } from 'rxjs';
 import { sortMatchesByKickoff } from '../../shared/utils/match-sort-util';
 
@@ -121,6 +121,27 @@ export class MatchService {
   }
 
   /**
+   * Obtiene datos en vivo desde lacancha.tv API (eventos + stats reales).
+   * Si falla (CORS u otro), cae a Supabase match_events.
+   */
+  private fetchLiveData(matchId: string): Observable<{ events: MatchEvent[]; stats: MatchStats[] }> {
+    return this.http.get<{
+      match: { status: string; home_score: number; away_score: number; time_elapsed: string };
+      events: MatchEvent[];
+      stats: MatchStats[];
+    }>(`https://lacancha.tv/api/match/${matchId}/live`).pipe(
+      timeout(8000),
+      map(res => ({ events: res.events || [], stats: res.stats || [] })),
+      catchError(() => {
+        // Fallback a Supabase si lacancha.tv falla (CORS, timeout, etc)
+        return this.fetchMatchEvents(matchId).pipe(
+          map(events => ({ events, stats: [] as MatchStats[] }))
+        );
+      })
+    );
+  }
+
+  /**
    * Obtiene partidos y enriquece con eventos (goles, tarjetas, subs).
    */
   fetchMatchesWithEvents(status?: MatchStatus, timeoutMs: number = 15000): Observable<Match[]> {
@@ -129,6 +150,20 @@ export class MatchService {
         if (matches.length === 0) return of([]);
 
         const matchesWithEvents$ = matches.map(match => {
+          // Para partidos LIVE: usar lacancha.tv API para datos en tiempo real
+          if (match.status === 'live') {
+            return this.fetchLiveData(match.id).pipe(
+              map(({ events, stats }) => ({
+                ...match,
+                events,
+                stats,
+                goals: events
+                  .filter(e => e.type === 'goal')
+                  .map(e => ({ team: e.team, scorer: e.player, minute: e.minute }))
+              }))
+            );
+          }
+
           // Si el partido está finalizado y tenemos sus eventos en cache, usamos el cache
           if (match.status === 'finished' && this.finishedEventsCache.has(match.id)) {
             const cachedEvents = this.finishedEventsCache.get(match.id)!;
@@ -141,14 +176,12 @@ export class MatchService {
             });
           }
 
-          // Si no, pedimos los eventos
+          // Para scheduled/finished sin cache: pedir a Supabase
           return this.fetchMatchEvents(match.id).pipe(
             map(events => {
-              // Si es finalizado, guardamos en cache
               if (match.status === 'finished') {
                 this.finishedEventsCache.set(match.id, events);
               }
-
               return {
                 ...match,
                 events,

@@ -1,5 +1,5 @@
 import { Component, input, signal, inject, OnInit } from '@angular/core';
-import { Match, Goal, MatchEvent } from '../../../core/models/match-model';
+import { Match, Goal, MatchEvent, MatchStats } from '../../../core/models/match-model';
 import { formatKickoffTime, formatScore, formatVenue, formatStageInfo } from '../../../shared/utils/match-format-util';
 import { APP_CONSTANTS } from '../../../shared/constants/app-constants';
 import { StreamService } from '../../../core/services/stream-service';
@@ -68,17 +68,18 @@ import { Router } from '@angular/router';
           </div>
         </div>
 
-        <!-- Action Buttons -->
-        @if (match().status === 'live' && hasStream()) {
+        <!-- Action Buttons - Always show for live matches -->
+        @if (match().status === 'live') {
           <div class="mb-6">
             <button
               (click)="watchLive()"
-              class="w-full py-3 bg-linear-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 text-white rounded-xl font-black text-sm shadow-lg shadow-red-500/25 flex items-center justify-center gap-2 transition-transform hover:scale-[1.02] active:scale-[0.98]"
+              class="w-full py-3.5 bg-linear-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 text-white rounded-xl font-black text-sm shadow-lg shadow-red-500/25 flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
             >
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-              </svg>
-              VER EN VIVO
+              <span class="relative flex h-3 w-3">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-3 w-3 bg-white"></span>
+              </span>
+              VER PARTIDO EN VIVO
             </button>
           </div>
         }
@@ -127,17 +128,17 @@ import { Router } from '@angular/router';
           </div>
         }
 
-        <!-- Possession Bar (always visible for live/finished) -->
-        @if (match().status === 'live' || match().status === 'finished') {
+        <!-- Possession Bar (only if real stats exist) -->
+        @if (homePossession() !== null) {
           <div class="mb-4 pt-4 border-t border-gray-100 dark:border-gray-700/50">
             <div class="flex items-center justify-between mb-2">
-              <span class="text-[11px] font-bold text-gray-600 dark:text-gray-400">50%</span>
+              <span class="text-[11px] font-bold text-gray-600 dark:text-gray-400">{{ homePossession() }}%</span>
               <span class="text-[10px] font-medium text-gray-400 dark:text-gray-500 uppercase">Posesión</span>
-              <span class="text-[11px] font-bold text-gray-600 dark:text-gray-400">50%</span>
+              <span class="text-[11px] font-bold text-gray-600 dark:text-gray-400">{{ awayPossession() }}%</span>
             </div>
             <div class="h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden flex">
-              <div class="h-full bg-linear-to-r from-blue-400 to-blue-600 rounded-l-full" style="width: 50%;"></div>
-              <div class="h-full bg-linear-to-r from-orange-400 to-orange-600 rounded-r-full" style="width: 50%;"></div>
+              <div class="h-full bg-linear-to-r from-blue-400 to-blue-600 rounded-l-full transition-all duration-500" [style.width.%]="homePossession()"></div>
+              <div class="h-full bg-linear-to-r from-orange-400 to-orange-600 rounded-r-full transition-all duration-500" [style.width.%]="awayPossession()"></div>
             </div>
           </div>
         }
@@ -145,7 +146,7 @@ import { Router } from '@angular/router';
         <!-- Expandable Stats Tab -->
         @if (hasDetailedEvents()) {
           <div class="border-t border-gray-100 dark:border-gray-700/50">
-            <button (click)="toggleDetails()" class="w-full py-3 flex items-center justify-center gap-2 text-xs font-bold text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300 transition-colors">
+            <button (click)="toggleDetails()" class="w-full py-3 flex items-center justify-center gap-2 text-xs font-bold text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300 transition-colors cursor-pointer">
               <svg class="w-4 h-4 transition-transform duration-200" [class.rotate-180]="showDetails()" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
               </svg>
@@ -153,27 +154,30 @@ import { Router } from '@angular/router';
             </button>
 
             @if (showDetails()) {
-              <div class="pb-4 px-2 space-y-2 animate-fade-in">
-                @for (event of nonGoalEvents(); track event.id) {
-                  <div class="flex items-center gap-2 text-xs py-1" [class]="event.team === 'home' ? '' : 'flex-row-reverse text-right'">
-                    @if (event.type === 'yellow') {
-                      <div class="w-3 h-4 bg-yellow-400 rounded-sm shrink-0 shadow-sm"></div>
-                    } @else if (event.type === 'red') {
-                      <div class="w-3 h-4 bg-red-500 rounded-sm shrink-0 shadow-sm"></div>
-                    } @else if (event.type === 'sub') {
-                      <svg class="w-4 h-4 text-blue-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/>
-                      </svg>
-                    }
-                    <span class="text-[10px] text-gray-400 dark:text-gray-500 font-bold min-w-6">{{ event.minute }}'</span>
-                    <div class="flex flex-col">
-                      <span class="text-gray-800 dark:text-gray-200 font-semibold">{{ event.player }}</span>
-                      @if (event.assist && event.type === 'sub') {
-                        <span class="text-[10px] text-gray-400 dark:text-gray-500">↓ {{ event.assist }}</span>
+              <div class="pb-4 px-2 space-y-4 animate-fade-in">
+                <!-- Events List -->
+                <div class="space-y-2">
+                  @for (event of nonGoalEvents(); track event.id) {
+                    <div class="flex items-center gap-2 text-xs py-1" [class]="event.team === 'home' ? '' : 'flex-row-reverse text-right'">
+                      @if (event.type === 'yellow') {
+                        <div class="w-3 h-4 bg-yellow-400 rounded-sm shrink-0 shadow-sm"></div>
+                      } @else if (event.type === 'red') {
+                        <div class="w-3 h-4 bg-red-500 rounded-sm shrink-0 shadow-sm"></div>
+                      } @else if (event.type === 'sub') {
+                        <svg class="w-4 h-4 text-blue-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/>
+                        </svg>
                       }
+                      <span class="text-[10px] text-gray-400 dark:text-gray-500 font-bold min-w-6">{{ event.minute }}'</span>
+                      <div class="flex flex-col">
+                        <span class="text-gray-800 dark:text-gray-200 font-semibold">{{ event.player }}</span>
+                        @if (event.assist && event.type === 'sub') {
+                          <span class="text-[10px] text-gray-400 dark:text-gray-500">↓ {{ event.assist }}</span>
+                        }
+                      </div>
                     </div>
-                  </div>
-                }
+                  }
+                </div>
               </div>
             }
           </div>
@@ -194,7 +198,7 @@ import { Router } from '@angular/router';
   `
 })
 export class MatchCardComponent implements OnInit {
-  private readonly streamService = inject(StreamService);
+  protected readonly streamService = inject(StreamService);
   private readonly router = inject(Router);
 
   match = input.required<Match>();
@@ -209,12 +213,26 @@ export class MatchCardComponent implements OnInit {
     }
   }
 
-  watchLive() {
-    this.router.navigate(['/stream', this.match().id]);
+  homePossession(): number | null {
+    const stats = this.match().stats;
+    if (!stats || stats.length === 0) return null;
+    const home = stats.find(s => s.team === 'home');
+    return home?.possession ?? null;
+  }
+
+  awayPossession(): number | null {
+    const stats = this.match().stats;
+    if (!stats || stats.length === 0) return null;
+    const away = stats.find(s => s.team === 'away');
+    return away?.possession ?? null;
   }
 
   toggleDetails() {
     this.showDetails.update(v => !v);
+  }
+
+  watchLive() {
+    this.router.navigate(['/stream', this.match().id]);
   }
 
   goalEvents(): MatchEvent[] {

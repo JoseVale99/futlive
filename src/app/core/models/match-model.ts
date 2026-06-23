@@ -20,6 +20,16 @@ export interface Goal {
   minute: number;
 }
 
+export interface MatchStats {
+  match_id: string;
+  team: 'home' | 'away';
+  possession: number;
+  shots: number;
+  shots_on_target: number;
+  corners: number;
+  fouls: number;
+}
+
 export interface Match {
   id: string;
   external_id: string;
@@ -40,6 +50,7 @@ export interface Match {
   venue_city: string;
   goals?: Goal[];
   events?: MatchEvent[];
+  stats?: MatchStats[];
 }
 
 export interface MatchState {

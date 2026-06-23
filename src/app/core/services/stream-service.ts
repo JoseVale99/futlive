@@ -1,4 +1,4 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, inject, signal, computed } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { ENVIRONMENT_TOKEN } from '../config/environment';
 import { MatchStream } from '../models/stream-model';
@@ -14,10 +14,17 @@ export class StreamService {
   private readonly _error = signal<string | null>(null);
   private readonly _activeStream = signal<MatchStream | null>(null);
 
+  // Mapa para cachear streams por partido
+  private _streamsCache = signal<Map<string, MatchStream[]>>(new Map());
+
   readonly streams = this._streams.asReadonly();
   readonly loading = this._loading.asReadonly();
   readonly error = this._error.asReadonly();
   readonly activeStream = this._activeStream.asReadonly();
+
+  getStreamsForMatch(matchId: string) {
+    return computed(() => this._streamsCache().get(matchId) || []);
+  }
 
   fetchStreams(matchId: string): void {
     this._loading.set(true);
@@ -39,6 +46,12 @@ export class StreamService {
     ).subscribe(streams => {
       this._streams.set(streams);
       this._activeStream.set(streams.length > 0 ? streams[0] : null);
+
+      // Actualizar cache
+      const newCache = new Map(this._streamsCache());
+      newCache.set(matchId, streams);
+      this._streamsCache.set(newCache);
+
       this._loading.set(false);
     });
   }

@@ -33,17 +33,7 @@
   </header>
 
   <!-- Content -->
-  <div class="pt-10 pb-24 md:pb-10">
-    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-      <app-status-filter
-        [activeStatus]="matchService.activeStatus()"
-        (statusChange)="onStatusChange($event)"
-      />
-      <div class="mt-6">
-        <app-match-list />
-      </div>
-    </div>
-  </div>
+  <router-outlet />
 
   <!-- Mobile Navigation -->
   <nav class="md:hidden fixed bottom-0 left-0 right-0 z-40 backdrop-blur-xl bg-white/95 dark:bg-gray-900/95 border-t border-gray-200 dark:border-gray-800 px-4 py-3 flex justify-around items-center shadow-xl">

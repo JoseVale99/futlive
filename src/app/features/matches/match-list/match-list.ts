@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { MatchService } from '../../../core/services/match-service';
 import { MatchCardComponent } from '../match-card/match-card';
 import { CommonModule } from '@angular/common';

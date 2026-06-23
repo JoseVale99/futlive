@@ -6,6 +6,17 @@
   <base href="/">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <script>
+    (function() {
+      var t = 'nexatv-theme';
+      var stored = null;
+      try { stored = localStorage.getItem(t); } catch(e) {}
+      var valid = stored === 'light' || stored === 'dark' || stored === 'system';
+      var pref = valid ? stored : 'system';
+      var dark = pref === 'dark' || (pref === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      if (dark) document.documentElement.classList.add('dark');
+    })();
+  </script>
 </head>
 <body>
   <app-root></app-root>

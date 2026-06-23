@@ -51,6 +51,10 @@ export class LiveDataService implements OnDestroy {
     this._loading.set(true);
     this._error.set(null);
     this._consecutiveErrors.set(0);
+    this._events.set([]);
+    this._stats.set([]);
+    this._lineups.set([]);
+    this._liveScore.set(null);
     this.currentMatchId = matchId;
     this.currentStatus.set(initialStatus);
 

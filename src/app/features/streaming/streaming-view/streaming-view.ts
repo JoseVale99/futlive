@@ -1,4 +1,4 @@
-import { Component, inject, OnInit, OnDestroy, signal } from '@angular/core';
+import { Component, inject, OnInit, OnDestroy, signal, computed } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { StreamService } from '../../../core/services/stream-service';
 import { MatchService } from '../../../core/services/match-service';
@@ -27,7 +27,7 @@ import { Match } from '../../../core/models/match-model';
             <svg class="w-6 h-6 text-blue-600 dark:text-blue-400 shrink-0" viewBox="0 0 24 24" fill="currentColor">
               <path d="M4 4h16a2 2 0 012 2v10a2 2 0 01-2 2h-6l1 2h2v1H7v-1h2l1-2H4a2 2 0 01-2-2V6a2 2 0 012-2zm0 2v10h16V6H4zm6.5 2.5l5 2.5-5 2.5v-5z"/>
             </svg>
-            Transmisión en vivo
+            {{ isFinished() ? 'Resumen del partido' : 'Transmisión en vivo' }}
           </h1>
         </div>
       </div>
@@ -81,23 +81,31 @@ import { Match } from '../../../core/models/match-model';
               />
             }
 
-            <!-- Player -->
-            <app-iframe-player [stream]="streamService.activeStream()" />
+            <!-- Player + Channels (solo si NO es finished) -->
+            @if (!isFinished()) {
+              <app-iframe-player [stream]="streamService.activeStream()" />
 
-            <!-- Channel Selector -->
-            @if (streamService.streams().length === 1) {
-              <app-channel-selector
-                [streams]="streamService.streams()"
-                [active]="streamService.activeStream()"
-                (channelSelected)="streamService.selectStream($event)"
-              />
-            } @else if (streamService.streams().length > 1) {
-              <div class="p-3 rounded-xl">
+              @if (streamService.streams().length === 1) {
                 <app-channel-selector
                   [streams]="streamService.streams()"
                   [active]="streamService.activeStream()"
                   (channelSelected)="streamService.selectStream($event)"
                 />
+              } @else if (streamService.streams().length > 1) {
+                <div class="p-3 rounded-xl">
+                  <app-channel-selector
+                    [streams]="streamService.streams()"
+                    [active]="streamService.activeStream()"
+                    (channelSelected)="streamService.selectStream($event)"
+                  />
+                </div>
+              }
+            } @else {
+              <!-- Finished badge -->
+              <div class="flex justify-center">
+                <span class="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-3 py-1 rounded-full">
+                  Partido finalizado
+                </span>
               </div>
             }
 
@@ -126,6 +134,12 @@ export class StreamingViewComponent implements OnInit, OnDestroy {
   readonly match = signal<Match | null>(null);
   readonly matchLoading = signal(true);
   readonly matchError = signal<string | null>(null);
+
+  readonly isFinished = computed(() => {
+    const live = this.liveDataService.liveScore();
+    if (live) return live.status === 'finished';
+    return this.match()?.status === 'finished';
+  });
 
   ngOnInit(): void {
     const id = this.route.snapshot.paramMap.get('matchId');

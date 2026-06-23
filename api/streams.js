@@ -40,49 +40,65 @@ async function fetchMatchPageHTML(matchId) {
 }
 
 /**
- * Parse match page HTML to extract channel names and construct embed URLs.
- * The real player URLs use sudamericaplay2.com with Bitmovin player.
+ * Parse match page HTML to extract streams from Next.js hydration data.
+ * The hydration contains full stream objects with embed_url already resolved.
  */
 function parseMatchPageStreams(html, matchId) {
-  // Extract channel names from buttons
-  const channelRegex = /<span class="chlabel"><span>([^<]+)<\/span><\/span>/g;
-  const channels = [];
+  const streams = [];
+
+  // Extract stream objects from hydration data
+  const streamRegex = /\{[^{}]*"embed_name":"([^"]+)"[^{}]*"embed_url":"(https?:\/\/[^"]+)"[^{}]*\}/g;
   let m;
-  while ((m = channelRegex.exec(html)) !== null) {
-    channels.push(m[1]);
+  const seen = new Set();
+
+  while ((m = streamRegex.exec(html)) !== null) {
+    const fullMatch = m[0];
+    const embedName = m[1];
+    const embedUrl = m[2];
+
+    if (seen.has(embedName)) continue;
+    seen.add(embedName);
+
+    const sourceMatch = fullMatch.match(/"source":"([^"]+)"/);
+    const source = sourceMatch ? sourceMatch[1] : 'lacancha-proxy';
+
+    streams.push({
+      id: `match-${streams.length}`,
+      match_id: matchId,
+      channel_id: null,
+      embed_name: embedName,
+      embed_url: embedUrl,
+      source: source,
+      stream_param: null,
+      created_at: new Date().toISOString()
+    });
   }
 
-  if (channels.length === 0) return [];
-
-  // Map channel names to known embed URLs
+  // Also check for channels from button HTML (DSports, DSports+ with known URLs)
   const channelUrlMap = {
     'DSports': 'https://sudamericaplay2.com/canal_8112/cza_dsports.html',
     'DSports+': 'https://latamplay1.click/channel/dsportsplus.html',
-    'DSports+ NO ADS': 'https://latamplay1.click/channel/dsportsplus.html',
   };
 
-  const seen = new Set();
-  return channels
-    .map((name, i) => {
-      if (seen.has(name)) return null;
+  const channelRegex = /<span class="chlabel"><span>([^<]+)<\/span><\/span>/g;
+  while ((m = channelRegex.exec(html)) !== null) {
+    const name = m[1];
+    if (!seen.has(name) && channelUrlMap[name]) {
       seen.add(name);
-
-      const embedUrl = channelUrlMap[name];
-      if (!embedUrl) return null;
-
-      return {
-        id: `proxy-${i}`,
+      streams.push({
+        id: `match-${streams.length}`,
         match_id: matchId,
         channel_id: null,
         embed_name: name,
-        embed_url: embedUrl,
+        embed_url: channelUrlMap[name],
         source: 'lacancha-proxy',
         stream_param: null,
         created_at: new Date().toISOString()
-      };
-    })
-    .filter(Boolean)
-    .slice(0, 20);
+      });
+    }
+  }
+
+  return streams.slice(0, 30);
 }
 
 function parseStreams(rscText, matchId) {

@@ -81,11 +81,11 @@ import { formatScore } from '../../../shared/utils/match-format-util';
                   <span class="text-sm font-bold text-gray-900 dark:text-white">{{ match()!.home_team }}</span>
                 </div>
                 <div class="text-center">
-                  <p class="text-3xl font-black text-gray-900 dark:text-white">{{ formatScore(match()!.home_score, match()!.away_score) }}</p>
-                  @if (match()!.status === 'live') {
+                  <p class="text-3xl font-black text-gray-900 dark:text-white">{{ liveScoreText() }}</p>
+                  @if (match()!.status === 'live' || liveDataService.liveScore()?.status === 'live') {
                     <div class="flex items-center justify-center gap-1 mt-1">
                       <span class="w-2 h-2 bg-red-500 rounded-full animate-ping"></span>
-                      <span class="text-xs font-bold text-red-500">{{ match()!.time_elapsed }}'</span>
+                      <span class="text-xs font-bold text-red-500">{{ liveTimeElapsed() }}'</span>
                     </div>
                   }
                 </div>
@@ -138,6 +138,19 @@ export class StreamingViewComponent implements OnInit, OnDestroy {
   readonly matchLoading = signal(true);
   readonly matchError = signal<string | null>(null);
   readonly formatScore = formatScore;
+
+  liveScoreText(): string {
+    const live = this.liveDataService.liveScore();
+    if (live) return formatScore(live.home_score, live.away_score);
+    const m = this.match();
+    return m ? formatScore(m.home_score, m.away_score) : '- - -';
+  }
+
+  liveTimeElapsed(): string {
+    const live = this.liveDataService.liveScore();
+    if (live) return live.time_elapsed;
+    return String(this.match()?.time_elapsed ?? '');
+  }
 
   ngOnInit(): void {
     const id = this.route.snapshot.paramMap.get('matchId');

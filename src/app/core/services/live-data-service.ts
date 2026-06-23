@@ -23,12 +23,14 @@ export class LiveDataService implements OnDestroy {
   private readonly _events = signal<MatchEvent[]>([]);
   private readonly _stats = signal<MatchStats[]>([]);
   private readonly _lineups = signal<MatchLineup[]>([]);
+  private readonly _liveScore = signal<{ home_score: number; away_score: number; time_elapsed: string; status: string } | null>(null);
   private readonly _loading = signal(false);
   private readonly _error = signal<string | null>(null);
 
   readonly events = this._events.asReadonly();
   readonly stats = this._stats.asReadonly();
   readonly lineups = this._lineups.asReadonly();
+  readonly liveScore = this._liveScore.asReadonly();
   readonly loading = this._loading.asReadonly();
   readonly error = this._error.asReadonly();
 
@@ -40,7 +42,7 @@ export class LiveDataService implements OnDestroy {
     this._loading.set(true);
     this._error.set(null);
 
-    const source$ = isLive ? timer(0, 120_000) : timer(0);
+    const source$ = isLive ? timer(0, 30_000) : timer(0);
 
     // Usar proxy para evitar CORS
     const proxyUrl = this.env.production
@@ -65,6 +67,15 @@ export class LiveDataService implements OnDestroy {
         if (response) {
           this._events.set(response.events ?? []);
           this._stats.set(response.stats ?? []);
+          // Actualizar score en tiempo real
+          if (response.match) {
+            this._liveScore.set({
+              home_score: response.match.home_score,
+              away_score: response.match.away_score,
+              time_elapsed: response.match.time_elapsed,
+              status: response.match.status,
+            });
+          }
           // Si la respuesta de lacancha.tv trae lineups, usarlas
           if (response.lineups && response.lineups.length > 0) {
             this._lineups.set(response.lineups);

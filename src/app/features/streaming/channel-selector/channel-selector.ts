@@ -53,7 +53,7 @@ export function groupStreamsByQuality(streams: MatchStream[]): StreamGroup[] {
                 <button
                   type="button"
                   (click)="channelSelected.emit(stream)"
-                  [class]="active()?.id === stream.id
+                  [class]="active()?.embed_url === stream.embed_url
                     ? 'flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-blue-500 bg-blue-50 dark:bg-blue-950/30 shadow-lg shadow-blue-500/10 transition-all'
                     : 'flex flex-col items-center gap-2 p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-blue-300 dark:hover:border-blue-600 hover:shadow-md transition-all'"
                 >

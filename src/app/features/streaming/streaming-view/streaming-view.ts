@@ -43,7 +43,32 @@ import { formatScore } from '../../../shared/utils/match-format-util';
           </div>
         } @else {
           <!-- Match Info Card -->
-          @if (match()) {
+          @if (matchLoading()) {
+            <div class="animate-pulse bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-5 mb-6 border border-gray-100 dark:border-gray-700">
+              <div class="flex items-center justify-center gap-6">
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-600"></div>
+                  <div class="h-4 w-20 bg-gray-200 dark:bg-gray-600 rounded"></div>
+                </div>
+                <div class="text-center">
+                  <div class="h-8 w-16 bg-gray-200 dark:bg-gray-600 rounded mx-auto"></div>
+                  <div class="h-3 w-12 bg-gray-200 dark:bg-gray-600 rounded mx-auto mt-2"></div>
+                </div>
+                <div class="flex items-center gap-3">
+                  <div class="h-4 w-20 bg-gray-200 dark:bg-gray-600 rounded"></div>
+                  <div class="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-600"></div>
+                </div>
+              </div>
+            </div>
+          } @else if (matchError()) {
+            <div class="text-center py-12">
+              <div class="text-5xl mb-4">⚠️</div>
+              <p class="text-lg text-red-600 dark:text-red-400 font-semibold mb-4">{{ matchError() }}</p>
+              <button (click)="retryMatchLoad()" class="px-6 py-2 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors">
+                Intentar de nuevo
+              </button>
+            </div>
+          } @else if (match()) {
             <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-5 mb-6 border border-gray-100 dark:border-gray-700">
               <div class="flex items-center justify-center gap-6">
                 <div class="flex items-center gap-3">
@@ -105,23 +130,46 @@ export class StreamingViewComponent implements OnInit, OnDestroy {
 
   readonly matchId = signal('');
   readonly match = signal<Match | null>(null);
+  readonly matchLoading = signal(true);
+  readonly matchError = signal<string | null>(null);
   readonly formatScore = formatScore;
 
   ngOnInit(): void {
     const id = this.route.snapshot.paramMap.get('matchId');
-    if (id) {
-      this.matchId.set(id);
-      this.streamService.fetchStreams(id);
-      const found = this.matchService.matches().find((m: Match) => m.id === id);
-      if (found) {
-        this.match.set(found);
-        this.liveDataService.startPolling(id, found.status === 'live');
+    if (!id) { this.router.navigate(['/']); return; }
+
+    this.matchId.set(id);
+    this.matchLoading.set(true);
+    this.streamService.fetchStreams(id);
+
+    this.matchService.fetchMatchById(id).subscribe(match => {
+      this.match.set(match);
+      this.matchLoading.set(false);
+      if (match) {
+        this.liveDataService.startPolling(id, match.status === 'live');
       } else {
+        this.matchError.set('No se pudo cargar la información del partido');
         this.liveDataService.startPolling(id, false);
       }
-    } else {
-      this.router.navigate(['/']);
-    }
+    });
+  }
+
+  retryMatchLoad(): void {
+    const id = this.matchId();
+    if (!id) return;
+
+    this.matchError.set(null);
+    this.matchLoading.set(true);
+
+    this.matchService.fetchMatchById(id).subscribe(match => {
+      this.match.set(match);
+      this.matchLoading.set(false);
+      if (match) {
+        this.liveDataService.startPolling(id, match.status === 'live');
+      } else {
+        this.matchError.set('No se pudo cargar la información del partido');
+      }
+    });
   }
 
   ngOnDestroy(): void {

@@ -105,6 +105,41 @@ export class MatchService {
   }
 
   /**
+   * Obtiene un partido individual por ID.
+   * Primero busca en el signal de matches en memoria.
+   * Si no está, hace request a Supabase con id=eq.{matchId}.
+   */
+  fetchMatchById(matchId: string): Observable<Match | null> {
+    const found = this._matches().find(m => m.id === matchId);
+    if (found) {
+      return of(found);
+    }
+
+    const params = new HttpParams().set('id', `eq.${matchId}`);
+    return this.http.get<Match[]>(`${this.env.supabaseUrl}/matches`, {
+      params,
+      headers: {
+        'apikey': this.env.supabaseKey,
+        'Authorization': `Bearer ${this.env.supabaseKey}`
+      }
+    }).pipe(
+      timeout(10000),
+      retry(1),
+      map(matches => matches.length > 0 ? matches[0] : null),
+      catchError((err: unknown) => {
+        let errorMsg = 'Error al obtener el partido';
+        if (err instanceof HttpErrorResponse) {
+          errorMsg = `${errorMsg} (${err.status}: ${err.statusText})`;
+        } else if (err instanceof Error) {
+          errorMsg = `${errorMsg}: ${err.message}`;
+        }
+        this._error.set(errorMsg);
+        return of(null);
+      })
+    );
+  }
+
+  /**
    * Obtiene los eventos de un partido específico.
    */
   fetchMatchEvents(matchId: string): Observable<MatchEvent[]> {

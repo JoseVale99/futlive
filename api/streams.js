@@ -104,12 +104,23 @@ module.exports = async function handler(req, res) {
 
     // Default: fetch streams from match page RSC (has all channels including DSports+ NO ADS)
     let rscText = '';
+    let streams = [];
     try {
       rscText = await fetchMatchPageRSC(matchId);
+      streams = parseStreams(rscText, matchId);
     } catch (e) {
-      rscText = await fetchRSC(); // fallback to en-vivo page
+      // ignore, will fallback below
     }
-    const streams = parseStreams(rscText, matchId);
+
+    // Fallback to en-vivo page if match page failed or returned no streams
+    if (streams.length === 0) {
+      try {
+        rscText = await fetchRSC();
+        streams = parseStreams(rscText, matchId);
+      } catch (e) {
+        // both sources failed, streams stays empty
+      }
+    }
 
     return res.status(200).json({
       streams,

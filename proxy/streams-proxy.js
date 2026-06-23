@@ -84,58 +84,37 @@ function fetchLiveData(matchId) {
 
 function parseStreams(rscText, matchId) {
   try {
-    // Buscar el array de streams en el RSC text
-    const streamsRegex = /"streams":\[(\{[^]*?\})\]/;
-    const match = rscText.match(/"streams":\[([\s\S]*?)\],"featuredMatch"/);
+    const embedUrls = [];
+    const embedRegex = /"embed_url":"(https?:\/\/[^"]+)"/g;
+    const nameRegex = /"embed_name":"([^"]+)"/g;
 
-    if (!match) {
-      // Intento alternativo: buscar embed_url patterns
-      const embedUrls = [];
-      const embedRegex = /"embed_url":"(https?:\/\/[^"]+)"/g;
-      const nameRegex = /"embed_name":"([^"]+)"/g;
-      const idRegex = /"id":"([^"]+)"/g;
+    const urls = [];
+    let m;
+    while ((m = embedRegex.exec(rscText)) !== null) urls.push(m[1]);
 
-      let embedMatch;
-      const urls = [];
-      while ((embedMatch = embedRegex.exec(rscText)) !== null) {
-        urls.push(embedMatch[1]);
-      }
+    const names = [];
+    while ((m = nameRegex.exec(rscText)) !== null) names.push(m[1]);
 
-      const names = [];
-      let nameMatch;
-      while ((nameMatch = nameRegex.exec(rscText)) !== null) {
-        names.push(nameMatch[1]);
-      }
-
-      // Emparejar URLs con nombres
-      for (let i = 0; i < Math.min(urls.length, names.length); i++) {
+    // Deduplicate by embed_name (keep first occurrence)
+    const seen = new Set();
+    for (let i = 0; i < Math.min(urls.length, names.length); i++) {
+      const key = names[i];
+      if (!seen.has(key)) {
+        seen.add(key);
         embedUrls.push({
-          id: `stream-${i}`,
+          id: `proxy-${i}`,
+          match_id: matchId,
+          channel_id: null,
           embed_name: names[i],
           embed_url: urls[i],
-          source: 'lacancha-proxy'
+          source: 'lacancha-proxy',
+          stream_param: null,
+          created_at: new Date().toISOString()
         });
       }
-
-      return embedUrls;
     }
 
-    // Parsear JSON de streams
-    const streamsStr = `[${match[1]}]`;
-    const streams = JSON.parse(streamsStr);
-
-    return streams
-      .filter(s => s.embed_url && s.embed_name)
-      .map(s => ({
-        id: s.id || `proxy-${Math.random().toString(36).slice(2)}`,
-        match_id: matchId,
-        channel_id: null,
-        embed_name: s.embed_name,
-        embed_url: s.embed_url,
-        source: 'lacancha-proxy',
-        stream_param: null,
-        created_at: new Date().toISOString()
-      }));
+    return embedUrls.slice(0, 20); // Max 20 streams
   } catch (err) {
     console.error('Error parsing RSC:', err.message);
     return [];

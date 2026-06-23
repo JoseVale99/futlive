@@ -2,9 +2,9 @@ import { Component, inject, OnInit, OnDestroy, signal, computed } from '@angular
 import { Router } from '@angular/router';
 import { HttpClient, HttpParams, HttpHeaders } from '@angular/common/http';
 import { ENVIRONMENT_TOKEN } from '../../core/config/environment';
-import { Match } from '../../core/models/match-model';
+import { Match, MatchEvent } from '../../core/models/match-model';
 import { forkJoin, of, catchError, timeout, Subscription, timer, switchMap } from 'rxjs';
-import { formatKickoffTime, formatScore } from '../../shared/utils/match-format-util';
+import { formatKickoffTime } from '../../shared/utils/match-format-util';
 import { APP_CONSTANTS } from '../../shared/constants/app-constants';
 
 type TabId = 'today' | 'upcoming' | 'finished';
@@ -73,54 +73,129 @@ interface MatchGroup {
                   <div class="flex-1 h-px bg-gray-200 dark:bg-white/5"></div>
                 </div>
 
-                <!-- Match Cards -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
-                  @for (match of group.matches; track match.id) {
-                    <button
-                      (click)="goToMatch(match)"
-                      class="group relative bg-white dark:bg-[#111827] hover:bg-gray-50 dark:hover:bg-[#1a2236] border border-gray-200 dark:border-white/5 hover:border-blue-300 dark:hover:border-blue-500/30 rounded-lg p-4 flex items-center gap-4 transition-all duration-200 cursor-pointer text-left w-full"
-                    >
-                      <!-- Live indicator -->
-                      @if (match.status === 'live') {
-                        <div class="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-red-500 to-orange-500 rounded-t-lg"></div>
-                      }
+                <!-- Live Expanded Cards -->
+                @if (group.isLive) {
+                  <div class="grid grid-cols-1 gap-4">
+                    @for (match of group.matches; track match.id) {
+                      <div class="relative rounded-xl border border-red-500/30 dark:border-red-500/20 bg-white dark:bg-[#111827] overflow-hidden shadow-lg shadow-red-500/5">
+                        <!-- Gradient accent top border -->
+                        <div class="absolute top-0 left-0 right-0 h-1 bg-linear-to-r from-red-500 via-orange-500 to-yellow-500"></div>
 
-                      <!-- Time -->
-                      <div class="w-12 text-center shrink-0">
-                        @if (match.status === 'live') {
-                          <div class="text-xs font-bold text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-500/10 px-2 py-1 rounded">{{ match.time_elapsed }}'</div>
-                        } @else if (match.status === 'finished') {
-                          <div class="text-[10px] font-bold text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded uppercase">Fin</div>
-                        } @else {
-                          <div class="text-xs font-bold text-gray-700 dark:text-gray-300">{{ formatTime(match.kickoff_at) }}</div>
-                        }
+                        <div class="p-5 pt-6">
+                          <!-- Live badge -->
+                          <div class="flex items-center justify-center gap-2 mb-4">
+                            <span class="relative flex h-2.5 w-2.5">
+                              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                              <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
+                            </span>
+                            <span class="text-xs font-bold text-red-500 dark:text-red-400 uppercase tracking-wider">En vivo</span>
+                            <span class="text-xs font-bold text-red-500 dark:text-red-400">· {{ match.time_elapsed }}'</span>
+                          </div>
+
+                          <!-- Scoreboard -->
+                          <div class="flex items-center justify-center gap-4 sm:gap-8 mb-4">
+                            <!-- Home team -->
+                            <div class="flex flex-col items-center gap-2 flex-1 min-w-0">
+                              <img [src]="match.home_flag" [alt]="match.home_team" (error)="handleImgError($event)" class="w-12 h-12 sm:w-14 sm:h-14 rounded-lg object-cover shadow-sm">
+                              <span class="text-xs sm:text-sm font-semibold text-gray-900 dark:text-gray-100 text-center truncate max-w-full">{{ match.home_team }}</span>
+                            </div>
+
+                            <!-- Score -->
+                            <div class="flex items-center gap-3">
+                              <span class="text-3xl sm:text-4xl font-black text-gray-900 dark:text-white tabular-nums">{{ match.home_score ?? 0 }}</span>
+                              <span class="text-xl text-gray-400 dark:text-gray-600 font-light">-</span>
+                              <span class="text-3xl sm:text-4xl font-black text-gray-900 dark:text-white tabular-nums">{{ match.away_score ?? 0 }}</span>
+                            </div>
+
+                            <!-- Away team -->
+                            <div class="flex flex-col items-center gap-2 flex-1 min-w-0">
+                              <img [src]="match.away_flag" [alt]="match.away_team" (error)="handleImgError($event)" class="w-12 h-12 sm:w-14 sm:h-14 rounded-lg object-cover shadow-sm">
+                              <span class="text-xs sm:text-sm font-semibold text-gray-900 dark:text-gray-100 text-center truncate max-w-full">{{ match.away_team }}</span>
+                            </div>
+                          </div>
+
+                          <!-- Goal scorers -->
+                          @if (getGoals(match).length > 0) {
+                            <div class="border-t border-gray-100 dark:border-white/5 pt-3 mb-4">
+                              <div class="flex flex-col sm:flex-row gap-2 sm:gap-8 justify-center">
+                                <!-- Home goals -->
+                                <div class="flex-1 text-right">
+                                  @for (goal of getHomeGoals(match); track goal.id) {
+                                    <p class="text-xs text-gray-600 dark:text-gray-400">
+                                      <span class="font-medium text-gray-800 dark:text-gray-200">{{ goal.player }}</span>
+                                      <span class="text-gray-400 dark:text-gray-500 ml-1">{{ goal.minute }}'</span>
+                                    </p>
+                                  }
+                                </div>
+                                <!-- Divider -->
+                                <div class="hidden sm:block w-px bg-gray-200 dark:bg-white/10"></div>
+                                <!-- Away goals -->
+                                <div class="flex-1 text-left">
+                                  @for (goal of getAwayGoals(match); track goal.id) {
+                                    <p class="text-xs text-gray-600 dark:text-gray-400">
+                                      <span class="text-gray-400 dark:text-gray-500 mr-1">{{ goal.minute }}'</span>
+                                      <span class="font-medium text-gray-800 dark:text-gray-200">{{ goal.player }}</span>
+                                    </p>
+                                  }
+                                </div>
+                              </div>
+                            </div>
+                          }
+
+                          <!-- CTA Button -->
+                          <button
+                            (click)="goToMatch(match)"
+                            class="w-full py-2.5 px-4 rounded-lg bg-red-500 hover:bg-red-600 text-white text-sm font-bold uppercase tracking-wide transition-colors cursor-pointer"
+                          >
+                            Ver en vivo
+                          </button>
+                        </div>
                       </div>
-
-                      <!-- Teams -->
-                      <div class="flex-1 min-w-0 space-y-1.5">
-                        <div class="flex items-center gap-2.5">
-                          <img [src]="match.home_flag" [alt]="match.home_team" (error)="handleImgError($event)" class="w-5 h-5 rounded-sm object-cover">
-                          <span class="text-[13px] font-medium text-gray-900 dark:text-gray-100 truncate">{{ match.home_team }}</span>
-                          @if (match.status !== 'scheduled') {
-                            <span class="ml-auto text-sm font-bold text-gray-900 dark:text-white tabular-nums">{{ match.home_score }}</span>
+                    }
+                  </div>
+                } @else {
+                  <!-- Compact cards (scheduled/finished) -->
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    @for (match of group.matches; track match.id) {
+                      <button
+                        (click)="goToMatch(match)"
+                        class="group relative bg-white dark:bg-[#111827] hover:bg-gray-50 dark:hover:bg-[#1a2236] border border-gray-200 dark:border-white/5 hover:border-blue-300 dark:hover:border-blue-500/30 rounded-lg p-4 flex items-center gap-4 transition-all duration-200 cursor-pointer text-left w-full"
+                      >
+                        <!-- Time -->
+                        <div class="w-12 text-center shrink-0">
+                          @if (match.status === 'finished') {
+                            <div class="text-[10px] font-bold text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded uppercase">Fin</div>
+                          } @else {
+                            <div class="text-xs font-bold text-gray-700 dark:text-gray-300">{{ formatTime(match.kickoff_at) }}</div>
                           }
                         </div>
-                        <div class="flex items-center gap-2.5">
-                          <img [src]="match.away_flag" [alt]="match.away_team" (error)="handleImgError($event)" class="w-5 h-5 rounded-sm object-cover">
-                          <span class="text-[13px] font-medium text-gray-900 dark:text-gray-100 truncate">{{ match.away_team }}</span>
-                          @if (match.status !== 'scheduled') {
-                            <span class="ml-auto text-sm font-bold text-gray-900 dark:text-white tabular-nums">{{ match.away_score }}</span>
-                          }
-                        </div>
-                      </div>
 
-                      <!-- Chevron -->
-                      <svg class="w-4 h-4 text-gray-400 dark:text-gray-600 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-colors shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                      </svg>
-                    </button>
-                  }
-                </div>
+                        <!-- Teams -->
+                        <div class="flex-1 min-w-0 space-y-1.5">
+                          <div class="flex items-center gap-2.5">
+                            <img [src]="match.home_flag" [alt]="match.home_team" (error)="handleImgError($event)" class="w-5 h-5 rounded-sm object-cover">
+                            <span class="text-[13px] font-medium text-gray-900 dark:text-gray-100 truncate">{{ match.home_team }}</span>
+                            @if (match.status === 'finished') {
+                              <span class="ml-auto text-sm font-bold text-gray-900 dark:text-white tabular-nums">{{ match.home_score }}</span>
+                            }
+                          </div>
+                          <div class="flex items-center gap-2.5">
+                            <img [src]="match.away_flag" [alt]="match.away_team" (error)="handleImgError($event)" class="w-5 h-5 rounded-sm object-cover">
+                            <span class="text-[13px] font-medium text-gray-900 dark:text-gray-100 truncate">{{ match.away_team }}</span>
+                            @if (match.status === 'finished') {
+                              <span class="ml-auto text-sm font-bold text-gray-900 dark:text-white tabular-nums">{{ match.away_score }}</span>
+                            }
+                          </div>
+                        </div>
+
+                        <!-- Chevron -->
+                        <svg class="w-4 h-4 text-gray-400 dark:text-gray-600 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-colors shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                        </svg>
+                      </button>
+                    }
+                  </div>
+                }
               </section>
             }
           </div>
@@ -181,8 +256,19 @@ export class HomeViewComponent implements OnInit, OnDestroy {
     img.src = APP_CONSTANTS.IMAGES.FLAG_PLACEHOLDER;
   }
 
+  getGoals(match: Match): MatchEvent[] {
+    return (match.events ?? []).filter(e => e.type === 'goal');
+  }
+
+  getHomeGoals(match: Match): MatchEvent[] {
+    return this.getGoals(match).filter(e => e.team === 'home');
+  }
+
+  getAwayGoals(match: Match): MatchEvent[] {
+    return this.getGoals(match).filter(e => e.team === 'away');
+  }
+
   private buildTodayGroups(matches: Match[]): MatchGroup[] {
-    // Filter only today's matches
     const today = new Date().toISOString().slice(0, 10);
     const todayMatches = matches.filter(m => m.kickoff_at.startsWith(today));
 

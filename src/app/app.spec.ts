@@ -3,12 +3,14 @@ import { App } from './app';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { HttpClientTestingModule } from '@angular/common/http/testing';
 import { ENVIRONMENT_TOKEN } from './core/config/environment';
+import { provideRouter } from '@angular/router';
 
 describe('App', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [App, HttpClientTestingModule],
       providers: [
+        provideRouter([]),
         { provide: ENVIRONMENT_TOKEN, useValue: { supabaseUrl: '', supabaseKey: '' } }
       ]
     }).compileComponents();

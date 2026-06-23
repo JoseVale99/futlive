@@ -2,6 +2,9 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatchCardComponent } from './match-card';
 import { Match } from '../../../core/models/match-model';
 import { describe, it, expect, beforeEach } from 'vitest';
+import { HttpClientTestingModule } from '@angular/common/http/testing';
+import { provideRouter } from '@angular/router';
+import { ENVIRONMENT_TOKEN } from '../../../core/config/environment';
 
 describe('MatchCardComponent', () => {
   let component: MatchCardComponent;
@@ -29,7 +32,11 @@ describe('MatchCardComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [MatchCardComponent]
+      imports: [MatchCardComponent, HttpClientTestingModule],
+      providers: [
+        provideRouter([]),
+        { provide: ENVIRONMENT_TOKEN, useValue: { supabaseUrl: '', supabaseKey: '' } }
+      ]
     }).compileComponents();
 
     fixture = TestBed.createComponent(MatchCardComponent);

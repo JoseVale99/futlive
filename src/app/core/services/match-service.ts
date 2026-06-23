@@ -2,7 +2,7 @@ import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http'
 import { inject, Injectable, signal, computed } from '@angular/core';
 import { ENVIRONMENT_TOKEN } from '../config/environment';
 import { Match, MatchStatus, Goal, MatchEvent } from '../models/match-model';
-import { catchError, finalize, forkJoin, map, Observable, of, retry, Subscription, switchMap, timeout, timer } from 'rxjs';
+import { catchError, finalize, forkJoin, map, Observable, of, retry, Subscription, switchMap, timeout, timer, shareReplay } from 'rxjs';
 import { sortMatchesByKickoff } from '../../shared/utils/match-sort-util';
 
 @Injectable({
@@ -26,6 +26,9 @@ export class MatchService {
 
   private pollingSubscription?: Subscription;
 
+  // Cache para eventos de partidos finalizados (no cambian más)
+  private readonly finishedEventsCache = new Map<string, MatchEvent[]>();
+
   /**
    * Obtiene los partidos desde la API de Supabase.
    * @param status Filtro por estado del partido.
@@ -46,6 +49,7 @@ export class MatchService {
     }).pipe(
       timeout(timeoutMs),
       retry(1),
+      shareReplay({ refCount: true, bufferSize: 1, windowTime: 5000 }), // Cache rápido para duplicados
       catchError((err: unknown) => {
         let errorMsg = 'Error al obtener partidos';
         if (err instanceof HttpErrorResponse) {
@@ -83,17 +87,37 @@ export class MatchService {
       switchMap(matches => {
         if (matches.length === 0) return of([]);
 
-        const matchesWithEvents$ = matches.map(match =>
-          this.fetchMatchEvents(match.id).pipe(
-            map(events => ({
+        const matchesWithEvents$ = matches.map(match => {
+          // Si el partido está finalizado y tenemos sus eventos en cache, usamos el cache
+          if (match.status === 'finished' && this.finishedEventsCache.has(match.id)) {
+            const cachedEvents = this.finishedEventsCache.get(match.id)!;
+            return of({
               ...match,
-              events,
-              goals: events
+              events: cachedEvents,
+              goals: cachedEvents
                 .filter(e => e.type === 'goal')
                 .map(e => ({ team: e.team, scorer: e.player, minute: e.minute }))
-            }))
-          )
-        );
+            });
+          }
+
+          // Si no, pedimos los eventos
+          return this.fetchMatchEvents(match.id).pipe(
+            map(events => {
+              // Si es finalizado, guardamos en cache
+              if (match.status === 'finished') {
+                this.finishedEventsCache.set(match.id, events);
+              }
+
+              return {
+                ...match,
+                events,
+                goals: events
+                  .filter(e => e.type === 'goal')
+                  .map(e => ({ team: e.team, scorer: e.player, minute: e.minute }))
+              };
+            })
+          );
+        });
 
         return forkJoin(matchesWithEvents$);
       })
@@ -136,13 +160,13 @@ export class MatchService {
   }
 
   /**
-   * Inicia el ciclo de polling cada 30 segundos para partidos en vivo.
+   * Inicia el ciclo de polling cada 120 segundos (2 minutos) para partidos en vivo.
    */
   startPolling() {
     if (this.pollingSubscription) return;
 
     this._loading.set(true);
-    this.pollingSubscription = timer(0, 30000)
+    this.pollingSubscription = timer(0, 120000)
       .pipe(
         switchMap(() => this.fetchMatchesWithEvents('live', 10000)),
         catchError((err: unknown) => {

@@ -1,5 +1,5 @@
 import { Component, input, output } from '@angular/core';
-import { MatchStream } from '../../core/models/stream-model';
+import { MatchStream } from '../../../core/models/stream-model';
 
 @Component({
   selector: 'app-channel-selector',

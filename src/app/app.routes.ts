@@ -2,10 +2,6 @@ import { Routes } from '@angular/router';
 
 export const routes: Routes = [
   {
-    path: '',
-    loadComponent: () => import('./features/home/home-view').then(m => m.HomeViewComponent)
-  },
-  {
     path: 'stream/:matchId',
     loadComponent: () => import('./features/streaming/streaming-view/streaming-view').then(m => m.StreamingViewComponent)
   },

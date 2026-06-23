@@ -1,11 +1,11 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { StreamService } from '../../core/services/stream-service';
-import { MatchService } from '../../core/services/match-service';
+import { StreamService } from '../../../core/services/stream-service';
+import { MatchService } from '../../../core/services/match-service';
 import { IframePlayerComponent } from '../iframe-player/iframe-player';
 import { ChannelSelectorComponent } from '../channel-selector/channel-selector';
-import { Match } from '../../core/models/match-model';
-import { formatScore } from '../../shared/utils/match-format-util';
+import { Match } from '../../../core/models/match-model';
+import { formatScore } from '../../../shared/utils/match-format-util';
 
 @Component({
   selector: 'app-streaming-view',

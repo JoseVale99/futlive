@@ -1,9 +1,7 @@
-import { Component, input, signal, inject, OnInit } from '@angular/core';
-import { Router } from '@angular/router';
+import { Component, input, signal } from '@angular/core';
 import { Match, Goal, MatchEvent } from '../../../core/models/match-model';
 import { formatKickoffTime, formatScore, formatVenue, formatStageInfo } from '../../../shared/utils/match-format-util';
 import { APP_CONSTANTS } from '../../../shared/constants/app-constants';
-import { StreamService } from '../../../core/services/stream-service';
 
 @Component({
   selector: 'app-match-card',
@@ -112,20 +110,6 @@ import { StreamService } from '../../../core/services/stream-service';
           </div>
         }
 
-        <!-- Watch Live Button (only if live and has streams) -->
-        @if (match().status === 'live' && hasStream()) {
-          <button
-            (click)="goToStream()"
-            class="w-full mb-4 py-3 bg-gradient-to-r from-red-500 to-orange-500 text-white rounded-xl font-bold shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 flex items-center justify-center gap-2"
-          >
-            <span class="relative flex h-3 w-3">
-              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
-              <span class="relative inline-flex rounded-full h-3 w-3 bg-white"></span>
-            </span>
-            Ver en vivo
-          </button>
-        }
-
         <!-- Possession Bar (always visible for live/finished) -->
         @if (match().status === 'live' || match().status === 'finished') {
           <div class="mb-4 pt-4 border-t border-gray-100 dark:border-gray-700/50">
@@ -192,28 +176,9 @@ import { StreamService } from '../../../core/services/stream-service';
     </div>
   `
 })
-export class MatchCardComponent implements OnInit {
+export class MatchCardComponent {
   match = input.required<Match>();
   showDetails = signal(false);
-  private hasStreamSignal = signal(false);
-  private router = inject(Router);
-  private streamService = inject(StreamService);
-
-  ngOnInit() {
-    if (this.match().status === 'live') {
-      this.streamService.checkAvailability(this.match().id).subscribe((available) => {
-        this.hasStreamSignal.set(available);
-      });
-    }
-  }
-
-  hasStream(): boolean {
-    return this.hasStreamSignal();
-  }
-
-  goToStream() {
-    this.router.navigate(['/stream', this.match().id]);
-  }
 
   toggleDetails() {
     this.showDetails.update(v => !v);

@@ -1,7 +1,7 @@
 import { Component, input, inject } from '@angular/core';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
-import { MatchStream } from '../../core/models/stream-model';
-import { buildSafeEmbedUrl } from '../../shared/utils/stream-url-util';
+import { MatchStream } from '../../../core/models/stream-model';
+import { buildSafeEmbedUrl } from '../../../shared/utils/stream-url-util';
 
 @Component({
   selector: 'app-iframe-player',

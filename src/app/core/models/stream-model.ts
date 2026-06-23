@@ -1,7 +1,7 @@
 export interface MatchStream {
   id: string;
   match_id: string;
-  channel_id: string;
+  channel_id: string | null;
   embed_name: string;
   embed_url: string;
   source: string;

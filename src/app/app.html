@@ -20,16 +20,12 @@
       </div>
 
       <div class="flex items-center gap-4">
-        <div class="hidden md:flex items-center gap-6 text-sm font-semibold">
-          <a [routerLink]="['/']" routerLinkActive="text-blue-600 dark:text-blue-500" [routerLinkActiveOptions]="{exact: true}" class="text-gray-500 dark:text-gray-400 hover:text-blue-600 transition-colors">Inicio</a>
-          <a [routerLink]="['/posiciones']" routerLinkActive="text-blue-600 dark:text-blue-500" class="text-gray-500 dark:text-gray-400 hover:text-blue-600 transition-colors">Posiciones</a>
-          <div class="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-            <span class="relative flex h-2 w-2">
-              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-              <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-            </span>
-            Live
-          </div>
+        <div class="hidden md:flex items-center gap-2 text-sm font-semibold text-gray-500 dark:text-gray-400">
+          <span class="relative flex h-2 w-2">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+          </span>
+          Live
         </div>
         <app-theme-toggle />
       </div>
@@ -38,7 +34,15 @@
 
   <!-- Content -->
   <div class="pt-10 pb-24 md:pb-10">
-    <router-outlet />
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+      <app-status-filter
+        [activeStatus]="matchService.activeStatus()"
+        (statusChange)="onStatusChange($event)"
+      />
+      <div class="mt-6">
+        <app-match-list />
+      </div>
+    </div>
   </div>
 
   <!-- Mobile Navigation -->

@@ -5,6 +5,11 @@ import { Match, MatchStatus, Goal, MatchEvent } from '../models/match-model';
 import { catchError, finalize, forkJoin, map, Observable, of, retry, Subscription, switchMap, timeout, timer, shareReplay } from 'rxjs';
 import { sortMatchesByKickoff } from '../../shared/utils/match-sort-util';
 
+interface CacheEntry<T> {
+  data: T;
+  timestamp: number;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -29,12 +34,48 @@ export class MatchService {
   // Cache para eventos de partidos finalizados (no cambian más)
   private readonly finishedEventsCache = new Map<string, MatchEvent[]>();
 
+  // Cache para partidos por estado con tiempos de expiración
+  private readonly matchesCache = new Map<MatchStatus, CacheEntry<Match[]>>();
+
+  // Tiempos de expiración en milisegundos
+  private readonly CACHE_TTL: Record<MatchStatus, number> = {
+    live: 0, // No cacheamos partidos en vivo, siempre pedimos frescos
+    scheduled: 5 * 60 * 1000, // 5 minutos
+    finished: 30 * 60 * 1000 // 30 minutos
+  };
+
   /**
    * Obtiene los partidos desde la API de Supabase.
    * @param status Filtro por estado del partido.
    * @param timeoutMs Tiempo máximo de espera en milisegundos.
    */
   fetchMatches(status?: MatchStatus, timeoutMs: number = 15000): Observable<Match[]> {
+    // Si no hay estado, no cacheamos
+    if (!status) return this.fetchMatchesFromApi(status, timeoutMs);
+
+    // Verificamos si tenemos cache válido
+    const cachedEntry = this.matchesCache.get(status);
+    if (cachedEntry && Date.now() - cachedEntry.timestamp < this.CACHE_TTL[status]) {
+      return of(cachedEntry.data);
+    }
+
+    // Si no hay cache válido, pedimos a la API
+    return this.fetchMatchesFromApi(status, timeoutMs).pipe(
+      map(matches => {
+        // Guardamos en cache
+        this.matchesCache.set(status, {
+          data: matches,
+          timestamp: Date.now()
+        });
+        return matches;
+      })
+    );
+  }
+
+  /**
+   * Obtiene partidos directamente desde la API (sin cache).
+   */
+  private fetchMatchesFromApi(status?: MatchStatus, timeoutMs: number = 15000): Observable<Match[]> {
     let params = new HttpParams();
     if (status) {
       params = params.set('status', `eq.${status}`);
@@ -189,5 +230,13 @@ export class MatchService {
       this.pollingSubscription.unsubscribe();
       this.pollingSubscription = undefined;
     }
+  }
+
+  /**
+   * Limpia toda la cache manualmente (si es necesario).
+   */
+  clearCache() {
+    this.matchesCache.clear();
+    this.finishedEventsCache.clear();
   }
 }

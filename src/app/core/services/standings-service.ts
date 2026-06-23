@@ -35,7 +35,7 @@ export class StandingsService {
     }).pipe(
       timeout(15000),
       catchError(err => {
-        this._error.set(err.statusText || 'Error al cargar posiciones');
+        this._error.set(err.message || err.statusText || 'Error al cargar posiciones');
         return of([]);
       }),
       finalize(() => this._loading.set(false))

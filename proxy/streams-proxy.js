@@ -65,31 +65,50 @@ function fetchMatchPageHTML(matchId) {
  */
 function parseMatchPageStreams(html, matchId) {
   const streams = [];
-
-  // Extract stream objects from hydration data
-  // Pattern: {"id":"...","match_id":"...","embed_name":"...","embed_url":"...","source":"..."}
-  const streamRegex = /\{[^{}]*"embed_name":"([^"]+)"[^{}]*"embed_url":"(https?:\/\/[^"]+)"[^{}]*\}/g;
-  let m;
   const seen = new Set();
 
-  while ((m = streamRegex.exec(html)) !== null) {
-    const fullMatch = m[0];
-    const embedName = m[1];
-    const embedUrl = m[2];
+  // Strategy 1: Find embed_name/embed_url pairs in escaped JSON hydration data
+  // The data looks like: \"embed_name\":\"FOX\",... \"embed_url\":\"https://...\",... \"source\":\"futbol-libre\"
+  const embedNameRegex = /\\?"embed_name\\?":\\?"([^"\\]+)\\?"/g;
+  const embedUrlRegex = /\\?"embed_url\\?":\\?"(https?:\/\/[^"\\]+)\\?"/g;
+  const sourceRegex = /\\?"source\\?":\\?"([^"\\]+)\\?"/g;
 
-    // Skip duplicates by name
-    if (seen.has(embedName)) continue;
-    seen.add(embedName);
+  const names = [];
+  const urls = [];
+  const sources = [];
+  let m;
 
-    // Extract source if available
-    const sourceMatch = fullMatch.match(/"source":"([^"]+)"/);
-    const source = sourceMatch ? sourceMatch[1] : 'lacancha-proxy';
+  while ((m = embedNameRegex.exec(html)) !== null) names.push({ val: m[1], idx: m.index });
+  while ((m = embedUrlRegex.exec(html)) !== null) urls.push({ val: m[1], idx: m.index });
+  while ((m = sourceRegex.exec(html)) !== null) sources.push({ val: m[1], idx: m.index });
+
+  // Pair names with their closest url (they appear sequentially in the same object)
+  for (let i = 0; i < Math.min(names.length, urls.length); i++) {
+    const name = names[i].val;
+    const url = urls[i].val;
+
+    if (seen.has(name)) continue;
+    seen.add(name);
+
+    // Find the closest source to this name
+    let source = 'lacancha-proxy';
+    const nameIdx = names[i].idx;
+    for (const s of sources) {
+      if (Math.abs(s.idx - nameIdx) < 500) {
+        source = s.val;
+        break;
+      }
+    }
+
+    let embedUrl = url;
+    // For futbol-libre sources, use the direct URL (the player loads directly)
+    // No need to wrap in futbol-libres.su — that adds an unnecessary layer
 
     streams.push({
       id: `match-${streams.length}`,
       match_id: matchId,
       channel_id: null,
-      embed_name: embedName,
+      embed_name: name,
       embed_url: embedUrl,
       source: source,
       stream_param: null,
@@ -97,7 +116,7 @@ function parseMatchPageStreams(html, matchId) {
     });
   }
 
-  // Also check for channels from button HTML (DSports, DSports+ that use known URLs)
+  // Strategy 2: Known channel URLs (DSports, DSports+ that we confirmed manually)
   const channelUrlMap = {
     'DSports': 'https://sudamericaplay2.com/canal_8112/cza_dsports.html',
     'DSports+': 'https://latamplay1.click/channel/dsportsplus.html',

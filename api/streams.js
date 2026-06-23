@@ -41,32 +41,47 @@ async function fetchMatchPageHTML(matchId) {
 
 /**
  * Parse match page HTML to extract streams from Next.js hydration data.
- * The hydration contains full stream objects with embed_url already resolved.
  */
 function parseMatchPageStreams(html, matchId) {
   const streams = [];
-
-  // Extract stream objects from hydration data
-  const streamRegex = /\{[^{}]*"embed_name":"([^"]+)"[^{}]*"embed_url":"(https?:\/\/[^"]+)"[^{}]*\}/g;
-  let m;
   const seen = new Set();
 
-  while ((m = streamRegex.exec(html)) !== null) {
-    const fullMatch = m[0];
-    const embedName = m[1];
-    const embedUrl = m[2];
+  const embedNameRegex = /\\?"embed_name\\?":\\?"([^"\\]+)\\?"/g;
+  const embedUrlRegex = /\\?"embed_url\\?":\\?"(https?:\/\/[^"\\]+)\\?"/g;
+  const sourceRegex = /\\?"source\\?":\\?"([^"\\]+)\\?"/g;
 
-    if (seen.has(embedName)) continue;
-    seen.add(embedName);
+  const names = [];
+  const urls = [];
+  const sources = [];
+  let m;
 
-    const sourceMatch = fullMatch.match(/"source":"([^"]+)"/);
-    const source = sourceMatch ? sourceMatch[1] : 'lacancha-proxy';
+  while ((m = embedNameRegex.exec(html)) !== null) names.push({ val: m[1], idx: m.index });
+  while ((m = embedUrlRegex.exec(html)) !== null) urls.push({ val: m[1], idx: m.index });
+  while ((m = sourceRegex.exec(html)) !== null) sources.push({ val: m[1], idx: m.index });
+
+  for (let i = 0; i < Math.min(names.length, urls.length); i++) {
+    const name = names[i].val;
+    const url = urls[i].val;
+
+    if (seen.has(name)) continue;
+    seen.add(name);
+
+    let source = 'lacancha-proxy';
+    const nameIdx = names[i].idx;
+    for (const s of sources) {
+      if (Math.abs(s.idx - nameIdx) < 500) {
+        source = s.val;
+        break;
+      }
+    }
+
+    let embedUrl = url;
 
     streams.push({
       id: `match-${streams.length}`,
       match_id: matchId,
       channel_id: null,
-      embed_name: embedName,
+      embed_name: name,
       embed_url: embedUrl,
       source: source,
       stream_param: null,
@@ -74,7 +89,6 @@ function parseMatchPageStreams(html, matchId) {
     });
   }
 
-  // Also check for channels from button HTML (DSports, DSports+ with known URLs)
   const channelUrlMap = {
     'DSports': 'https://sudamericaplay2.com/canal_8112/cza_dsports.html',
     'DSports+': 'https://latamplay1.click/channel/dsportsplus.html',

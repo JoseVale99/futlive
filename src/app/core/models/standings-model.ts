@@ -1,15 +1,25 @@
 export interface GroupStanding {
-  id: string;
   group_name: string;
-  team: string;
-  played: number;
-  won: number;
-  drawn: number;
-  lost: number;
-  goals_for: number;
-  goals_against: number;
-  goal_difference: number;
-  points: number;
   rank: number;
-  created_at: string;
+  team: string;
+  team_code: string;
+  team_external_id: number;
+  played: number;
+  win: number;
+  draw: number;
+  lose: number;
+  gf: number;
+  ga: number;
+  gd: number;
+  points: number;
+  description: string | null;
+  form: string | null;
+  updated_at: string;
+}
+
+export type FormResult = 'W' | 'D' | 'L';
+
+export interface GroupedStandings {
+  groupName: string;
+  teams: GroupStanding[];
 }

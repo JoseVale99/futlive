@@ -1,7 +1,9 @@
-import { Component, input, signal } from '@angular/core';
+import { Component, input, signal, inject, OnInit } from '@angular/core';
 import { Match, Goal, MatchEvent } from '../../../core/models/match-model';
 import { formatKickoffTime, formatScore, formatVenue, formatStageInfo } from '../../../shared/utils/match-format-util';
 import { APP_CONSTANTS } from '../../../shared/constants/app-constants';
+import { StreamService } from '../../../core/services/stream-service';
+import { Router } from '@angular/router';
 
 @Component({
   selector: 'app-match-card',
@@ -65,6 +67,21 @@ import { APP_CONSTANTS } from '../../../shared/constants/app-constants';
             <span class="text-sm font-extrabold text-gray-900 dark:text-white line-clamp-2">{{ match().away_team }}</span>
           </div>
         </div>
+
+        <!-- Action Buttons -->
+        @if (match().status === 'live' && hasStream()) {
+          <div class="mb-6">
+            <button
+              (click)="watchLive()"
+              class="w-full py-3 bg-linear-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 text-white rounded-xl font-black text-sm shadow-lg shadow-red-500/25 flex items-center justify-center gap-2 transition-transform hover:scale-[1.02] active:scale-[0.98]"
+            >
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+              VER EN VIVO
+            </button>
+          </div>
+        }
 
         <!-- Goals Only (Main View) -->
         @if (goalEvents().length) {
@@ -176,9 +193,25 @@ import { APP_CONSTANTS } from '../../../shared/constants/app-constants';
     </div>
   `
 })
-export class MatchCardComponent {
+export class MatchCardComponent implements OnInit {
+  private readonly streamService = inject(StreamService);
+  private readonly router = inject(Router);
+
   match = input.required<Match>();
   showDetails = signal(false);
+  hasStream = signal(false);
+
+  ngOnInit() {
+    if (this.match().status === 'live') {
+      this.streamService.checkAvailability(this.match().id).subscribe(available => {
+        this.hasStream.set(available);
+      });
+    }
+  }
+
+  watchLive() {
+    this.router.navigate(['/stream', this.match().id]);
+  }
 
   toggleDetails() {
     this.showDetails.update(v => !v);

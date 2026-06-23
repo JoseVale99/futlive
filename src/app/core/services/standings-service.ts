@@ -2,6 +2,7 @@ import { inject, Injectable, signal, computed } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { ENVIRONMENT_TOKEN } from '../config/environment';
 import { GroupStanding } from '../models/standings-model';
+import { groupByGroupName } from '../../shared/utils/standings-util';
 import { catchError, finalize, of, timeout } from 'rxjs';
 
 @Injectable({
@@ -19,17 +20,7 @@ export class StandingsService {
   readonly loading = this._loading.asReadonly();
   readonly error = this._error.asReadonly();
 
-  readonly groupedStandings = computed(() => {
-    const groups = new Map<string, GroupStanding[]>();
-    this._standings().forEach(standing => {
-      const group = standing.group_name;
-      if (!groups.has(group)) {
-        groups.set(group, []);
-      }
-      groups.get(group)?.push(standing);
-    });
-    return groups;
-  });
+  readonly groupedStandings = computed(() => groupByGroupName(this._standings()));
 
   fetchStandings(): void {
     this._loading.set(true);

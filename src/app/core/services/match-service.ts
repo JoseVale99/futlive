@@ -1,8 +1,8 @@
 import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { inject, Injectable, signal, computed } from '@angular/core';
 import { ENVIRONMENT_TOKEN } from '../config/environment';
-import { Match, MatchStatus } from '../models/match-model';
-import { catchError, finalize, Observable, of, retry, Subscription, switchMap, timeout, timer } from 'rxjs';
+import { Match, MatchStatus, Goal, MatchEvent } from '../models/match-model';
+import { catchError, finalize, forkJoin, map, Observable, of, retry, Subscription, switchMap, timeout, timer } from 'rxjs';
 import { sortMatchesByKickoff } from '../../shared/utils/match-sort-util';
 
 @Injectable({
@@ -60,6 +60,47 @@ export class MatchService {
   }
 
   /**
+   * Obtiene los eventos de un partido específico.
+   */
+  fetchMatchEvents(matchId: string): Observable<MatchEvent[]> {
+    return this.http.get<MatchEvent[]>(`${this.env.supabaseUrl}/match_events`, {
+      params: { match_id: `eq.${matchId}`, select: '*', order: 'minute.asc' },
+      headers: {
+        'apikey': this.env.supabaseKey,
+        'Authorization': `Bearer ${this.env.supabaseKey}`
+      }
+    }).pipe(
+      timeout(10000),
+      catchError(() => of([]))
+    );
+  }
+
+  /**
+   * Obtiene partidos y enriquece con eventos (goles, tarjetas, subs).
+   */
+  fetchMatchesWithEvents(status?: MatchStatus, timeoutMs: number = 15000): Observable<Match[]> {
+    return this.fetchMatches(status, timeoutMs).pipe(
+      switchMap(matches => {
+        if (matches.length === 0) return of([]);
+
+        const matchesWithEvents$ = matches.map(match =>
+          this.fetchMatchEvents(match.id).pipe(
+            map(events => ({
+              ...match,
+              events,
+              goals: events
+                .filter(e => e.type === 'goal')
+                .map(e => ({ team: e.team, scorer: e.player, minute: e.minute }))
+            }))
+          )
+        );
+
+        return forkJoin(matchesWithEvents$);
+      })
+    );
+  }
+
+  /**
    * Aplica el ordenamiento adecuado según el estado del partido.
    */
   private applySorting(matches: Match[], status: MatchStatus): Match[] {
@@ -84,7 +125,7 @@ export class MatchService {
       this.startPolling();
     } else {
       this._loading.set(true);
-      this.fetchMatches(status).pipe(
+      this.fetchMatchesWithEvents(status).pipe(
         finalize(() => {
           this._loading.set(false);
         })
@@ -103,10 +144,10 @@ export class MatchService {
     this._loading.set(true);
     this.pollingSubscription = timer(0, 30000)
       .pipe(
-        switchMap(() => this.fetchMatches('live', 10000)),
+        switchMap(() => this.fetchMatchesWithEvents('live', 10000)),
         catchError((err: unknown) => {
           console.error('Error en polling:', err);
-          return of(this._matches()); // Mantener los datos anteriores en caso de error
+          return of(this._matches());
         })
       )
       .subscribe(matches => {

@@ -1,19 +1,19 @@
-import { Component, input } from '@angular/core';
-import { Match } from '../../../core/models/match-model';
-import { CommonModule } from '@angular/common';
+import { Component, input, signal } from '@angular/core';
+import { Match, Goal, MatchEvent } from '../../../core/models/match-model';
 import { formatKickoffTime, formatScore, formatVenue, formatStageInfo } from '../../../shared/utils/match-format-util';
 import { APP_CONSTANTS } from '../../../shared/constants/app-constants';
 
 @Component({
   selector: 'app-match-card',
   standalone: true,
-  imports: [CommonModule],
   template: `
-    <div class="group relative overflow-hidden bg-white dark:bg-gray-800/60 rounded-2xl shadow-lg hover:shadow-2xl dark:hover:shadow-blue-900/20 transition-all duration-300 hover:-translate-y-1">
+    <div class="group relative overflow-hidden bg-white dark:bg-gray-800/60 rounded-2xl shadow-lg hover:shadow-2xl dark:hover:shadow-blue-900/20 transition-all duration-300 hover:-translate-y-0.5 w-full">
       <!-- Gradient border top for live matches -->
-      <div *ngIf="match().status === 'live'" class="absolute top-0 left-0 right-0 h-1 bg-linear-to-r from-red-500 to-orange-500"></div>
+      @if (match().status === 'live') {
+        <div class="absolute top-0 left-0 right-0 h-1 bg-linear-to-r from-red-500 to-orange-500"></div>
+      }
 
-      <div class="p-6">
+      <div class="p-5 sm:p-6">
         <!-- Header Info -->
         <div class="flex justify-between items-center mb-5 text-xs font-semibold">
           <span class="px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">{{ match().competition }}</span>
@@ -66,21 +66,99 @@ import { APP_CONSTANTS } from '../../../shared/constants/app-constants';
           </div>
         </div>
 
-        <!-- Stats Section -->
+        <!-- Goals Only (Main View) -->
+        @if (goalEvents().length) {
+          <div class="mb-4 pt-4 border-t border-gray-100 dark:border-gray-700/50">
+            <div class="grid grid-cols-2 gap-4">
+              <!-- Home Goals -->
+              <div class="space-y-1.5">
+                @for (goal of homeGoalEvents(); track goal.id) {
+                  <div class="flex items-center gap-2">
+                    <span class="text-[10px] text-gray-400 dark:text-gray-500 font-bold">{{ goal.minute }}'</span>
+                    <span class="text-xs text-gray-800 dark:text-gray-200 font-semibold">{{ goal.player }}</span>
+                    <svg class="w-3.5 h-3.5 shrink-0 ml-auto" viewBox="0 0 24 24" fill="none">
+                      <circle cx="12" cy="12" r="10.5" stroke="#333" stroke-width="1.2" fill="white"/>
+                      <polygon points="12,6.5 15.5,9.5 14.5,14 9.5,14 8.5,9.5" fill="#222" stroke="#222" stroke-width="0.3"/>
+                      <line x1="12" y1="6.5" x2="12" y2="1.5" stroke="#333" stroke-width="0.7"/>
+                      <line x1="15.5" y1="9.5" x2="21" y2="7.5" stroke="#333" stroke-width="0.7"/>
+                      <line x1="14.5" y1="14" x2="19" y2="19" stroke="#333" stroke-width="0.7"/>
+                      <line x1="9.5" y1="14" x2="5" y2="19" stroke="#333" stroke-width="0.7"/>
+                      <line x1="8.5" y1="9.5" x2="3" y2="7.5" stroke="#333" stroke-width="0.7"/>
+                    </svg>
+                  </div>
+                }
+              </div>
+              <!-- Away Goals -->
+              <div class="space-y-1.5">
+                @for (goal of awayGoalEvents(); track goal.id) {
+                  <div class="flex items-center justify-end gap-2">
+                    <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none">
+                      <circle cx="12" cy="12" r="10.5" stroke="#333" stroke-width="1.2" fill="white"/>
+                      <polygon points="12,6.5 15.5,9.5 14.5,14 9.5,14 8.5,9.5" fill="#222" stroke="#222" stroke-width="0.3"/>
+                      <line x1="12" y1="6.5" x2="12" y2="1.5" stroke="#333" stroke-width="0.7"/>
+                      <line x1="15.5" y1="9.5" x2="21" y2="7.5" stroke="#333" stroke-width="0.7"/>
+                      <line x1="14.5" y1="14" x2="19" y2="19" stroke="#333" stroke-width="0.7"/>
+                      <line x1="9.5" y1="14" x2="5" y2="19" stroke="#333" stroke-width="0.7"/>
+                      <line x1="8.5" y1="9.5" x2="3" y2="7.5" stroke="#333" stroke-width="0.7"/>
+                    </svg>
+                    <span class="text-xs text-gray-800 dark:text-gray-200 font-semibold">{{ goal.player }}</span>
+                    <span class="text-[10px] text-gray-400 dark:text-gray-500 font-bold">{{ goal.minute }}'</span>
+                  </div>
+                }
+              </div>
+            </div>
+          </div>
+        }
+
+        <!-- Possession Bar (always visible for live/finished) -->
         @if (match().status === 'live' || match().status === 'finished') {
-          <div class="mb-5 pt-4 border-t border-gray-100 dark:border-gray-700/50">
-            <div class="flex items-center justify-between mb-3">
+          <div class="mb-4 pt-4 border-t border-gray-100 dark:border-gray-700/50">
+            <div class="flex items-center justify-between mb-2">
               <span class="text-[11px] font-bold text-gray-600 dark:text-gray-400">50%</span>
+              <span class="text-[10px] font-medium text-gray-400 dark:text-gray-500 uppercase">Posesión</span>
               <span class="text-[11px] font-bold text-gray-600 dark:text-gray-400">50%</span>
             </div>
             <div class="h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden flex">
-              <div class="h-full bg-linear-to-r from-blue-400 to-blue-600" style="width: 50%;"></div>
-              <div class="h-full bg-linear-to-r from-orange-400 to-orange-600" style="width: 50%;"></div>
+              <div class="h-full bg-linear-to-r from-blue-400 to-blue-600 rounded-l-full" style="width: 50%;"></div>
+              <div class="h-full bg-linear-to-r from-orange-400 to-orange-600 rounded-r-full" style="width: 50%;"></div>
             </div>
-            <div class="flex justify-between mt-2 text-[10px] text-gray-400 dark:text-gray-500 font-medium">
-              <span>Posesión</span>
-              <span>Posesión</span>
-            </div>
+          </div>
+        }
+
+        <!-- Expandable Stats Tab -->
+        @if (hasDetailedEvents()) {
+          <div class="border-t border-gray-100 dark:border-gray-700/50">
+            <button (click)="toggleDetails()" class="w-full py-3 flex items-center justify-center gap-2 text-xs font-bold text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300 transition-colors">
+              <svg class="w-4 h-4 transition-transform duration-200" [class.rotate-180]="showDetails()" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+              </svg>
+              {{ showDetails() ? 'Ocultar estadísticas' : 'Ver estadísticas' }}
+            </button>
+
+            @if (showDetails()) {
+              <div class="pb-4 px-2 space-y-2 animate-fade-in">
+                @for (event of nonGoalEvents(); track event.id) {
+                  <div class="flex items-center gap-2 text-xs py-1" [class]="event.team === 'home' ? '' : 'flex-row-reverse text-right'">
+                    @if (event.type === 'yellow') {
+                      <div class="w-3 h-4 bg-yellow-400 rounded-sm shrink-0 shadow-sm"></div>
+                    } @else if (event.type === 'red') {
+                      <div class="w-3 h-4 bg-red-500 rounded-sm shrink-0 shadow-sm"></div>
+                    } @else if (event.type === 'sub') {
+                      <svg class="w-4 h-4 text-blue-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/>
+                      </svg>
+                    }
+                    <span class="text-[10px] text-gray-400 dark:text-gray-500 font-bold min-w-6">{{ event.minute }}'</span>
+                    <div class="flex flex-col">
+                      <span class="text-gray-800 dark:text-gray-200 font-semibold">{{ event.player }}</span>
+                      @if (event.assist && event.type === 'sub') {
+                        <span class="text-[10px] text-gray-400 dark:text-gray-500">↓ {{ event.assist }}</span>
+                      }
+                    </div>
+                  </div>
+                }
+              </div>
+            }
           </div>
         }
 
@@ -93,12 +171,6 @@ import { APP_CONSTANTS } from '../../../shared/constants/app-constants';
             </svg>
             {{ formatVenueDisplay(match()) }}
           </div>
-          <div class="flex items-center text-blue-500 dark:text-blue-400 cursor-pointer hover:text-blue-600 dark:hover:text-blue-300 transition-colors">
-            <svg class="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-            </svg>
-            Ver más
-          </div>
         </div>
       </div>
     </div>
@@ -106,6 +178,31 @@ import { APP_CONSTANTS } from '../../../shared/constants/app-constants';
 })
 export class MatchCardComponent {
   match = input.required<Match>();
+  showDetails = signal(false);
+
+  toggleDetails() {
+    this.showDetails.update(v => !v);
+  }
+
+  goalEvents(): MatchEvent[] {
+    return (this.match().events || []).filter(e => e.type === 'goal').sort((a, b) => a.minute - b.minute);
+  }
+
+  homeGoalEvents(): MatchEvent[] {
+    return this.goalEvents().filter(e => e.team === 'home');
+  }
+
+  awayGoalEvents(): MatchEvent[] {
+    return this.goalEvents().filter(e => e.team === 'away');
+  }
+
+  nonGoalEvents(): MatchEvent[] {
+    return (this.match().events || []).filter(e => e.type !== 'goal').sort((a, b) => a.minute - b.minute);
+  }
+
+  hasDetailedEvents(): boolean {
+    return this.nonGoalEvents().length > 0;
+  }
 
   formatTime(isoString: string): string {
     return formatKickoffTime(isoString);
@@ -123,8 +220,16 @@ export class MatchCardComponent {
     return formatStageInfo(match.stage, match.group_name);
   }
 
+  homeGoals(): Goal[] {
+    return this.match().goals?.filter(g => g.team === 'home') || [];
+  }
+
+  awayGoals(): Goal[] {
+    return this.match().goals?.filter(g => g.team === 'away') || [];
+  }
+
   handleImageError(event: Event) {
     const img = event.target as HTMLImageElement;
-    img.src = APP_CONSTANTS.IMAGES.FLAG_PLACEHOLDER; // Placeholder fallback
+    img.src = APP_CONSTANTS.IMAGES.FLAG_PLACEHOLDER;
   }
 }

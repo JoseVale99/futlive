@@ -44,7 +44,7 @@ import { CommonModule } from '@angular/common';
 
       <!-- Match List -->
       @if (!matchService.error() && matchService.matches().length > 0) {
-        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-5xl mx-auto">
           @for (match of matchService.matches(); track match.id; let index = $index) {
             <div
               class="motion-safe:animate-slide-up"

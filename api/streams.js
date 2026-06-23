@@ -164,24 +164,34 @@ module.exports = async function handler(req, res) {
       return res.status(200).json(liveData);
     }
 
-    // Strategy 1: Fetch match page HTML and extract channels
+    // Strategy 1: Fetch match page HTML and extract channels (DSports, DSports+ from sudamericaplay2)
     let streams = [];
     try {
       const html = await fetchMatchPageHTML(matchId);
       streams = parseMatchPageStreams(html, matchId);
     } catch (e) {
-      // ignore, will fallback below
+      // ignore, will try RSC below
     }
 
-    // Strategy 2: Fallback to en-vivo RSC if no streams from HTML
-    if (streams.length === 0) {
-      try {
-        const rscText = await fetchRSC();
-        streams = parseStreams(rscText, matchId);
-      } catch (e) {
-        // both sources failed, streams stays empty
+    // Strategy 2: Also fetch en-vivo RSC for additional channels (FOX, DAZN, Telemundo, etc.)
+    try {
+      const rscText = await fetchRSC();
+      const rscStreams = parseStreams(rscText, matchId);
+
+      // Merge: add RSC streams that aren't already present
+      const existingNames = new Set(streams.map(s => s.embed_name));
+      for (const rscStream of rscStreams) {
+        if (!existingNames.has(rscStream.embed_name)) {
+          streams.push(rscStream);
+          existingNames.add(rscStream.embed_name);
+        }
       }
+    } catch (e) {
+      // both sources may have failed partially, use what we have
     }
+
+    // Limit to 20
+    streams = streams.slice(0, 20);
 
     return res.status(200).json({
       streams,

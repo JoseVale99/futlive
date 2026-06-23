@@ -210,27 +210,39 @@ const server = http.createServer(async (req, res) => {
 
       let streams = [];
 
-      // Strategy 1: Fetch match page HTML and extract channels + build embed URLs
+      // Strategy 1: Fetch match page HTML and extract channels (DSports, DSports+ from sudamericaplay2)
       try {
         const html = await fetchMatchPageHTML(matchId);
         console.log(`[${new Date().toISOString()}] Got match page HTML (${html.length} bytes)`);
         streams = parseMatchPageStreams(html, matchId);
+        console.log(`[${new Date().toISOString()}] Got ${streams.length} streams from match page`);
       } catch (e) {
         console.log(`[${new Date().toISOString()}] Match page HTML failed: ${e.message}`);
       }
 
-      // Strategy 2: If no streams from HTML, try en-vivo RSC (for featured match)
-      if (streams.length === 0) {
-        try {
-          console.log(`[${new Date().toISOString()}] Falling back to en-vivo RSC`);
-          const rscText = await fetchRSC();
-          streams = parseStreams(rscText, matchId);
-        } catch (e) {
-          console.log(`[${new Date().toISOString()}] en-vivo RSC also failed: ${e.message}`);
+      // Strategy 2: Also fetch en-vivo RSC for additional channels (FOX, DAZN, Telemundo, etc.)
+      try {
+        console.log(`[${new Date().toISOString()}] Fetching en-vivo RSC for additional channels`);
+        const rscText = await fetchRSC();
+        const rscStreams = parseStreams(rscText, matchId);
+        console.log(`[${new Date().toISOString()}] Got ${rscStreams.length} streams from en-vivo RSC`);
+
+        // Merge: add RSC streams that aren't already in the match page streams
+        const existingNames = new Set(streams.map(s => s.embed_name));
+        for (const rscStream of rscStreams) {
+          if (!existingNames.has(rscStream.embed_name)) {
+            streams.push(rscStream);
+            existingNames.add(rscStream.embed_name);
+          }
         }
+      } catch (e) {
+        console.log(`[${new Date().toISOString()}] en-vivo RSC failed: ${e.message}`);
       }
 
-      console.log(`[${new Date().toISOString()}] Found ${streams.length} streams`);
+      // Limit to 20 streams max
+      streams = streams.slice(0, 20);
+
+      console.log(`[${new Date().toISOString()}] Total streams: ${streams.length}`);
       res.writeHead(200);
       res.end(JSON.stringify({ streams, matchId, count: streams.length }));
     } catch (err) {

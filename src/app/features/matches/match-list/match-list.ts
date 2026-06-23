@@ -22,7 +22,7 @@ import { CommonModule } from '@angular/common';
 
       <!-- Error State -->
       @if (matchService.error()) {
-        <div class="bg-gradient-to-br from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 border border-red-100 dark:border-red-800/50 rounded-3xl p-8 text-center my-8">
+        <div class="bg-linear-to-br from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 border border-red-100 dark:border-red-800/50 rounded-3xl p-8 text-center my-8">
           <div class="relative inline-flex items-center justify-center mb-6">
             <div class="absolute inset-0 bg-red-500/20 rounded-full blur-xl"></div>
             <div class="relative bg-red-100 dark:bg-red-900/50 w-16 h-16 rounded-full flex items-center justify-center border border-red-200 dark:border-red-800/50">
@@ -35,7 +35,7 @@ import { CommonModule } from '@angular/common';
           <p class="text-red-600 dark:text-red-400 text-sm mb-6 max-w-sm mx-auto">{{ matchService.error() }}</p>
           <button
             (click)="retry()"
-            class="bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 text-white px-8 py-3.5 rounded-2xl font-bold text-sm transition-all duration-300 shadow-lg hover:shadow-xl"
+            class="bg-linear-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 text-white px-8 py-3.5 rounded-2xl font-bold text-sm transition-all duration-300 shadow-lg hover:shadow-xl"
           >
             Reintentar
           </button>

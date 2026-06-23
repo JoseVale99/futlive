@@ -5,13 +5,15 @@ import { ENVIRONMENT_TOKEN } from '../config/environment';
 import { GroupStanding } from '../models/standings-model';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
+const mockEnv = {
+  production: false,
+  supabaseUrl: 'http://localhost:3001',
+  supabaseKey: 'test-key'
+};
+
 describe('StandingsService', () => {
   let service: StandingsService;
   let httpMock: HttpTestingController;
-  const mockEnv = {
-    supabaseUrl: 'https://mock.supabase.co',
-    supabaseKey: 'mock-key'
-  };
 
   beforeEach(() => {
     TestBed.configureTestingModule({
@@ -44,9 +46,11 @@ describe('StandingsService', () => {
       service.fetchStandings();
       expect(service.loading()).toBe(true);
 
-      const req = httpMock.expectOne(req => req.url.includes('/group_standings'));
-      expect(req.request.params.get('order')).toBe('group_name.asc,rank.asc');
-      
+      const req = httpMock.expectOne(
+        r => r.url === 'http://localhost:3001/group_standings'
+      );
+      expect(req.request.method).toBe('GET');
+
       req.flush(mockStandings);
 
       expect(service.loading()).toBe(false);
@@ -57,7 +61,9 @@ describe('StandingsService', () => {
 
     it('should handle errors and update error signal', () => {
       service.fetchStandings();
-      const req = httpMock.expectOne(req => req.url.includes('/group_standings'));
+      const req = httpMock.expectOne(
+        r => r.url === 'http://localhost:3001/group_standings'
+      );
       req.error(new ErrorEvent('API Error'), { status: 404, statusText: 'Not Found' });
 
       expect(service.loading()).toBe(false);

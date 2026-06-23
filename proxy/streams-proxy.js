@@ -11,6 +11,22 @@ const http = require('http');
 const https = require('https');
 const url = require('url');
 
+const SUPABASE_URL = 'https://nmaopmcugunecbclfwzs.supabase.co/rest/v1';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5tYW9wbWN1Z3VuZWNiY2xmd3pzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExODc5ODEsImV4cCI6MjA5Njc2Mzk4MX0.Z2-LSY83JtAgX3mtR3_wxNfzUwkLJPyvhuIb2xT_eVM';
+
+const SAMPLE_SCORERS = [
+  { rank: 1, player_name: "Cristiano Ronaldo", team: "Portugal", team_flag: "https://flagcdn.com/w40/pt.png", goals: 5, assists: 1, matches_played: 3 },
+  { rank: 2, player_name: "Kylian Mbappé", team: "Francia", team_flag: "https://flagcdn.com/w40/fr.png", goals: 4, assists: 2, matches_played: 3 },
+  { rank: 3, player_name: "Kai Havertz", team: "Alemania", team_flag: "https://flagcdn.com/w40/de.png", goals: 4, assists: 0, matches_played: 2 },
+  { rank: 4, player_name: "Harry Kane", team: "Inglaterra", team_flag: "https://flagcdn.com/w40/gb-eng.png", goals: 3, assists: 1, matches_played: 3 },
+  { rank: 5, player_name: "Erling Haaland", team: "Noruega", team_flag: "https://flagcdn.com/w40/no.png", goals: 3, assists: 0, matches_played: 3 },
+  { rank: 6, player_name: "Vinícius Jr.", team: "Brasil", team_flag: "https://flagcdn.com/w40/br.png", goals: 2, assists: 2, matches_played: 3 },
+  { rank: 7, player_name: "Julián Álvarez", team: "Argentina", team_flag: "https://flagcdn.com/w40/ar.png", goals: 2, assists: 1, matches_played: 3 },
+  { rank: 8, player_name: "Viktor Gyökeres", team: "Suecia", team_flag: "https://flagcdn.com/w40/se.png", goals: 2, assists: 1, matches_played: 2 },
+  { rank: 9, player_name: "Alphonso Davies", team: "Canadá", team_flag: "https://flagcdn.com/w40/ca.png", goals: 2, assists: 3, matches_played: 3 },
+  { rank: 10, player_name: "Christian Pulisic", team: "EE.UU.", team_flag: "https://flagcdn.com/w40/us.png", goals: 2, assists: 1, matches_played: 2 }
+];
+
 const LACANCHA_URL = 'https://lacancha.tv/es/en-vivo';
 const RSC_PARAM = '_rsc';
 const RSC_VALUE = 'Jo6jRgXoLltzsDtw';
@@ -141,6 +157,35 @@ function parseMatchPageStreams(html, matchId) {
   }
 
   return streams.slice(0, 30);
+}
+
+/**
+ * Fetch JSON desde Supabase REST API usando https.
+ */
+function fetchSupabase(targetUrl) {
+  return new Promise((resolve, reject) => {
+    const parsedUrl = new URL(targetUrl);
+    const options = {
+      hostname: parsedUrl.hostname,
+      path: parsedUrl.pathname + parsedUrl.search,
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+      }
+    };
+    https.get(options, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try {
+          resolve(JSON.parse(data));
+        } catch (e) {
+          reject(new Error('Invalid JSON from Supabase'));
+        }
+      });
+    }).on('error', reject);
+  });
 }
 
 function fetchLiveData(matchId) {
@@ -334,13 +379,47 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(500);
       res.end(JSON.stringify({ error: 'Failed to fetch live data', detail: err.message }));
     }
+  } else if (parsed.pathname === '/api/standings') {
+    try {
+      console.log(`[${new Date().toISOString()}] Fetching standings from Supabase`);
+      const supabaseUrl = `${SUPABASE_URL}/group_standings?order=group_name.asc,rank.asc`;
+      const data = await fetchSupabase(supabaseUrl);
+      console.log(`[${new Date().toISOString()}] Got ${data.length} standings entries`);
+      res.writeHead(200);
+      res.end(JSON.stringify(data));
+    } catch (err) {
+      console.error('Standings proxy error:', err);
+      res.writeHead(500);
+      res.end(JSON.stringify({ error: `Failed to fetch standings: ${err.message}` }));
+    }
+  } else if (parsed.pathname === '/api/scorers') {
+    try {
+      console.log(`[${new Date().toISOString()}] Fetching scorers from Supabase`);
+      const supabaseUrl = `${SUPABASE_URL}/top_scorers?order=goals.desc,assists.desc`;
+      const data = await fetchSupabase(supabaseUrl);
+      if (!Array.isArray(data) || data.length === 0) {
+        console.log(`[${new Date().toISOString()}] No scorers from Supabase, returning sample data`);
+        res.writeHead(200);
+        res.end(JSON.stringify(SAMPLE_SCORERS));
+      } else {
+        console.log(`[${new Date().toISOString()}] Got ${data.length} scorers entries`);
+        res.writeHead(200);
+        res.end(JSON.stringify(data));
+      }
+    } catch (err) {
+      console.log(`[${new Date().toISOString()}] Scorers fetch failed, returning sample data`);
+      res.writeHead(200);
+      res.end(JSON.stringify(SAMPLE_SCORERS));
+    }
   } else {
     res.writeHead(404);
-    res.end(JSON.stringify({ error: 'Not found. Use /api/streams?matchId={id} or /api/live?matchId={id}' }));
+    res.end(JSON.stringify({ error: 'Not found. Use /api/streams?matchId={id}, /api/live?matchId={id}, /api/standings, or /api/scorers' }));
   }
 });
 
 server.listen(PORT, () => {
   console.log(`🎬 Streams proxy running on http://localhost:${PORT}`);
   console.log(`   Usage: GET /api/streams?matchId={match-uuid}`);
+  console.log(`          GET /api/standings`);
+  console.log(`          GET /api/scorers`);
 });

@@ -18,8 +18,9 @@ interface MatchGroup {
 @Component({
   selector: 'app-home-view',
   standalone: true,
+  imports: [],
   template: `
-    <div class="min-h-screen bg-gray-50 dark:bg-[#0a0e17]">
+    <div class="min-h-screen bg-gray-50 dark:bg-[#0a0e17] pb-24">
       <!-- Tabs -->
       <div class="sticky top-[60px] z-10 bg-gray-50/95 dark:bg-[#0a0e17]/95 backdrop-blur-md border-b border-gray-200 dark:border-white/5">
         <div class="max-w-5xl mx-auto px-4">

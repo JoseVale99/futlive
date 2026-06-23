@@ -12,5 +12,9 @@ export const routes: Routes = [
   {
     path: 'posiciones',
     loadComponent: () => import('./features/standings/standings-view/standings-view').then(m => m.StandingsViewComponent)
+  },
+  {
+    path: 'goleadores',
+    loadComponent: () => import('./features/scorers/scorers-view').then(m => m.ScorersViewComponent)
   }
 ];

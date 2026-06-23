@@ -9,8 +9,8 @@ import { catchError, finalize, of, timeout } from 'rxjs';
   providedIn: 'root'
 })
 export class StandingsService {
-  private http = inject(HttpClient);
-  private env = inject(ENVIRONMENT_TOKEN);
+  private readonly http = inject(HttpClient);
+  private readonly env = inject(ENVIRONMENT_TOKEN);
 
   private _standings = signal<GroupStanding[]>([]);
   private _loading = signal<boolean>(false);

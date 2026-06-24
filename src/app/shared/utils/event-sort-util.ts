@@ -26,3 +26,17 @@ export function mergeEventsById(existing: MatchEvent[], incoming: MatchEvent[]):
   }
   return merged;
 }
+
+/**
+ * Detects IDs present in current events but absent from knownIds.
+ * Useful for identifying newly arrived events in a polling cycle.
+ */
+export function detectNewEventIds(knownIds: Set<string>, current: MatchEvent[]): Set<string> {
+  const newIds = new Set<string>();
+  for (const event of current) {
+    if (!knownIds.has(event.id)) {
+      newIds.add(event.id);
+    }
+  }
+  return newIds;
+}

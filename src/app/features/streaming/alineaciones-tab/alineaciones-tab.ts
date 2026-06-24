@@ -1,13 +1,14 @@
-import { Component, input } from '@angular/core';
+import { Component, computed, input } from '@angular/core';
 import { MatchLineup } from '../../../core/models/live-data-model';
+import { filterStarters, sortByJerseyNumber } from '../../../shared/utils/player-util';
 
 @Component({
   selector: 'app-alineaciones-tab',
   standalone: true,
   template: `
-    @if (lineups().length > 0) {
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        @for (lineup of lineups(); track lineup.team) {
+    @if (starterLineups().length > 0) {
+      <div class="grid grid-cols-2 gap-6">
+        @for (lineup of starterLineups(); track lineup.team) {
           <div>
             <h4 class="text-sm font-bold text-gray-900 dark:text-white mb-3 pb-2 border-b border-gray-200 dark:border-gray-700">
               {{ lineup.team_name }}
@@ -15,13 +16,10 @@ import { MatchLineup } from '../../../core/models/live-data-model';
             <ul class="space-y-1.5">
               @for (player of lineup.players; track player.number) {
                 <li class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                  <span class="text-xs font-mono text-gray-400 w-6 text-right">{{ player.number }}</span>
-                  <span [class]="player.is_starter ? 'font-medium' : 'text-gray-500 dark:text-gray-400'">
-                    {{ player.name }}
+                  <span class="w-6 h-6 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-xs font-bold">
+                    {{ player.number }}
                   </span>
-                  @if (!player.is_starter) {
-                    <span class="text-[10px] text-gray-400">(SUP)</span>
-                  }
+                  <span class="font-medium">{{ player.name }}</span>
                 </li>
               }
             </ul>
@@ -37,4 +35,11 @@ import { MatchLineup } from '../../../core/models/live-data-model';
 })
 export class AlineacionesTabComponent {
   lineups = input<MatchLineup[]>([]);
+
+  starterLineups = computed(() =>
+    this.lineups().map((lineup) => ({
+      ...lineup,
+      players: sortByJerseyNumber(filterStarters(lineup.players)).slice(0, 11),
+    }))
+  );
 }

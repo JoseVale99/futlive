@@ -142,62 +142,91 @@ interface BracketMatch {
             </div>
           }
         } @else {
-          <!-- TAB: Posibles Cruces -->
-          <div class="space-y-6">
+          <!-- TAB: Posibles Cruces — Bracket en 2 lados -->
+          <div class="space-y-5">
             <div class="bg-blue-50/50 dark:bg-blue-900/10 border border-blue-200/50 dark:border-blue-700/20 rounded-2xl p-4">
               <p class="text-xs text-blue-700 dark:text-blue-300 font-medium">
-                ⚽ Cruces proyectados según las <strong>posiciones actuales</strong>. Se actualizan en tiempo real conforme terminan los partidos de fase de grupos.
+                ⚽ Bracket proyectado según <strong>posiciones actuales</strong>. Se actualiza conforme terminan los partidos.
               </p>
             </div>
 
-            @for (match of bracketMatches(); track match.matchNum) {
-              <div class="bg-white dark:bg-gray-800/60 rounded-xl border border-gray-100 dark:border-gray-700/50 overflow-hidden">
-                <div class="px-4 py-2 bg-gray-50 dark:bg-gray-900/40 border-b border-gray-100 dark:border-gray-700/30 flex items-center justify-between">
-                  <span class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Match {{ match.matchNum }}</span>
-                  <span class="text-[10px] font-semibold text-gray-500 dark:text-gray-400">{{ match.date }}</span>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <!-- LADO A -->
+              <div class="space-y-2.5">
+                <div class="flex items-center gap-2 px-1 mb-1">
+                  <div class="w-2 h-2 rounded-full bg-indigo-500"></div>
+                  <span class="text-[10px] font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400">Lado A</span>
+                  <div class="flex-1 h-px bg-indigo-200/50 dark:bg-indigo-800/30"></div>
                 </div>
-                <div class="px-4 py-4 flex items-center gap-3">
-                  <!-- Team 1 -->
-                  <div class="flex-1 min-w-0">
-                    <div class="flex items-center gap-2 justify-end">
-                      <div class="text-right min-w-0">
-                        <p class="text-sm font-bold text-gray-900 dark:text-white truncate">{{ match.team1Name }}</p>
-                        <p class="text-[9px] text-gray-400 dark:text-gray-500">{{ match.team1Label }}</p>
+                @for (match of leftBracket(); track match.matchNum) {
+                  <div class="relative pl-3">
+                    <div class="absolute left-0 top-1 bottom-1 w-0.5 rounded-full bg-indigo-400/60 dark:bg-indigo-500/40"></div>
+                    <div class="bg-white dark:bg-gray-800/60 rounded-lg border border-gray-100 dark:border-gray-700/50 overflow-hidden">
+                      <div class="flex items-center px-3 py-2 border-b border-gray-50 dark:border-gray-700/20 gap-2">
+                        @if (match.team1Flag) {
+                          <img [src]="match.team1Flag" [alt]="match.team1Name" class="w-5 h-5 rounded-sm object-cover shrink-0">
+                        } @else {
+                          <div class="w-5 h-5 rounded-sm bg-gray-200 dark:bg-gray-700 shrink-0"></div>
+                        }
+                        <span class="text-xs font-bold text-gray-900 dark:text-white truncate flex-1">{{ match.team1Name }}</span>
+                        <span class="text-[8px] text-gray-400 shrink-0">{{ match.team1Label }}</span>
                       </div>
-                      @if (match.team1Flag) {
-                        <img [src]="match.team1Flag" [alt]="match.team1Name" class="w-8 h-8 rounded object-cover shrink-0">
-                      } @else {
-                        <div class="w-8 h-8 rounded bg-gray-200 dark:bg-gray-700 flex items-center justify-center shrink-0">
-                          <span class="text-[10px] text-gray-400">?</span>
-                        </div>
-                      }
-                    </div>
-                  </div>
-
-                  <!-- VS -->
-                  <div class="shrink-0 w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
-                    <span class="text-xs font-black text-gray-500 dark:text-gray-400">VS</span>
-                  </div>
-
-                  <!-- Team 2 -->
-                  <div class="flex-1 min-w-0">
-                    <div class="flex items-center gap-2">
-                      @if (match.team2Flag) {
-                        <img [src]="match.team2Flag" [alt]="match.team2Name" class="w-8 h-8 rounded object-cover shrink-0">
-                      } @else {
-                        <div class="w-8 h-8 rounded bg-gray-200 dark:bg-gray-700 flex items-center justify-center shrink-0">
-                          <span class="text-[10px] text-gray-400">?</span>
-                        </div>
-                      }
-                      <div class="min-w-0">
-                        <p class="text-sm font-bold text-gray-900 dark:text-white truncate">{{ match.team2Name }}</p>
-                        <p class="text-[9px] text-gray-400 dark:text-gray-500">{{ match.team2Label }}</p>
+                      <div class="flex items-center px-3 py-2 gap-2">
+                        @if (match.team2Flag) {
+                          <img [src]="match.team2Flag" [alt]="match.team2Name" class="w-5 h-5 rounded-sm object-cover shrink-0">
+                        } @else {
+                          <div class="w-5 h-5 rounded-sm bg-gray-200 dark:bg-gray-700 shrink-0"></div>
+                        }
+                        <span class="text-xs font-bold text-gray-900 dark:text-white truncate flex-1">{{ match.team2Name }}</span>
+                        <span class="text-[8px] text-gray-400 shrink-0">{{ match.team2Label }}</span>
                       </div>
                     </div>
                   </div>
-                </div>
+                }
               </div>
-            }
+
+              <!-- LADO B -->
+              <div class="space-y-2.5">
+                <div class="flex items-center gap-2 px-1 mb-1">
+                  <div class="w-2 h-2 rounded-full bg-violet-500"></div>
+                  <span class="text-[10px] font-black uppercase tracking-widest text-violet-600 dark:text-violet-400">Lado B</span>
+                  <div class="flex-1 h-px bg-violet-200/50 dark:bg-violet-800/30"></div>
+                </div>
+                @for (match of rightBracket(); track match.matchNum) {
+                  <div class="relative pl-3">
+                    <div class="absolute left-0 top-1 bottom-1 w-0.5 rounded-full bg-violet-400/60 dark:bg-violet-500/40"></div>
+                    <div class="bg-white dark:bg-gray-800/60 rounded-lg border border-gray-100 dark:border-gray-700/50 overflow-hidden">
+                      <div class="flex items-center px-3 py-2 border-b border-gray-50 dark:border-gray-700/20 gap-2">
+                        @if (match.team1Flag) {
+                          <img [src]="match.team1Flag" [alt]="match.team1Name" class="w-5 h-5 rounded-sm object-cover shrink-0">
+                        } @else {
+                          <div class="w-5 h-5 rounded-sm bg-gray-200 dark:bg-gray-700 shrink-0"></div>
+                        }
+                        <span class="text-xs font-bold text-gray-900 dark:text-white truncate flex-1">{{ match.team1Name }}</span>
+                        <span class="text-[8px] text-gray-400 shrink-0">{{ match.team1Label }}</span>
+                      </div>
+                      <div class="flex items-center px-3 py-2 gap-2">
+                        @if (match.team2Flag) {
+                          <img [src]="match.team2Flag" [alt]="match.team2Name" class="w-5 h-5 rounded-sm object-cover shrink-0">
+                        } @else {
+                          <div class="w-5 h-5 rounded-sm bg-gray-200 dark:bg-gray-700 shrink-0"></div>
+                        }
+                        <span class="text-xs font-bold text-gray-900 dark:text-white truncate flex-1">{{ match.team2Name }}</span>
+                        <span class="text-[8px] text-gray-400 shrink-0">{{ match.team2Label }}</span>
+                      </div>
+                    </div>
+                  </div>
+                }
+              </div>
+            </div>
+
+            <!-- Final -->
+            <div class="flex justify-center pt-4">
+              <div class="flex items-center gap-2 px-5 py-2.5 bg-linear-to-r from-amber-50 to-yellow-50 dark:from-amber-900/10 dark:to-yellow-900/10 border border-amber-200/50 dark:border-amber-700/20 rounded-full shadow-sm">
+                <span class="text-base">🏆</span>
+                <span class="text-[10px] font-black text-amber-700 dark:text-amber-400 uppercase tracking-wider">Final — Jul 19 · MetLife Stadium</span>
+              </div>
+            </div>
           </div>
         }
       </div>
@@ -243,6 +272,9 @@ export class StandingsViewComponent implements OnInit {
       ...this.resolveTeam2(b.team2, grouped, usedThirds),
     }));
   });
+
+  readonly leftBracket = computed(() => this.bracketMatches().slice(0, 8));
+  readonly rightBracket = computed(() => this.bracketMatches().slice(8, 16));
 
   private resolveTeam(code: string, grouped: Map<string, GroupStanding[]>, usedThirds: Set<string>): { team1Label: string; team1Name: string; team1Flag: string } {
     const info = this.resolveSlot(code, grouped, usedThirds);

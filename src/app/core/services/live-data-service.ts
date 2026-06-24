@@ -2,7 +2,7 @@ import { Injectable, inject, signal, OnDestroy } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { ENVIRONMENT_TOKEN } from '../config/environment';
 import { Subscription, timer, switchMap, catchError, of, timeout, delay, Observable, EMPTY, forkJoin, retry } from 'rxjs';
-import { MatchEvent, MatchStats, MatchStatus } from '../models/match-model';
+import { EventType, MatchEvent, MatchStats, MatchStatus } from '../models/match-model';
 import { LiveMatchResponse, LiveScoreData, MatchLineup, LineupPlayer, POLLING_CONFIG } from '../models/live-data-model';
 import { mergeEventsById } from '../../shared/utils/event-sort-util';
 
@@ -129,8 +129,11 @@ export class LiveDataService implements OnDestroy {
     this._consecutiveErrors.set(0);
     this._error.set(null);
 
-    // Merge events without losing existing ones
-    const incomingEvents = response.events ?? [];
+    // Normalize event types (external APIs may use different naming)
+    const incomingEvents = (response.events ?? []).map(e => ({
+      ...e,
+      type: this.normalizeEventType(e.type)
+    }));
     const merged = mergeEventsById(this._events(), incomingEvents);
     this._events.set(merged);
 
@@ -346,5 +349,15 @@ export class LiveDataService implements OnDestroy {
     }
 
     return lineups;
+  }
+
+  private normalizeEventType(type: string): EventType {
+    const normalized = type.toLowerCase().replace(/[-\s]/g, '_');
+    if (normalized === 'own_goal' || normalized === 'og' || normalized === 'autogol') return 'own_goal';
+    if (normalized === 'goal') return 'goal';
+    if (normalized === 'yellow' || normalized === 'yellow_card') return 'yellow';
+    if (normalized === 'red' || normalized === 'red_card') return 'red';
+    if (normalized === 'sub' || normalized === 'substitution') return 'sub';
+    return type as EventType;
   }
 }

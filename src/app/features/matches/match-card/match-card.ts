@@ -90,10 +90,13 @@ import { Router } from '@angular/router';
             <div class="grid grid-cols-2 gap-4">
               <!-- Home Goals -->
               <div class="space-y-1.5">
-                @for (goal of homeGoalEvents(); track goal.id) {
+                @for (group of groupedHomeGoals(); track group.player) {
                   <div class="flex items-center gap-2">
-                    <span class="text-[10px] text-gray-400 dark:text-gray-500 font-bold">{{ goal.minute }}'</span>
-                    <span class="text-xs text-gray-800 dark:text-gray-200 font-semibold">{{ goal.player }}</span>
+                    <span class="text-[10px] text-gray-400 dark:text-gray-500 font-bold">{{ group.minutes.join("', ") }}'</span>
+                    <span class="text-xs text-gray-800 dark:text-gray-200 font-semibold">{{ group.player }}</span>
+                    @if (group.isOwnGoal) {
+                      <span class="text-[9px] text-red-400 font-bold">(GEC)</span>
+                    }
                     <svg class="w-3.5 h-3.5 shrink-0 ml-auto" viewBox="0 0 24 24" fill="none">
                       <circle cx="12" cy="12" r="10.5" stroke="#333" stroke-width="1.2" fill="white"/>
                       <polygon points="12,6.5 15.5,9.5 14.5,14 9.5,14 8.5,9.5" fill="#222" stroke="#222" stroke-width="0.3"/>
@@ -108,7 +111,7 @@ import { Router } from '@angular/router';
               </div>
               <!-- Away Goals -->
               <div class="space-y-1.5">
-                @for (goal of awayGoalEvents(); track goal.id) {
+                @for (group of groupedAwayGoals(); track group.player) {
                   <div class="flex items-center justify-end gap-2">
                     <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none">
                       <circle cx="12" cy="12" r="10.5" stroke="#333" stroke-width="1.2" fill="white"/>
@@ -119,8 +122,11 @@ import { Router } from '@angular/router';
                       <line x1="9.5" y1="14" x2="5" y2="19" stroke="#333" stroke-width="0.7"/>
                       <line x1="8.5" y1="9.5" x2="3" y2="7.5" stroke="#333" stroke-width="0.7"/>
                     </svg>
-                    <span class="text-xs text-gray-800 dark:text-gray-200 font-semibold">{{ goal.player }}</span>
-                    <span class="text-[10px] text-gray-400 dark:text-gray-500 font-bold">{{ goal.minute }}'</span>
+                    <span class="text-xs text-gray-800 dark:text-gray-200 font-semibold">{{ group.player }}</span>
+                    @if (group.isOwnGoal) {
+                      <span class="text-[9px] text-red-400 font-bold">(GEC)</span>
+                    }
+                    <span class="text-[10px] text-gray-400 dark:text-gray-500 font-bold">{{ group.minutes.join("', ") }}'</span>
                   </div>
                 }
               </div>
@@ -236,7 +242,7 @@ export class MatchCardComponent implements OnInit {
   }
 
   goalEvents(): MatchEvent[] {
-    return (this.match().events || []).filter(e => e.type === 'goal').sort((a, b) => a.minute - b.minute);
+    return (this.match().events || []).filter(e => e.type === 'goal' || e.type === 'own_goal').sort((a, b) => a.minute - b.minute);
   }
 
   homeGoalEvents(): MatchEvent[] {
@@ -247,8 +253,33 @@ export class MatchCardComponent implements OnInit {
     return this.goalEvents().filter(e => e.team === 'away');
   }
 
+  groupedHomeGoals(): { player: string; minutes: number[]; isOwnGoal: boolean }[] {
+    return this.groupGoalsByPlayer(this.homeGoalEvents());
+  }
+
+  groupedAwayGoals(): { player: string; minutes: number[]; isOwnGoal: boolean }[] {
+    return this.groupGoalsByPlayer(this.awayGoalEvents());
+  }
+
+  private groupGoalsByPlayer(goals: MatchEvent[]): { player: string; minutes: number[]; isOwnGoal: boolean }[] {
+    const map = new Map<string, { minutes: number[]; isOwnGoal: boolean }>();
+    for (const g of goals) {
+      const key = `${g.player}_${g.type}`;
+      const existing = map.get(key) ?? { minutes: [], isOwnGoal: g.type === 'own_goal' };
+      existing.minutes.push(g.minute);
+      map.set(key, existing);
+    }
+    return Array.from(map.entries())
+      .map(([key, { minutes, isOwnGoal }]) => ({
+        player: key.replace(/_goal$|_own_goal$/, ''),
+        minutes: minutes.sort((a, b) => a - b),
+        isOwnGoal
+      }))
+      .sort((a, b) => a.minutes[0] - b.minutes[0]);
+  }
+
   nonGoalEvents(): MatchEvent[] {
-    return (this.match().events || []).filter(e => e.type !== 'goal').sort((a, b) => a.minute - b.minute);
+    return (this.match().events || []).filter(e => e.type !== 'goal' && e.type !== 'own_goal').sort((a, b) => a.minute - b.minute);
   }
 
   hasDetailedEvents(): boolean {

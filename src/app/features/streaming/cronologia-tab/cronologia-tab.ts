@@ -13,6 +13,7 @@ export interface MaterialIconConfig {
 
 const ICON_MAP: Record<EventType, MaterialIconConfig> = {
   goal: { text: 'sports_soccer', colorClass: '', fallbackEmoji: '⚽' },
+  own_goal: { text: 'sports_soccer', colorClass: 'text-red-400', fallbackEmoji: '⚽🔴' },
   sub: { text: 'swap_horiz', colorClass: '', fallbackEmoji: '🔄' },
   yellow: { text: 'square', colorClass: 'text-yellow-400', fallbackEmoji: '🟨' },
   red: { text: 'square', colorClass: 'text-red-500', fallbackEmoji: '🟥' },

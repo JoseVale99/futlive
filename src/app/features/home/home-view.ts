@@ -122,10 +122,13 @@ interface MatchGroup {
                               <div class="flex flex-col sm:flex-row gap-2 sm:gap-8 justify-center">
                                 <!-- Home goals -->
                                 <div class="flex-1 text-right">
-                                  @for (goal of getHomeGoals(match); track goal.id) {
+                                  @for (group of getGroupedHomeGoals(match); track group.player) {
                                     <p class="text-xs text-gray-600 dark:text-gray-400">
-                                      <span class="font-medium text-gray-800 dark:text-gray-200">{{ goal.player }}</span>
-                                      <span class="text-gray-400 dark:text-gray-500 ml-1">{{ goal.minute }}'</span>
+                                      <span class="font-medium text-gray-800 dark:text-gray-200">{{ group.player }}</span>
+                                      <span class="text-gray-400 dark:text-gray-500 ml-1">{{ group.minutes.join("', ") }}'</span>
+                                      @if (group.isOwnGoal) {
+                                        <span class="text-red-400 dark:text-red-500 ml-0.5 text-[10px]">(GEC)</span>
+                                      }
                                     </p>
                                   }
                                 </div>
@@ -133,10 +136,13 @@ interface MatchGroup {
                                 <div class="hidden sm:block w-px bg-gray-200 dark:bg-white/10"></div>
                                 <!-- Away goals -->
                                 <div class="flex-1 text-left">
-                                  @for (goal of getAwayGoals(match); track goal.id) {
+                                  @for (group of getGroupedAwayGoals(match); track group.player) {
                                     <p class="text-xs text-gray-600 dark:text-gray-400">
-                                      <span class="text-gray-400 dark:text-gray-500 mr-1">{{ goal.minute }}'</span>
-                                      <span class="font-medium text-gray-800 dark:text-gray-200">{{ goal.player }}</span>
+                                      <span class="text-gray-400 dark:text-gray-500 mr-1">{{ group.minutes.join("', ") }}'</span>
+                                      <span class="font-medium text-gray-800 dark:text-gray-200">{{ group.player }}</span>
+                                      @if (group.isOwnGoal) {
+                                        <span class="text-red-400 dark:text-red-500 ml-0.5 text-[10px]">(GEC)</span>
+                                      }
                                     </p>
                                   }
                                 </div>
@@ -338,7 +344,7 @@ export class HomeViewComponent implements OnInit, OnDestroy {
   }
 
   getGoals(match: Match): MatchEvent[] {
-    return (match.events ?? []).filter(e => e.type === 'goal');
+    return (match.events ?? []).filter(e => e.type === 'goal' || e.type === 'own_goal');
   }
 
   getHomeGoals(match: Match): MatchEvent[] {
@@ -347,6 +353,31 @@ export class HomeViewComponent implements OnInit, OnDestroy {
 
   getAwayGoals(match: Match): MatchEvent[] {
     return this.getGoals(match).filter(e => e.team === 'away');
+  }
+
+  getGroupedHomeGoals(match: Match): { player: string; minutes: number[]; isOwnGoal: boolean }[] {
+    return this.groupGoalsByPlayer(this.getHomeGoals(match));
+  }
+
+  getGroupedAwayGoals(match: Match): { player: string; minutes: number[]; isOwnGoal: boolean }[] {
+    return this.groupGoalsByPlayer(this.getAwayGoals(match));
+  }
+
+  private groupGoalsByPlayer(goals: MatchEvent[]): { player: string; minutes: number[]; isOwnGoal: boolean }[] {
+    const map = new Map<string, { minutes: number[]; isOwnGoal: boolean }>();
+    for (const g of goals) {
+      const key = `${g.player}_${g.type}`;
+      const existing = map.get(key) ?? { minutes: [], isOwnGoal: g.type === 'own_goal' };
+      existing.minutes.push(g.minute);
+      map.set(key, existing);
+    }
+    return Array.from(map.entries())
+      .map(([key, { minutes, isOwnGoal }]) => ({
+        player: key.replace(/_goal$|_own_goal$/, ''),
+        minutes: minutes.sort((a, b) => a - b),
+        isOwnGoal
+      }))
+      .sort((a, b) => a.minutes[0] - b.minutes[0]);
   }
 
   getCards(match: Match): MatchEvent[] {
@@ -466,7 +497,7 @@ export class HomeViewComponent implements OnInit, OnDestroy {
               ...match,
               events,
               stats,
-              goals: events.filter(e => e.type === 'goal').map(e => ({ team: e.team, scorer: e.player, minute: e.minute }))
+              goals: events.filter(e => e.type === 'goal' || e.type === 'own_goal').map(e => ({ team: e.team, scorer: e.player, minute: e.minute }))
             })),
             catchError(() => of(match))
           )

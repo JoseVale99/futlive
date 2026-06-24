@@ -161,8 +161,11 @@ export class LiveDataService implements OnDestroy {
     this._consecutiveErrors.set(errors);
 
     if (errors >= POLLING_CONFIG.maxRetries) {
+      // Fallback: try fetching from Supabase directly before giving up
+      if (this.currentMatchId && this._events().length === 0) {
+        this.fetchEventsFromSupabase(this.currentMatchId);
+      }
       this._error.set('Datos en vivo no disponibles');
-      // Stop retrying — wait for next regular polling cycle
     } else {
       // Schedule a retry after retryDelay
       this.retrySubscription?.unsubscribe();
@@ -188,6 +191,34 @@ export class LiveDataService implements OnDestroy {
           }
         });
     }
+  }
+
+  /**
+   * Fallback: fetch events from Supabase when proxy fails (for mobile/slow connections).
+   */
+  private fetchEventsFromSupabase(matchId: string): void {
+    const headers = new HttpHeaders({
+      apikey: this.env.supabaseKey,
+      Authorization: `Bearer ${this.env.supabaseKey}`,
+    });
+
+    this.http
+      .get<MatchEvent[]>(`${this.env.supabaseUrl}/match_events`, {
+        params: { match_id: `eq.${matchId}`, select: '*', order: 'minute.asc' },
+        headers,
+      })
+      .pipe(
+        timeout(25_000),
+        retry({ count: 1, delay: 3000 }),
+        catchError(() => of([] as MatchEvent[]))
+      )
+      .subscribe((events) => {
+        if (events.length > 0) {
+          this._events.set(mergeEventsById(this._events(), events));
+          this._error.set(null); // Clear error since we got data
+        }
+        this._loading.set(false);
+      });
   }
 
   private handleStatusTransition(newStatus: MatchStatus): void {

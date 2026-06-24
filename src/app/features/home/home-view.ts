@@ -119,9 +119,9 @@ interface MatchGroup {
                           <!-- Goal scorers -->
                           @if (getGoals(match).length > 0) {
                             <div class="border-t border-gray-100 dark:border-white/5 pt-3 mb-4">
-                              <div class="flex flex-col sm:flex-row gap-2 sm:gap-8 justify-center">
+                              <div class="grid grid-cols-[1fr_auto_1fr] gap-2 items-start">
                                 <!-- Home goals -->
-                                <div class="flex-1 text-right">
+                                <div class="text-right">
                                   @for (group of getGroupedHomeGoals(match); track group.player) {
                                     <p class="text-xs text-gray-600 dark:text-gray-400">
                                       <span class="font-medium text-gray-800 dark:text-gray-200">{{ group.player }}</span>
@@ -133,9 +133,9 @@ interface MatchGroup {
                                   }
                                 </div>
                                 <!-- Divider -->
-                                <div class="hidden sm:block w-px bg-gray-200 dark:bg-white/10"></div>
+                                <div class="w-px min-h-4 bg-gray-200 dark:bg-white/10 mx-2"></div>
                                 <!-- Away goals -->
-                                <div class="flex-1 text-left">
+                                <div class="text-left">
                                   @for (group of getGroupedAwayGoals(match); track group.player) {
                                     <p class="text-xs text-gray-600 dark:text-gray-400">
                                       <span class="text-gray-400 dark:text-gray-500 mr-1">{{ group.minutes.join("', ") }}'</span>

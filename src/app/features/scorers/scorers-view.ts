@@ -1,5 +1,4 @@
 import { Component, inject, OnInit, signal, computed } from '@angular/core';
-import { RouterLink } from '@angular/router';
 import { ScorersService } from '../../core/services/scorers-service';
 import { TopAssister, CardEntry } from '../../core/models/scorers-model';
 import { APP_CONSTANTS } from '../../shared/constants/app-constants';
@@ -35,21 +34,9 @@ const SAMPLE_CARDS: CardEntry[] = [
 @Component({
   selector: 'app-scorers-view',
   standalone: true,
-  imports: [RouterLink],
+  imports: [],
   template: `
     <div class="min-h-screen bg-gray-50 dark:bg-[#0a0e17] pb-24">
-      <!-- Header -->
-      <div class="sticky top-[60px] z-10 bg-gray-50/95 dark:bg-[#0a0e17]/95 backdrop-blur-md border-b border-gray-200 dark:border-white/5">
-        <div class="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3">
-          <a routerLink="/" class="p-2 -ml-2 rounded-lg hover:bg-gray-200 dark:hover:bg-white/5 transition-colors">
-            <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-            </svg>
-          </a>
-          <h1 class="text-lg font-bold text-gray-900 dark:text-white">Estadísticas</h1>
-        </div>
-      </div>
-
       <!-- Tabs -->
       <div class="max-w-5xl mx-auto px-4 pt-4">
         <div class="flex gap-1 bg-gray-100 dark:bg-[#111827] p-1 rounded-lg">

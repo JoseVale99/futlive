@@ -1,5 +1,4 @@
 import { Component, inject, OnInit, signal, computed } from '@angular/core';
-import { RouterLink } from '@angular/router';
 import { StandingsService } from '../../../core/services/standings-service';
 import { StandingsTableComponent } from '../standings-table/standings-table';
 import { CommonModule } from '@angular/common';
@@ -24,24 +23,10 @@ interface BracketMatch {
 @Component({
   selector: 'app-standings-view',
   standalone: true,
-  imports: [CommonModule, RouterLink, StandingsTableComponent],
+  imports: [CommonModule, StandingsTableComponent],
   template: `
     <div class="min-h-screen bg-linear-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-950 pb-24">
-      <div class="sticky top-0 z-30 backdrop-blur-xl bg-white/90 dark:bg-gray-900/90 border-b border-gray-200 dark:border-gray-800 px-4 py-4">
-        <div class="max-w-7xl mx-auto flex items-center gap-4">
-          <a routerLink="/" class="p-2.5 rounded-2xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:scale-105 transition-transform">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"></path>
-            </svg>
-          </a>
-          <div>
-            <h1 class="text-2xl font-black text-gray-900 dark:text-white tracking-tight">Posiciones</h1>
-            <p class="text-[10px] text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest">Mundial 2026</p>
-          </div>
-        </div>
-      </div>
-
-      <div class="sticky top-[72px] z-20 bg-gray-50/95 dark:bg-[#0a0e17]/95 backdrop-blur-md border-b border-gray-200 dark:border-white/5">
+      <div class="sticky top-0 z-20 bg-gray-50/95 dark:bg-[#0a0e17]/95 backdrop-blur-md border-b border-gray-200 dark:border-white/5">
         <div class="max-w-7xl mx-auto px-4">
           <nav class="flex gap-1">
             <button (click)="activeTab.set('grupos')" [class]="activeTab() === 'grupos' ? 'px-5 py-3 text-sm font-semibold text-gray-900 dark:text-white border-b-2 border-blue-500' : 'px-5 py-3 text-sm font-medium text-gray-500 dark:text-gray-400 border-b-2 border-transparent'">

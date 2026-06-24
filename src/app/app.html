@@ -53,24 +53,24 @@
   <router-outlet />
 
   <!-- Mobile Navigation -->
-  <nav class="md:hidden fixed bottom-0 left-0 right-0 z-40 backdrop-blur-xl bg-white/95 dark:bg-gray-900/95 border-t border-gray-200 dark:border-gray-800 px-4 py-3 flex justify-around items-center shadow-xl">
-    <a [routerLink]="['/']" routerLinkActive="text-blue-600 dark:text-blue-500" [routerLinkActiveOptions]="{exact: true}" class="flex flex-col items-center min-h-11 min-w-11 justify-center transition-colors">
-      <svg class="w-6 h-6 mb-1" fill="currentColor" viewBox="0 0 24 24">
+  <nav class="md:hidden fixed bottom-0 left-0 right-0 z-40 backdrop-blur-xl bg-white/95 dark:bg-gray-900/95 border-t border-gray-200 dark:border-gray-800 px-4 py-2 flex justify-around items-center shadow-xl">
+    <a [routerLink]="['/']" routerLinkActive="!text-blue-600 dark:!text-blue-400" [routerLinkActiveOptions]="{exact: true}" class="flex flex-col items-center min-h-12 min-w-12 justify-center transition-colors text-gray-400 dark:text-gray-500 relative">
+      <svg class="w-5 h-5 mb-0.5" fill="currentColor" viewBox="0 0 24 24">
         <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
       </svg>
-      <span class="text-[11px] font-bold uppercase tracking-wide">Inicio</span>
+      <span class="text-[10px] font-bold uppercase tracking-wide">Inicio</span>
     </a>
-    <a [routerLink]="['/posiciones']" routerLinkActive="text-blue-600 dark:text-blue-500" class="flex flex-col items-center min-h-11 min-w-11 justify-center transition-colors text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300">
-      <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <a [routerLink]="['/posiciones']" routerLinkActive="!text-blue-600 dark:!text-blue-400" class="flex flex-col items-center min-h-12 min-w-12 justify-center transition-colors text-gray-400 dark:text-gray-500 relative">
+      <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
       </svg>
-      <span class="text-[11px] font-bold uppercase tracking-wide">Posiciones</span>
+      <span class="text-[10px] font-bold uppercase tracking-wide">Posiciones</span>
     </a>
-    <a [routerLink]="['/estadisticas']" routerLinkActive="text-blue-600 dark:text-blue-500" class="flex flex-col items-center min-h-11 min-w-11 justify-center transition-colors text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300">
-      <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <a [routerLink]="['/estadisticas']" routerLinkActive="!text-blue-600 dark:!text-blue-400" class="flex flex-col items-center min-h-12 min-w-12 justify-center transition-colors text-gray-400 dark:text-gray-500 relative">
+      <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
       </svg>
-      <span class="text-[11px] font-bold uppercase tracking-wide">Stats</span>
+      <span class="text-[10px] font-bold uppercase tracking-wide">Stats</span>
     </a>
   </nav>
 </main>

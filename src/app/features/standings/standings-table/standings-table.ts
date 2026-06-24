@@ -1,6 +1,7 @@
 import { Component, input } from '@angular/core';
 import { GroupStanding } from '../../../core/models/standings-model';
 import { getTeamFlagUrl, isQualifying } from '../../../shared/utils/standings-util';
+import { translateTeamName } from '../../../shared/utils/team-name-util';
 import { FormIndicatorComponent } from '../form-indicator/form-indicator';
 import { CommonModule } from '@angular/common';
 
@@ -59,7 +60,7 @@ import { CommonModule } from '@angular/common';
                       (error)="$any($event.target).src = 'assets/flags/placeholder.png'"
                     >
                     <div class="flex flex-col">
-                      <span class="font-extrabold text-gray-900 dark:text-white truncate">{{ team.team }}</span>
+                      <span class="font-extrabold text-gray-900 dark:text-white truncate">{{ translateTeamName(team.team) }}</span>
                       @if (team.description) {
                         <span class="text-[9px] text-green-600 dark:text-green-400 font-bold uppercase tracking-tight">{{ team.description }}</span>
                       }
@@ -95,4 +96,5 @@ export class StandingsTableComponent {
 
   getTeamFlagUrl = getTeamFlagUrl;
   isQualifying = isQualifying;
+  translateTeamName = translateTeamName;
 }

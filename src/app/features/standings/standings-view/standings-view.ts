@@ -6,6 +6,7 @@ import { CommonModule } from '@angular/common';
 import { Match } from '../../../core/models/match-model';
 import { GroupStanding } from '../../../core/models/standings-model';
 import { formatKickoffTime } from '../../../shared/utils/match-format-util';
+import { translateTeamName } from '../../../shared/utils/team-name-util';
 
 type TabId = 'grupos' | 'cruces';
 
@@ -233,44 +234,46 @@ export class StandingsViewComponent implements OnInit {
 
   readonly bracketMatches = computed((): BracketMatch[] => {
     const grouped = this.standingsService.groupedStandings();
+    const usedThirds = new Set<string>();
+
     return this.BRACKET.map(b => ({
       matchNum: b.matchNum,
       date: b.date,
-      ...this.resolveTeam(b.team1, grouped),
-      ...this.resolveTeam2(b.team2, grouped),
+      ...this.resolveTeam(b.team1, grouped, usedThirds),
+      ...this.resolveTeam2(b.team2, grouped, usedThirds),
     }));
   });
 
-  private resolveTeam(code: string, grouped: Map<string, GroupStanding[]>): { team1Label: string; team1Name: string; team1Flag: string } {
-    const info = this.resolveSlot(code, grouped);
+  private resolveTeam(code: string, grouped: Map<string, GroupStanding[]>, usedThirds: Set<string>): { team1Label: string; team1Name: string; team1Flag: string } {
+    const info = this.resolveSlot(code, grouped, usedThirds);
     return { team1Label: info.label, team1Name: info.name, team1Flag: info.flag };
   }
 
-  private resolveTeam2(code: string, grouped: Map<string, GroupStanding[]>): { team2Label: string; team2Name: string; team2Flag: string } {
-    const info = this.resolveSlot(code, grouped);
+  private resolveTeam2(code: string, grouped: Map<string, GroupStanding[]>, usedThirds: Set<string>): { team2Label: string; team2Name: string; team2Flag: string } {
+    const info = this.resolveSlot(code, grouped, usedThirds);
     return { team2Label: info.label, team2Name: info.name, team2Flag: info.flag };
   }
 
-  private resolveSlot(code: string, grouped: Map<string, GroupStanding[]>): { label: string; name: string; flag: string } {
-    // Format: "1A" = 1st of Group A, "2B" = 2nd of Group B, "3ABCDF" = 3rd from one of those groups
+  private resolveSlot(code: string, grouped: Map<string, GroupStanding[]>, usedThirds: Set<string>): { label: string; name: string; flag: string } {
     if (code.startsWith('3')) {
-      // Third-place slot — pick the best matching third from best-thirds table
       const groups = code.slice(1).split('');
       const label = `3° Grupo ${groups.join('/')}`;
-      // Try to find the best third that came from one of these groups
       const bestThirds = grouped.get('best-thirds') ?? [];
-      // For now show the top-ranked third (simplification)
+
+      // Find the best-ranked third from one of the eligible groups that hasn't been used
       const candidate = bestThirds.find(t => {
-        // Check all regular groups to find which group this team belongs to
+        if (usedThirds.has(t.team)) return false;
         for (const g of groups) {
           const groupTeams = grouped.get(`Group ${g}`) ?? [];
-          const thirdPlace = groupTeams[2]; // rank 3 = index 2
+          const thirdPlace = groupTeams[2];
           if (thirdPlace && thirdPlace.team === t.team) return true;
         }
         return false;
       });
+
       if (candidate) {
-        return { label, name: candidate.team, flag: this.getFlag(candidate.team_external_id) };
+        usedThirds.add(candidate.team);
+        return { label, name: translateTeamName(candidate.team), flag: this.getFlag(candidate.team_external_id) };
       }
       return { label, name: 'Por definir', flag: '' };
     }
@@ -279,12 +282,12 @@ export class StandingsViewComponent implements OnInit {
     const groupLetter = code[1];
     const groupName = `Group ${groupLetter}`;
     const groupTeams = grouped.get(groupName) ?? [];
-    const team = groupTeams[rank - 1]; // rank 1 = index 0
+    const team = groupTeams[rank - 1];
 
     const label = rank === 1 ? `1° Grupo ${groupLetter}` : `2° Grupo ${groupLetter}`;
 
     if (team) {
-      return { label, name: team.team, flag: this.getFlag(team.team_external_id) };
+      return { label, name: translateTeamName(team.team), flag: this.getFlag(team.team_external_id) };
     }
     return { label, name: 'Por definir', flag: '' };
   }

@@ -1,5 +1,5 @@
 /**
- * Constantes globales para la aplicación NexaTV
+ * Constantes globales para la aplicación FutLive
  */
 
 export const APP_CONSTANTS = {

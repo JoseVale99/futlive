@@ -1,7 +1,7 @@
 export type ThemePreference = 'light' | 'dark' | 'system';
 export type ResolvedTheme = 'light' | 'dark';
 
-export const THEME_STORAGE_KEY = 'nexatv-theme';
+export const THEME_STORAGE_KEY = 'futlive-theme';
 
 export const THEME_CYCLE_ORDER: readonly ThemePreference[] = ['light', 'dark', 'system'] as const;
 

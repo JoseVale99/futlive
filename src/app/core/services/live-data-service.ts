@@ -155,7 +155,7 @@ export class LiveDataService implements OnDestroy {
     this._consecutiveErrors.set(errors);
 
     if (errors >= POLLING_CONFIG.maxRetries) {
-      this._error.set('Error de conexión: no se pudieron obtener datos en vivo');
+      this._error.set('Datos en vivo no disponibles');
       // Stop retrying — wait for next regular polling cycle
     } else {
       // Schedule a retry after retryDelay

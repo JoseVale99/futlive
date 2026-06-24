@@ -7,9 +7,9 @@ import { sortEventsByMinuteAndCreatedAt } from '../../../shared/utils/event-sort
   standalone: true,
   template: `
     @if (hasError()) {
-      <div class="flex items-center gap-2 px-3 py-2 mb-3 rounded-lg bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 text-xs font-medium">
+      <div class="flex items-center gap-2 px-3 py-2 mb-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 text-xs font-medium">
         <span>⚠️</span>
-        <span>Error de conexión</span>
+        <span>Datos en vivo no disponibles — reintentando automáticamente</span>
       </div>
     }
 

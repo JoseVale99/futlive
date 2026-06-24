@@ -1,7 +1,7 @@
 import { Injectable, inject, signal, OnDestroy } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { ENVIRONMENT_TOKEN } from '../config/environment';
-import { Subscription, timer, switchMap, catchError, of, timeout, delay, Observable, EMPTY } from 'rxjs';
+import { Subscription, timer, switchMap, catchError, of, timeout, delay, Observable, EMPTY, forkJoin, retry } from 'rxjs';
 import { MatchEvent, MatchStats, MatchStatus } from '../models/match-model';
 import { LiveMatchResponse, LiveScoreData, MatchLineup, LineupPlayer, POLLING_CONFIG } from '../models/live-data-model';
 import { mergeEventsById } from '../../shared/utils/event-sort-util';
@@ -80,6 +80,12 @@ export class LiveDataService implements OnDestroy {
   private setupPolling(matchId: string, status: MatchStatus): void {
     this.pollingSubscription?.unsubscribe();
     this.retrySubscription?.unsubscribe();
+
+    // For finished matches, fetch directly from Supabase (no proxy needed)
+    if (status === 'finished') {
+      this.fetchFinishedMatchData(matchId);
+      return;
+    }
 
     const source$ = this.buildPollingSource(status);
     const proxyUrl = this.buildProxyUrl(matchId);
@@ -227,6 +233,53 @@ export class LiveDataService implements OnDestroy {
           }
         }
       });
+  }
+
+  /**
+   * For finished matches: fetch events and stats directly from Supabase.
+   * No proxy/live API needed since the data is already persisted.
+   * Uses retry logic and longer timeout for mobile connections.
+   */
+  private fetchFinishedMatchData(matchId: string): void {
+    const headers = new HttpHeaders({
+      apikey: this.env.supabaseKey,
+      Authorization: `Bearer ${this.env.supabaseKey}`,
+    });
+
+    const MOBILE_TIMEOUT = 25_000; // 25s para conexiones lentas
+
+    const events$ = this.http
+      .get<MatchEvent[]>(`${this.env.supabaseUrl}/match_events`, {
+        params: { match_id: `eq.${matchId}`, select: '*', order: 'minute.asc' },
+        headers,
+      })
+      .pipe(
+        timeout(MOBILE_TIMEOUT),
+        retry({ count: 2, delay: 3000 }),
+        catchError(() => of([] as MatchEvent[]))
+      );
+
+    const stats$ = this.http
+      .get<MatchStats[]>(`${this.env.supabaseUrl}/match_stats`, {
+        params: { match_id: `eq.${matchId}`, select: '*' },
+        headers,
+      })
+      .pipe(
+        timeout(MOBILE_TIMEOUT),
+        retry({ count: 2, delay: 3000 }),
+        catchError(() => of([] as MatchStats[]))
+      );
+
+    forkJoin([events$, stats$]).subscribe(([events, stats]) => {
+      this._events.set(events);
+      this._stats.set(stats);
+      this._loading.set(false);
+
+      // Si ambos están vacíos, indicar error para que el usuario sepa
+      if (events.length === 0 && stats.length === 0) {
+        this._error.set('No se encontraron datos del partido');
+      }
+    });
   }
 
   private transformLineups(rows: SupabaseLineupRow[]): MatchLineup[] {

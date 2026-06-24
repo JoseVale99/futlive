@@ -3,6 +3,9 @@ import { RouterLink } from '@angular/router';
 import { StandingsService } from '../../../core/services/standings-service';
 import { StandingsTableComponent } from '../standings-table/standings-table';
 import { CommonModule } from '@angular/common';
+import { Match } from '../../../core/models/match-model';
+import { GroupStanding } from '../../../core/models/standings-model';
+import { formatKickoffTime } from '../../../shared/utils/match-format-util';
 
 @Component({
   selector: 'app-standings-view',
@@ -42,19 +45,65 @@ import { CommonModule } from '@angular/common';
             </div>
             <h3 class="text-xl font-black text-gray-900 dark:text-white mb-2">¡Ups! Algo salió mal</h3>
             <p class="text-gray-500 dark:text-gray-400 font-medium mb-8">{{ standingsService.error() }}</p>
-            <button 
-              (click)="standingsService.fetchStandings()" 
+            <button
+              (click)="standingsService.fetchStandings()"
               class="px-8 py-3 bg-linear-to-r from-blue-600 to-indigo-600 text-white rounded-2xl font-black shadow-lg shadow-blue-500/25 hover:scale-105 transition-transform"
             >
               Reintentar ahora
             </button>
           </div>
         } @else {
+          <!-- Grupos regulares (A-L) -->
           @for (group of standingsService.groupedStandings() | keyvalue; track group.key) {
-            <app-standings-table 
-              [groupName]="group.key" 
-              [standings]="group.value"
-            />
+            @if (group.key !== 'best-thirds') {
+              <app-standings-table
+                [groupName]="group.key"
+                [standings]="group.value"
+              />
+              <!-- Próximos enfrentamientos del grupo -->
+              @if (getUpcomingForGroup(group.key).length > 0) {
+                <div class="mb-8 -mt-4 px-2">
+                  <h4 class="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-2 px-3">Próximos enfrentamientos</h4>
+                  <div class="space-y-2">
+                    @for (match of getUpcomingForGroup(group.key); track match.id) {
+                      <div class="flex items-center gap-3 px-3 py-2.5 bg-white dark:bg-gray-800/40 rounded-xl border border-gray-100 dark:border-gray-700/30">
+                        <div class="flex items-center gap-2 flex-1 min-w-0 justify-end">
+                          <span class="text-xs font-semibold text-gray-800 dark:text-gray-200 truncate">{{ match.home_team }}</span>
+                          <img [src]="match.home_flag" [alt]="match.home_team" class="w-5 h-5 rounded-sm object-cover shrink-0">
+                        </div>
+                        <div class="flex flex-col items-center shrink-0">
+                          <span class="text-[10px] font-bold text-gray-400 dark:text-gray-500">vs</span>
+                          <span class="text-[9px] text-gray-400 dark:text-gray-500">{{ formatMatchDate(match.kickoff_at) }}</span>
+                        </div>
+                        <div class="flex items-center gap-2 flex-1 min-w-0">
+                          <img [src]="match.away_flag" [alt]="match.away_team" class="w-5 h-5 rounded-sm object-cover shrink-0">
+                          <span class="text-xs font-semibold text-gray-800 dark:text-gray-200 truncate">{{ match.away_team }}</span>
+                        </div>
+                      </div>
+                    }
+                  </div>
+                </div>
+              }
+            }
+          }
+
+          <!-- Mejores terceros -->
+          @if (getBestThirds().length > 0) {
+            <div class="mt-12 mb-8">
+              <div class="flex items-center gap-3 mb-4 px-1">
+                <span class="text-xs font-bold text-amber-500 dark:text-amber-400 uppercase tracking-wider">🏆 Clasificación</span>
+                <div class="flex-1 h-px bg-amber-200 dark:bg-amber-800/30"></div>
+              </div>
+              <div class="bg-amber-50/50 dark:bg-amber-900/10 border border-amber-200/50 dark:border-amber-700/20 rounded-2xl p-4 mb-4">
+                <p class="text-xs text-amber-700 dark:text-amber-300 font-medium">
+                  Los <strong>8 mejores terceros</strong> de los 12 grupos también clasifican a la Ronda de 32. A continuación el ranking actual de terceros.
+                </p>
+              </div>
+              <app-standings-table
+                [groupName]="'Mejores Terceros'"
+                [standings]="getBestThirds()"
+              />
+            </div>
           }
         }
       </div>
@@ -66,5 +115,21 @@ export class StandingsViewComponent implements OnInit {
 
   ngOnInit() {
     this.standingsService.fetchStandings();
+  }
+
+  getUpcomingForGroup(groupName: string): Match[] {
+    return this.standingsService.upcomingByGroup().get(groupName) ?? [];
+  }
+
+  getBestThirds(): GroupStanding[] {
+    return this.standingsService.groupedStandings().get('best-thirds') ?? [];
+  }
+
+  formatMatchDate(kickoffAt: string): string {
+    const date = new Date(kickoffAt);
+    const day = date.getDate();
+    const month = date.toLocaleDateString('es', { month: 'short' });
+    const time = formatKickoffTime(kickoffAt);
+    return `${day} ${month} · ${time}`;
   }
 }

@@ -2,8 +2,9 @@ import { inject, Injectable, signal, computed } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { ENVIRONMENT_TOKEN } from '../config/environment';
 import { GroupStanding } from '../models/standings-model';
+import { Match } from '../models/match-model';
 import { groupByGroupName } from '../../shared/utils/standings-util';
-import { catchError, finalize, of, timeout } from 'rxjs';
+import { catchError, finalize, of, timeout, forkJoin } from 'rxjs';
 
 @Injectable({
   providedIn: 'root'
@@ -13,10 +14,12 @@ export class StandingsService {
   private readonly env = inject(ENVIRONMENT_TOKEN);
 
   private _standings = signal<GroupStanding[]>([]);
+  private _upcomingByGroup = signal<Map<string, Match[]>>(new Map());
   private _loading = signal<boolean>(false);
   private _error = signal<string | null>(null);
 
   readonly standings = this._standings.asReadonly();
+  readonly upcomingByGroup = this._upcomingByGroup.asReadonly();
   readonly loading = this._loading.asReadonly();
   readonly error = this._error.asReadonly();
 
@@ -26,21 +29,50 @@ export class StandingsService {
     this._loading.set(true);
     this._error.set(null);
 
-    this.http.get<GroupStanding[]>(`${this.env.supabaseUrl}/group_standings`, {
+    const headers = {
+      'apikey': this.env.supabaseKey,
+      'Authorization': `Bearer ${this.env.supabaseKey}`
+    };
+
+    const standings$ = this.http.get<GroupStanding[]>(`${this.env.supabaseUrl}/group_standings`, {
       params: { order: 'group_name.asc,rank.asc' },
-      headers: {
-        'apikey': this.env.supabaseKey,
-        'Authorization': `Bearer ${this.env.supabaseKey}`
-      }
-    }).pipe(
-      timeout(15000),
-      catchError(err => {
-        this._error.set(err.message || err.statusText || 'Error al cargar posiciones');
-        return of([]);
-      }),
+      headers
+    }).pipe(timeout(15000), catchError(err => {
+      this._error.set(err.message || err.statusText || 'Error al cargar posiciones');
+      return of([]);
+    }));
+
+    const upcoming$ = this.http.get<Match[]>(`${this.env.supabaseUrl}/matches`, {
+      params: {
+        status: 'eq.scheduled',
+        stage: 'eq.Group Stage',
+        order: 'kickoff_at.asc',
+        select: 'id,home_team,away_team,home_flag,away_flag,kickoff_at,group_name,stage'
+      },
+      headers
+    }).pipe(timeout(15000), catchError(() => of([])));
+
+    forkJoin([standings$, upcoming$]).pipe(
       finalize(() => this._loading.set(false))
-    ).subscribe(data => {
-      this._standings.set(data);
+    ).subscribe(([standings, upcoming]) => {
+      this._standings.set(standings);
+
+      // Build team→group lookup from standings
+      const teamToGroup = new Map<string, string>();
+      for (const s of standings) {
+        teamToGroup.set(s.team, s.group_name);
+      }
+
+      // Assign matches to groups based on teams in standings
+      const byGroup = new Map<string, Match[]>();
+      for (const match of upcoming) {
+        const group = teamToGroup.get(match.home_team) || teamToGroup.get(match.away_team);
+        if (!group) continue;
+        const list = byGroup.get(group) || [];
+        list.push(match);
+        byGroup.set(group, list);
+      }
+      this._upcomingByGroup.set(byGroup);
     });
   }
 }

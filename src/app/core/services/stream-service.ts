@@ -57,7 +57,7 @@ export class StreamService {
 
     this.http.get<{ streams: MatchStream[]; count: number }>(
       proxyUrl,
-      { params: { matchId } }
+      { params: { matchId, _t: Date.now().toString() } }
     ).pipe(
       timeout(10000),
       catchError(() => of({ streams: [] as MatchStream[], count: 0 }))

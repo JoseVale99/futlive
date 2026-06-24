@@ -213,29 +213,74 @@ function fetchLiveData(matchId) {
 
 function parseStreams(rscText, matchId) {
   try {
-    const embedUrls = [];
-    const embedRegex = /"embed_url":"(https?:\/\/[^"]+)"/g;
-    const nameRegex = /"embed_name":"([^"]+)"/g;
-
-    const urls = [];
-    let m;
-    while ((m = embedRegex.exec(rscText)) !== null) urls.push(m[1]);
-
-    const names = [];
-    while ((m = nameRegex.exec(rscText)) !== null) names.push(m[1]);
-
-    // Deduplicate by embed_name (keep first occurrence)
+    const streams = [];
     const seen = new Set();
-    for (let i = 0; i < Math.min(urls.length, names.length); i++) {
-      const key = names[i];
-      if (!seen.has(key)) {
-        seen.add(key);
-        embedUrls.push({
+
+    const embedRegex = /"embed_url":"(https?:\/\/[^"]+)"/g;
+    const allEmbeds = [];
+    let m;
+    while ((m = embedRegex.exec(rscText)) !== null) {
+      allEmbeds.push({ url: m[1], index: m.index });
+    }
+
+    const nameRegex = /"embed_name":"([^"]+)"/g;
+    const allNames = [];
+    while ((m = nameRegex.exec(rscText)) !== null) {
+      allNames.push({ name: m[1], index: m.index });
+    }
+
+    // Try to filter streams by matchId proximity in the RSC text
+    const blockSize = 2000;
+    const matchIdFiltered = [];
+    for (let i = 0; i < allEmbeds.length; i++) {
+      const embed = allEmbeds[i];
+      const start = Math.max(0, embed.index - blockSize);
+      const end = Math.min(rscText.length, embed.index + blockSize);
+      const context = rscText.substring(start, end);
+
+      if (context.includes(matchId)) {
+        let closestName = null;
+        let minDist = Infinity;
+        for (const n of allNames) {
+          const dist = Math.abs(n.index - embed.index);
+          if (dist < minDist) {
+            minDist = dist;
+            closestName = n.name;
+          }
+        }
+        if (closestName && !seen.has(closestName)) {
+          seen.add(closestName);
+          matchIdFiltered.push({
+            id: `proxy-${matchIdFiltered.length}`,
+            match_id: matchId,
+            channel_id: null,
+            embed_name: closestName,
+            embed_url: embed.url,
+            source: 'lacancha-proxy',
+            stream_param: null,
+            created_at: new Date().toISOString()
+          });
+        }
+      }
+    }
+
+    if (matchIdFiltered.length > 0) {
+      console.log(`[parseStreams] Found ${matchIdFiltered.length} match-specific streams for ${matchId}`);
+      return matchIdFiltered.slice(0, 20);
+    }
+
+    // Fallback: return all streams (old behavior for when matchId isn't in RSC)
+    console.log(`[parseStreams] No match-specific streams found, returning all ${allNames.length} streams`);
+    for (let i = 0; i < Math.min(allNames.length, allEmbeds.length); i++) {
+      const name = allNames[i].name;
+      if (!seen.has(name)) {
+        seen.add(name);
+        streams.push({
           id: `proxy-${i}`,
           match_id: matchId,
           channel_id: null,
-          embed_name: names[i],
-          embed_url: urls[i],
+          embed_name: name,
+          embed_url: allEmbeds[i].url,
           source: 'lacancha-proxy',
           stream_param: null,
           created_at: new Date().toISOString()
@@ -243,7 +288,7 @@ function parseStreams(rscText, matchId) {
       }
     }
 
-    return embedUrls.slice(0, 20); // Max 20 streams
+    return streams.slice(0, 20);
   } catch (err) {
     console.error('Error parsing RSC:', err.message);
     return [];

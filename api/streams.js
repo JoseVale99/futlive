@@ -117,29 +117,82 @@ function parseMatchPageStreams(html, matchId) {
 
 function parseStreams(rscText, matchId) {
   try {
-    const embedUrls = [];
-    const embedRegex = /"embed_url":"(https?:\/\/[^"]+)"/g;
-    const nameRegex = /"embed_name":"([^"]+)"/g;
-
-    const urls = [];
-    let m;
-    while ((m = embedRegex.exec(rscText)) !== null) urls.push(m[1]);
-
-    const names = [];
-    while ((m = nameRegex.exec(rscText)) !== null) names.push(m[1]);
-
-    // Deduplicate by name (keep first occurrence)
+    const streams = [];
     const seen = new Set();
-    for (let i = 0; i < Math.min(urls.length, names.length); i++) {
-      const key = names[i];
-      if (!seen.has(key)) {
-        seen.add(key);
-        embedUrls.push({
+
+    // The RSC contains match blocks with their associated streams.
+    // Each stream has embed_url, embed_name, and a nearby match_id or slug reference.
+    // Strategy: find all stream objects and check if matchId appears nearby.
+
+    // First, try to find streams specifically associated with this matchId
+    // by looking for blocks that contain both the matchId and embed_url
+    const blockSize = 2000; // characters around each embed_url to search for matchId
+
+    const embedRegex = /"embed_url":"(https?:\/\/[^"]+)"/g;
+    const allEmbeds = [];
+    let m;
+    while ((m = embedRegex.exec(rscText)) !== null) {
+      allEmbeds.push({ url: m[1], index: m.index });
+    }
+
+    const nameRegex = /"embed_name":"([^"]+)"/g;
+    const allNames = [];
+    while ((m = nameRegex.exec(rscText)) !== null) {
+      allNames.push({ name: m[1], index: m.index });
+    }
+
+    // Try to filter by matchId proximity
+    const matchIdFiltered = [];
+    for (let i = 0; i < allEmbeds.length; i++) {
+      const embed = allEmbeds[i];
+      const start = Math.max(0, embed.index - blockSize);
+      const end = Math.min(rscText.length, embed.index + blockSize);
+      const context = rscText.substring(start, end);
+
+      if (context.includes(matchId)) {
+        // Find closest name
+        let closestName = null;
+        let minDist = Infinity;
+        for (const n of allNames) {
+          const dist = Math.abs(n.index - embed.index);
+          if (dist < minDist) {
+            minDist = dist;
+            closestName = n.name;
+          }
+        }
+        if (closestName && !seen.has(closestName)) {
+          seen.add(closestName);
+          matchIdFiltered.push({
+            id: `proxy-${streams.length + matchIdFiltered.length}`,
+            match_id: matchId,
+            channel_id: null,
+            embed_name: closestName,
+            embed_url: embed.url,
+            source: 'lacancha-proxy',
+            stream_param: null,
+            created_at: new Date().toISOString()
+          });
+        }
+      }
+    }
+
+    // If we found match-specific streams, return those
+    if (matchIdFiltered.length > 0) {
+      return matchIdFiltered.slice(0, 20);
+    }
+
+    // Fallback: if no match-specific streams found, return all (old behavior)
+    // This handles cases where matchId format doesn't match what's in the RSC
+    for (let i = 0; i < Math.min(allNames.length, allEmbeds.length); i++) {
+      const name = allNames[i].name;
+      if (!seen.has(name)) {
+        seen.add(name);
+        streams.push({
           id: `proxy-${i}`,
           match_id: matchId,
           channel_id: null,
-          embed_name: names[i],
-          embed_url: urls[i],
+          embed_name: name,
+          embed_url: allEmbeds[i].url,
           source: 'lacancha-proxy',
           stream_param: null,
           created_at: new Date().toISOString()
@@ -147,7 +200,7 @@ function parseStreams(rscText, matchId) {
       }
     }
 
-    return embedUrls.slice(0, 20);
+    return streams.slice(0, 20);
   } catch (err) {
     return [];
   }
@@ -158,13 +211,23 @@ module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=30');
 
   if (req.method === 'OPTIONS') {
     return res.status(204).end();
   }
 
   const { matchId, type } = req.query;
+
+  if (!matchId) {
+    return res.status(400).json({ error: 'matchId query parameter required' });
+  }
+
+  // No cache for live data (polled frequently), short cache for streams
+  if (type === 'live') {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+  } else {
+    res.setHeader('Cache-Control', 's-maxage=30, stale-while-revalidate=15');
+  }
 
   if (!matchId) {
     return res.status(400).json({ error: 'matchId query parameter required' });
@@ -189,14 +252,16 @@ module.exports = async function handler(req, res) {
     try {
       const html = await fetchMatchPageHTML(matchId);
       streams = parseMatchPageStreams(html, matchId);
+      console.log(`[streams] Strategy 1 (match page): found ${streams.length} streams for ${matchId}`);
     } catch (e) {
-      // ignore, will try RSC below
+      console.log(`[streams] Strategy 1 failed for ${matchId}: ${e.message}`);
     }
 
     // Strategy 2: Also fetch en-vivo RSC for additional channels (FOX, DAZN, Telemundo, etc.)
     try {
       const rscText = await fetchRSC();
       const rscStreams = parseStreams(rscText, matchId);
+      console.log(`[streams] Strategy 2 (RSC): found ${rscStreams.length} streams for ${matchId}`);
 
       // Merge: add RSC streams that aren't already present
       const existingNames = new Set(streams.map(s => s.embed_name));
@@ -208,7 +273,7 @@ module.exports = async function handler(req, res) {
         }
       }
     } catch (e) {
-      // both sources may have failed partially, use what we have
+      console.log(`[streams] Strategy 2 failed for ${matchId}: ${e.message}`);
     }
 
     // Limit to 20

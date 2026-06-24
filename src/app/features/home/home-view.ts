@@ -390,7 +390,9 @@ export class HomeViewComponent implements OnInit, OnDestroy {
 
   hasEvents(match: Match): boolean {
     const events = match.events ?? [];
-    return events.length > 0 || (match.stats ?? []).length > 0;
+    const hasNonGoalEvents = events.some(e => e.type !== 'goal' && e.type !== 'own_goal');
+    const hasStats = (match.stats ?? []).length > 0;
+    return hasNonGoalEvents || hasStats;
   }
 
   getMatchStatBars(match: Match): StatBar[] {

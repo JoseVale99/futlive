@@ -11,17 +11,24 @@ const LACANCHA_URL = 'https://lacancha.tv/es/en-vivo';
 const RSC_VALUE = 'Jo6jRgXoLltzsDtw';
 
 async function fetchRSC() {
-  const res = await fetch(`${LACANCHA_URL}?_rsc=${RSC_VALUE}`, {
-    headers: {
-      'Accept': '*/*',
-      'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36',
-      'Referer': 'https://lacancha.tv/es/en-vivo',
-      'RSC': '1',
-      'Next-Router-State-Tree': '%5B%22%22%2C%7B%22children%22%3A%5B%5B%22locale%22%2C%22es%22%2C%22d%22%5D%2C%7B%22children%22%3A%5B%22(shell)%22%2C%7B%22children%22%3A%5B%22en-vivo%22%2C%7B%22children%22%3A%5B%22__PAGE__%22%2C%7B%7D%5D%7D%5D%7D%5D%7D%5D%7D%5D',
-      'Next-Url': '/es/en-vivo',
-    }
-  });
-  return res.text();
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
+  try {
+    const res = await fetch(`${LACANCHA_URL}?_rsc=${RSC_VALUE}`, {
+      signal: controller.signal,
+      headers: {
+        'Accept': '*/*',
+        'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36',
+        'Referer': 'https://lacancha.tv/es/en-vivo',
+        'RSC': '1',
+        'Next-Router-State-Tree': '%5B%22%22%2C%7B%22children%22%3A%5B%5B%22locale%22%2C%22es%22%2C%22d%22%5D%2C%7B%22children%22%3A%5B%22(shell)%22%2C%7B%22children%22%3A%5B%22en-vivo%22%2C%7B%22children%22%3A%5B%22__PAGE__%22%2C%7B%7D%5D%7D%5D%7D%5D%7D%5D%7D%5D',
+        'Next-Url': '/es/en-vivo',
+      }
+    });
+    return res.text();
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 /**
@@ -29,14 +36,21 @@ async function fetchRSC() {
  * The HTML contains channel buttons and match metadata in hydration data.
  */
 async function fetchMatchPageHTML(matchId) {
-  const res = await fetch(`https://lacancha.tv/es/partido/${matchId}`, {
-    headers: {
-      'Accept': 'text/html',
-      'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36',
-      'Referer': 'https://lacancha.tv/es/en-vivo',
-    }
-  });
-  return res.text();
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
+  try {
+    const res = await fetch(`https://lacancha.tv/es/partido/${matchId}`, {
+      signal: controller.signal,
+      headers: {
+        'Accept': 'text/html',
+        'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36',
+        'Referer': 'https://lacancha.tv/es/en-vivo',
+      }
+    });
+    return res.text();
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 /**
@@ -247,23 +261,25 @@ module.exports = async function handler(req, res) {
       return res.status(200).json(liveData);
     }
 
-    // Strategy 1: Fetch match page HTML and extract channels (DSports, DSports+ from sudamericaplay2)
+    // Run both strategies in PARALLEL for speed
     let streams = [];
-    try {
-      const html = await fetchMatchPageHTML(matchId);
-      streams = parseMatchPageStreams(html, matchId);
+    const [matchPageResult, rscResult] = await Promise.allSettled([
+      fetchMatchPageHTML(matchId).then(html => parseMatchPageStreams(html, matchId)),
+      fetchRSC().then(rscText => parseStreams(rscText, matchId))
+    ]);
+
+    // Strategy 1 results
+    if (matchPageResult.status === 'fulfilled' && matchPageResult.value.length > 0) {
+      streams = matchPageResult.value;
       console.log(`[streams] Strategy 1 (match page): found ${streams.length} streams for ${matchId}`);
-    } catch (e) {
-      console.log(`[streams] Strategy 1 failed for ${matchId}: ${e.message}`);
+    } else {
+      console.log(`[streams] Strategy 1 failed for ${matchId}: ${matchPageResult.status === 'rejected' ? matchPageResult.reason?.message : 'no streams'}`);
     }
 
-    // Strategy 2: Also fetch en-vivo RSC for additional channels (FOX, DAZN, Telemundo, etc.)
-    try {
-      const rscText = await fetchRSC();
-      const rscStreams = parseStreams(rscText, matchId);
+    // Strategy 2 results - merge
+    if (rscResult.status === 'fulfilled' && rscResult.value.length > 0) {
+      const rscStreams = rscResult.value;
       console.log(`[streams] Strategy 2 (RSC): found ${rscStreams.length} streams for ${matchId}`);
-
-      // Merge: add RSC streams that aren't already present
       const existingNames = new Set(streams.map(s => s.embed_name));
       for (const rscStream of rscStreams) {
         if (!existingNames.has(rscStream.embed_name)) {
@@ -272,8 +288,8 @@ module.exports = async function handler(req, res) {
           existingNames.add(rscStream.embed_name);
         }
       }
-    } catch (e) {
-      console.log(`[streams] Strategy 2 failed for ${matchId}: ${e.message}`);
+    } else {
+      console.log(`[streams] Strategy 2 failed for ${matchId}: ${rscResult.status === 'rejected' ? rscResult.reason?.message : 'no streams'}`);
     }
 
     // Limit to 20

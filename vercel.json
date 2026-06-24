@@ -2,6 +2,11 @@
   "buildCommand": "node scripts/write-env.js && ng build --configuration production",
   "outputDirectory": "dist/nexatv/browser",
   "framework": null,
+  "functions": {
+    "api/streams.js": {
+      "maxDuration": 30
+    }
+  },
   "rewrites": [
     { "source": "/api/streams", "destination": "/api/streams" },
     { "source": "/api/embed", "destination": "/api/embed" },

@@ -18,8 +18,111 @@
       if (dark) document.documentElement.classList.add('dark');
     })();
   </script>
+  <style>
+    .app-splash {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #f9fafb, #f3f4f6);
+      transition: opacity 0.3s ease-out;
+    }
+    .dark .app-splash {
+      background: linear-gradient(135deg, #111827, #0a0e17);
+    }
+    .app-splash.fade-out {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .splash-logo {
+      width: 64px;
+      height: 64px;
+      background: linear-gradient(135deg, #2563eb, #4f46e5, #7c3aed);
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.3);
+      animation: splash-pulse 1.5s ease-in-out infinite;
+    }
+    .splash-logo svg {
+      width: 36px;
+      height: 36px;
+      color: white;
+    }
+    .splash-text {
+      margin-top: 16px;
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 24px;
+      font-weight: 800;
+      color: #111827;
+      letter-spacing: -0.5px;
+    }
+    .dark .splash-text { color: #fff; }
+    .splash-text span {
+      background: linear-gradient(90deg, #2563eb, #4f46e5);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .splash-bar {
+      margin-top: 24px;
+      width: 120px;
+      height: 3px;
+      background: #e5e7eb;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .dark .splash-bar { background: #374151; }
+    .splash-bar::after {
+      content: '';
+      display: block;
+      width: 40%;
+      height: 100%;
+      background: linear-gradient(90deg, #2563eb, #7c3aed);
+      border-radius: 4px;
+      animation: splash-progress 1s ease-in-out infinite;
+    }
+    @keyframes splash-pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+    @keyframes splash-progress {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(350%); }
+    }
+  </style>
 </head>
 <body>
+  <!-- Initial splash screen (removed by Angular after bootstrap) -->
+  <div class="app-splash" id="app-splash">
+    <div class="splash-logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="9"/>
+        <path d="M12 3C12 3 9.5 7 9.5 12S12 21 12 21"/>
+        <path d="M12 3C12 3 14.5 7 14.5 12S12 21 12 21"/>
+        <path d="M3.5 9h17M3.5 15h17"/>
+        <path d="M12 3v18"/>
+      </svg>
+    </div>
+    <div class="splash-text">Nexa<span>TV</span></div>
+    <div class="splash-bar"></div>
+  </div>
   <app-root></app-root>
+  <script>
+    // Remove splash after Angular hydrates
+    window.addEventListener('load', function() {
+      setTimeout(function() {
+        var splash = document.getElementById('app-splash');
+        if (splash) {
+          splash.classList.add('fade-out');
+          setTimeout(function() { splash.remove(); }, 300);
+        }
+      }, 200);
+    });
+  </script>
 </body>
 </html>

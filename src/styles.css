@@ -61,3 +61,19 @@
 @utility animate-scale-up {
   animation: scaleUp 2s ease-out;
 }
+
+@keyframes loadingBar {
+  0% {
+    transform: translateX(-100%);
+  }
+  50% {
+    transform: translateX(-30%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@utility animate-loading-bar {
+  animation: loadingBar 1.5s ease-in-out infinite;
+}

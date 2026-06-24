@@ -16,5 +16,9 @@ export const routes: Routes = [
   {
     path: 'estadisticas',
     loadComponent: () => import('./features/scorers/scorers-view').then(m => m.ScorersViewComponent)
+  },
+  {
+    path: '**',
+    loadComponent: () => import('./features/not-found/not-found').then(m => m.NotFoundComponent)
   }
 ];

@@ -2,10 +2,11 @@ import { Component, inject, OnInit, OnDestroy, signal, computed } from '@angular
 import { Router } from '@angular/router';
 import { HttpClient, HttpParams, HttpHeaders } from '@angular/common/http';
 import { ENVIRONMENT_TOKEN } from '../../core/config/environment';
-import { Match, MatchEvent } from '../../core/models/match-model';
-import { forkJoin, of, catchError, timeout, Subscription, timer, switchMap } from 'rxjs';
+import { Match, MatchEvent, MatchStats } from '../../core/models/match-model';
+import { forkJoin, of, catchError, timeout, Subscription, timer, switchMap, map } from 'rxjs';
 import { formatKickoffTime } from '../../shared/utils/match-format-util';
 import { APP_CONSTANTS } from '../../shared/constants/app-constants';
+import { buildStatBars, StatBar } from '../streaming/estadisticas-tab/estadisticas-tab';
 
 type TabId = 'today' | 'upcoming' | 'finished';
 
@@ -144,12 +145,90 @@ interface MatchGroup {
                           }
 
                           <!-- CTA Button -->
-                          <button
-                            (click)="goToMatch(match)"
-                            class="w-full py-2.5 px-4 rounded-lg bg-red-500 hover:bg-red-600 text-white text-sm font-bold uppercase tracking-wide transition-colors cursor-pointer"
-                          >
-                            Ver en vivo
-                          </button>
+                          <div class="flex gap-2">
+                            <button
+                              (click)="goToMatch(match)"
+                              class="flex-1 py-2.5 px-4 rounded-lg bg-red-500 hover:bg-red-600 text-white text-sm font-bold uppercase tracking-wide transition-colors cursor-pointer"
+                            >
+                              Ver en vivo
+                            </button>
+                            @if (hasEvents(match)) {
+                              <button
+                                (click)="toggleExpanded(match.id)"
+                                class="py-2.5 px-3 rounded-lg border border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/5 text-gray-600 dark:text-gray-400 text-sm font-medium transition-colors cursor-pointer"
+                              >
+                                <svg [class]="'w-4 h-4 transition-transform ' + (expandedMatchId() === match.id ? 'rotate-180' : '')" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                </svg>
+                              </button>
+                            }
+                          </div>
+
+                          <!-- Expandable Details -->
+                          @if (expandedMatchId() === match.id) {
+                            <div class="mt-4 border-t border-gray-100 dark:border-white/5 pt-4 space-y-4 motion-safe:animate-fade-in">
+                              <!-- Cards & Subs -->
+                              @if (getCards(match).length > 0 || getSubs(match).length > 0) {
+                                <div class="space-y-3">
+                                  <!-- Yellow/Red Cards -->
+                                  @if (getCards(match).length > 0) {
+                                    <div>
+                                      <h5 class="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-1.5">Tarjetas</h5>
+                                      <div class="space-y-1">
+                                        @for (card of getCards(match); track card.id) {
+                                          <div class="flex items-center gap-2 text-xs">
+                                            <span>{{ card.type === 'yellow' ? '🟨' : '🟥' }}</span>
+                                            <span class="font-medium text-gray-800 dark:text-gray-200">{{ card.player }}</span>
+                                            <span class="text-gray-400 dark:text-gray-500">{{ card.minute }}'</span>
+                                            <span class="text-[10px] text-gray-400 dark:text-gray-500 ml-auto">{{ card.team === 'home' ? match.home_team : match.away_team }}</span>
+                                          </div>
+                                        }
+                                      </div>
+                                    </div>
+                                  }
+
+                                  <!-- Substitutions -->
+                                  @if (getSubs(match).length > 0) {
+                                    <div>
+                                      <h5 class="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-1.5">Cambios</h5>
+                                      <div class="space-y-1">
+                                        @for (sub of getSubs(match); track sub.id) {
+                                          <div class="flex items-center gap-2 text-xs">
+                                            <span>🔄</span>
+                                            <span class="font-medium text-gray-800 dark:text-gray-200">{{ sub.player }}</span>
+                                            <span class="text-gray-400 dark:text-gray-500">{{ sub.minute }}'</span>
+                                            <span class="text-[10px] text-gray-400 dark:text-gray-500 ml-auto">{{ sub.team === 'home' ? match.home_team : match.away_team }}</span>
+                                          </div>
+                                        }
+                                      </div>
+                                    </div>
+                                  }
+                                </div>
+                              }
+
+                              <!-- Stats -->
+                              @if (getMatchStatBars(match).length > 0) {
+                                <div>
+                                  <h5 class="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-2">Estadísticas</h5>
+                                  <div class="space-y-2">
+                                    @for (stat of getMatchStatBars(match); track stat.label) {
+                                      <div class="space-y-0.5">
+                                        <div class="flex justify-between text-[11px] text-gray-500 dark:text-gray-400">
+                                          <span class="font-semibold text-gray-900 dark:text-white">{{ stat.homeValue }}</span>
+                                          <span class="font-medium">{{ stat.label }}</span>
+                                          <span class="font-semibold text-gray-900 dark:text-white">{{ stat.awayValue }}</span>
+                                        </div>
+                                        <div class="flex h-1.5 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-700">
+                                          <div class="bg-blue-500 rounded-l-full" [style.width.%]="stat.homeWidth"></div>
+                                          <div class="bg-red-500 rounded-r-full ml-auto" [style.width.%]="stat.awayWidth"></div>
+                                        </div>
+                                      </div>
+                                    }
+                                  </div>
+                                </div>
+                              }
+                            </div>
+                          }
                         </div>
                       </div>
                     }
@@ -221,6 +300,7 @@ export class HomeViewComponent implements OnInit, OnDestroy {
   readonly activeTab = signal<TabId>('today');
   readonly allMatches = signal<Match[]>([]);
   readonly loading = signal(true);
+  readonly expandedMatchId = signal<string | null>(null);
 
   readonly activeGroups = computed(() => {
     const matches = this.allMatches();
@@ -267,6 +347,27 @@ export class HomeViewComponent implements OnInit, OnDestroy {
 
   getAwayGoals(match: Match): MatchEvent[] {
     return this.getGoals(match).filter(e => e.team === 'away');
+  }
+
+  getCards(match: Match): MatchEvent[] {
+    return (match.events ?? []).filter(e => e.type === 'yellow' || e.type === 'red').sort((a, b) => a.minute - b.minute);
+  }
+
+  getSubs(match: Match): MatchEvent[] {
+    return (match.events ?? []).filter(e => e.type === 'sub').sort((a, b) => a.minute - b.minute);
+  }
+
+  hasEvents(match: Match): boolean {
+    const events = match.events ?? [];
+    return events.length > 0 || (match.stats ?? []).length > 0;
+  }
+
+  getMatchStatBars(match: Match): StatBar[] {
+    return buildStatBars(match.stats ?? []);
+  }
+
+  toggleExpanded(matchId: string) {
+    this.expandedMatchId.set(this.expandedMatchId() === matchId ? null : matchId);
   }
 
   private buildTodayGroups(matches: Match[]): MatchGroup[] {
@@ -342,20 +443,66 @@ export class HomeViewComponent implements OnInit, OnDestroy {
     const live$ = this.http.get<Match[]>(base, {
       params: new HttpParams().set('status', 'eq.live'),
       headers
-    }).pipe(timeout(10000), catchError(() => of([])));
+    }).pipe(timeout(10000), catchError(() => of([] as Match[])));
 
     const scheduled$ = this.http.get<Match[]>(base, {
       params: new HttpParams().set('status', 'eq.scheduled').set('order', 'kickoff_at.asc'),
       headers
-    }).pipe(timeout(10000), catchError(() => of([])));
+    }).pipe(timeout(10000), catchError(() => of([] as Match[])));
 
     const finished$ = this.http.get<Match[]>(base, {
       params: new HttpParams().set('status', 'eq.finished').set('order', 'kickoff_at.desc').set('limit', '10'),
       headers
-    }).pipe(timeout(10000), catchError(() => of([])));
+    }).pipe(timeout(10000), catchError(() => of([] as Match[])));
 
     return forkJoin([live$, scheduled$, finished$]).pipe(
-      switchMap(([live, scheduled, finished]) => of([...live, ...scheduled, ...finished]))
+      switchMap(([live, scheduled, finished]) => {
+        if (live.length === 0) return of([...scheduled, ...finished]);
+
+        // Enrich live matches with events + stats
+        const enriched$ = live.map(match =>
+          this.fetchLiveData$(match.id).pipe(
+            map(({ events, stats }) => ({
+              ...match,
+              events,
+              stats,
+              goals: events.filter(e => e.type === 'goal').map(e => ({ team: e.team, scorer: e.player, minute: e.minute }))
+            })),
+            catchError(() => of(match))
+          )
+        );
+
+        return forkJoin(enriched$).pipe(
+          map(enrichedLive => [...enrichedLive, ...scheduled, ...finished])
+        );
+      })
+    );
+  }
+
+  private fetchLiveData$(matchId: string) {
+    const headers = new HttpHeaders({
+      apikey: this.env.supabaseKey,
+      Authorization: `Bearer ${this.env.supabaseKey}`,
+    });
+
+    // Try lacancha.tv first, fallback to supabase events
+    return this.http.get<{
+      match: { status: string; home_score: number; away_score: number; time_elapsed: string };
+      events: MatchEvent[];
+      stats: MatchStats[];
+    }>(`https://lacancha.tv/api/match/${matchId}/live`).pipe(
+      timeout(8000),
+      map(res => ({ events: res.events || [], stats: res.stats || [] })),
+      catchError(() =>
+        this.http.get<MatchEvent[]>(`${this.env.supabaseUrl}/match_events`, {
+          params: new HttpParams().set('match_id', `eq.${matchId}`).set('order', 'minute.asc'),
+          headers
+        }).pipe(
+          timeout(10000),
+          map(events => ({ events, stats: [] as MatchStats[] })),
+          catchError(() => of({ events: [] as MatchEvent[], stats: [] as MatchStats[] }))
+        )
+      )
     );
   }
 }

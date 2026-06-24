@@ -1,4 +1,4 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, inject, OnInit, signal, computed } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { StandingsService } from '../../../core/services/standings-service';
 import { StandingsTableComponent } from '../standings-table/standings-table';
@@ -6,6 +6,19 @@ import { CommonModule } from '@angular/common';
 import { Match } from '../../../core/models/match-model';
 import { GroupStanding } from '../../../core/models/standings-model';
 import { formatKickoffTime } from '../../../shared/utils/match-format-util';
+
+type TabId = 'grupos' | 'cruces';
+
+interface BracketMatch {
+  matchNum: number;
+  date: string;
+  team1Label: string;
+  team1Name: string;
+  team1Flag: string;
+  team2Label: string;
+  team2Name: string;
+  team2Flag: string;
+}
 
 @Component({
   selector: 'app-standings-view',
@@ -23,14 +36,37 @@ import { formatKickoffTime } from '../../../shared/utils/match-format-util';
           </a>
           <div>
             <h1 class="text-2xl font-black text-gray-900 dark:text-white tracking-tight">Posiciones</h1>
-            <p class="text-[10px] text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest">Fase de Grupos</p>
+            <p class="text-[10px] text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest">Mundial 2026</p>
           </div>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="sticky top-[72px] z-20 bg-gray-50/95 dark:bg-[#0a0e17]/95 backdrop-blur-md border-b border-gray-200 dark:border-white/5">
+        <div class="max-w-4xl mx-auto px-4">
+          <nav class="flex gap-1">
+            <button
+              (click)="activeTab.set('grupos')"
+              [class]="activeTab() === 'grupos'
+                ? 'px-5 py-3 text-sm font-semibold text-gray-900 dark:text-white border-b-2 border-blue-500 transition-colors'
+                : 'px-5 py-3 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 border-b-2 border-transparent transition-colors'"
+            >
+              Grupos
+            </button>
+            <button
+              (click)="activeTab.set('cruces')"
+              [class]="activeTab() === 'cruces'
+                ? 'px-5 py-3 text-sm font-semibold text-gray-900 dark:text-white border-b-2 border-blue-500 transition-colors'
+                : 'px-5 py-3 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 border-b-2 border-transparent transition-colors'"
+            >
+              Posibles Cruces
+            </button>
+          </nav>
         </div>
       </div>
 
       <div class="max-w-4xl mx-auto px-4 py-8">
         @if (standingsService.loading()) {
-          <!-- Loading Skeletons -->
           <div class="space-y-8">
             @for (i of [1,2,3]; track i) {
               <div class="bg-white dark:bg-gray-800/60 rounded-2xl h-96 animate-pulse border border-gray-100 dark:border-gray-800"></div>
@@ -52,15 +88,14 @@ import { formatKickoffTime } from '../../../shared/utils/match-format-util';
               Reintentar ahora
             </button>
           </div>
-        } @else {
-          <!-- Grupos regulares (A-L) -->
+        } @else if (activeTab() === 'grupos') {
+          <!-- TAB: Grupos -->
           @for (group of standingsService.groupedStandings() | keyvalue; track group.key) {
             @if (group.key !== 'best-thirds') {
               <app-standings-table
                 [groupName]="group.key"
                 [standings]="group.value"
               />
-              <!-- Próximos enfrentamientos del grupo -->
               @if (getUpcomingForGroup(group.key).length > 0) {
                 <div class="mb-8 -mt-4 px-2">
                   <h4 class="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-2 px-3">Próximos enfrentamientos</h4>
@@ -105,6 +140,64 @@ import { formatKickoffTime } from '../../../shared/utils/match-format-util';
               />
             </div>
           }
+        } @else {
+          <!-- TAB: Posibles Cruces -->
+          <div class="space-y-6">
+            <div class="bg-blue-50/50 dark:bg-blue-900/10 border border-blue-200/50 dark:border-blue-700/20 rounded-2xl p-4">
+              <p class="text-xs text-blue-700 dark:text-blue-300 font-medium">
+                ⚽ Cruces proyectados según las <strong>posiciones actuales</strong>. Se actualizan en tiempo real conforme terminan los partidos de fase de grupos.
+              </p>
+            </div>
+
+            @for (match of bracketMatches(); track match.matchNum) {
+              <div class="bg-white dark:bg-gray-800/60 rounded-xl border border-gray-100 dark:border-gray-700/50 overflow-hidden">
+                <div class="px-4 py-2 bg-gray-50 dark:bg-gray-900/40 border-b border-gray-100 dark:border-gray-700/30 flex items-center justify-between">
+                  <span class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Match {{ match.matchNum }}</span>
+                  <span class="text-[10px] font-semibold text-gray-500 dark:text-gray-400">{{ match.date }}</span>
+                </div>
+                <div class="px-4 py-4 flex items-center gap-3">
+                  <!-- Team 1 -->
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 justify-end">
+                      <div class="text-right min-w-0">
+                        <p class="text-sm font-bold text-gray-900 dark:text-white truncate">{{ match.team1Name }}</p>
+                        <p class="text-[9px] text-gray-400 dark:text-gray-500">{{ match.team1Label }}</p>
+                      </div>
+                      @if (match.team1Flag) {
+                        <img [src]="match.team1Flag" [alt]="match.team1Name" class="w-8 h-8 rounded object-cover shrink-0">
+                      } @else {
+                        <div class="w-8 h-8 rounded bg-gray-200 dark:bg-gray-700 flex items-center justify-center shrink-0">
+                          <span class="text-[10px] text-gray-400">?</span>
+                        </div>
+                      }
+                    </div>
+                  </div>
+
+                  <!-- VS -->
+                  <div class="shrink-0 w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+                    <span class="text-xs font-black text-gray-500 dark:text-gray-400">VS</span>
+                  </div>
+
+                  <!-- Team 2 -->
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2">
+                      @if (match.team2Flag) {
+                        <img [src]="match.team2Flag" [alt]="match.team2Name" class="w-8 h-8 rounded object-cover shrink-0">
+                      } @else {
+                        <div class="w-8 h-8 rounded bg-gray-200 dark:bg-gray-700 flex items-center justify-center shrink-0">
+                          <span class="text-[10px] text-gray-400">?</span>
+                        </div>
+                      }
+                      <div class="min-w-0">
+                        <p class="text-sm font-bold text-gray-900 dark:text-white truncate">{{ match.team2Name }}</p>
+                        <p class="text-[9px] text-gray-400 dark:text-gray-500">{{ match.team2Label }}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
         }
       </div>
     </div>
@@ -112,9 +205,93 @@ import { formatKickoffTime } from '../../../shared/utils/match-format-util';
 })
 export class StandingsViewComponent implements OnInit {
   readonly standingsService = inject(StandingsService);
+  readonly activeTab = signal<TabId>('grupos');
 
   ngOnInit() {
     this.standingsService.fetchStandings();
+  }
+
+  // Bracket oficial FIFA — Ronda de 32
+  private readonly BRACKET: { matchNum: number; date: string; team1: string; team2: string }[] = [
+    { matchNum: 73, date: 'Jun 28', team1: '2A', team2: '2B' },
+    { matchNum: 76, date: 'Jun 29', team1: '1C', team2: '2F' },
+    { matchNum: 74, date: 'Jun 29', team1: '1E', team2: '3ABCDF' },
+    { matchNum: 75, date: 'Jun 30', team1: '1F', team2: '2C' },
+    { matchNum: 78, date: 'Jun 30', team1: '2E', team2: '2I' },
+    { matchNum: 77, date: 'Jun 30', team1: '1I', team2: '3CDFGH' },
+    { matchNum: 79, date: 'Jul 1', team1: '1A', team2: '3CEFHI' },
+    { matchNum: 80, date: 'Jul 1', team1: '1L', team2: '3EHIJK' },
+    { matchNum: 82, date: 'Jul 1', team1: '1G', team2: '3AEHIJ' },
+    { matchNum: 81, date: 'Jul 2', team1: '1D', team2: '3BEFIJ' },
+    { matchNum: 84, date: 'Jul 2', team1: '1H', team2: '2J' },
+    { matchNum: 83, date: 'Jul 3', team1: '2K', team2: '2L' },
+    { matchNum: 85, date: 'Jul 3', team1: '1B', team2: '3EFGIJ' },
+    { matchNum: 88, date: 'Jul 3', team1: '2D', team2: '2G' },
+    { matchNum: 86, date: 'Jul 3', team1: '1J', team2: '2H' },
+    { matchNum: 87, date: 'Jul 4', team1: '1K', team2: '3DEIJL' },
+  ];
+
+  readonly bracketMatches = computed((): BracketMatch[] => {
+    const grouped = this.standingsService.groupedStandings();
+    return this.BRACKET.map(b => ({
+      matchNum: b.matchNum,
+      date: b.date,
+      ...this.resolveTeam(b.team1, grouped),
+      ...this.resolveTeam2(b.team2, grouped),
+    }));
+  });
+
+  private resolveTeam(code: string, grouped: Map<string, GroupStanding[]>): { team1Label: string; team1Name: string; team1Flag: string } {
+    const info = this.resolveSlot(code, grouped);
+    return { team1Label: info.label, team1Name: info.name, team1Flag: info.flag };
+  }
+
+  private resolveTeam2(code: string, grouped: Map<string, GroupStanding[]>): { team2Label: string; team2Name: string; team2Flag: string } {
+    const info = this.resolveSlot(code, grouped);
+    return { team2Label: info.label, team2Name: info.name, team2Flag: info.flag };
+  }
+
+  private resolveSlot(code: string, grouped: Map<string, GroupStanding[]>): { label: string; name: string; flag: string } {
+    // Format: "1A" = 1st of Group A, "2B" = 2nd of Group B, "3ABCDF" = 3rd from one of those groups
+    if (code.startsWith('3')) {
+      // Third-place slot — pick the best matching third from best-thirds table
+      const groups = code.slice(1).split('');
+      const label = `3° Grupo ${groups.join('/')}`;
+      // Try to find the best third that came from one of these groups
+      const bestThirds = grouped.get('best-thirds') ?? [];
+      // For now show the top-ranked third (simplification)
+      const candidate = bestThirds.find(t => {
+        // Check all regular groups to find which group this team belongs to
+        for (const g of groups) {
+          const groupTeams = grouped.get(`Group ${g}`) ?? [];
+          const thirdPlace = groupTeams[2]; // rank 3 = index 2
+          if (thirdPlace && thirdPlace.team === t.team) return true;
+        }
+        return false;
+      });
+      if (candidate) {
+        return { label, name: candidate.team, flag: this.getFlag(candidate.team_external_id) };
+      }
+      return { label, name: 'Por definir', flag: '' };
+    }
+
+    const rank = parseInt(code[0]);
+    const groupLetter = code[1];
+    const groupName = `Group ${groupLetter}`;
+    const groupTeams = grouped.get(groupName) ?? [];
+    const team = groupTeams[rank - 1]; // rank 1 = index 0
+
+    const label = rank === 1 ? `1° Grupo ${groupLetter}` : `2° Grupo ${groupLetter}`;
+
+    if (team) {
+      return { label, name: team.team, flag: this.getFlag(team.team_external_id) };
+    }
+    return { label, name: 'Por definir', flag: '' };
+  }
+
+  private getFlag(externalId: number): string {
+    if (!externalId) return '';
+    return `https://media.api-sports.io/football/teams/${externalId}.png`;
   }
 
   getUpcomingForGroup(groupName: string): Match[] {

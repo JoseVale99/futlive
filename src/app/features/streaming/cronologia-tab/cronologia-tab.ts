@@ -37,33 +37,45 @@ const ICON_MAP: Record<EventType, MaterialIconConfig> = {
             <h3 class="text-xs font-bold uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-2">
               {{ category.label }}
             </h3>
-            <div class="space-y-3">
+            <div class="space-y-2">
               @for (event of category.events; track event.id) {
-                <div
-                  [class]="getEventRowClass(event)"
-                >
-                  <div [class]="event.team === 'home'
-                    ? 'flex items-center gap-2 flex-1 justify-start'
-                    : 'flex items-center gap-2 flex-1 justify-end'"
-                  >
-                    @if (fontLoaded()) {
-                      <span
-                        class="material-symbols-outlined text-lg"
-                        [class]="'material-symbols-outlined text-lg ' + getIcon(event.type).colorClass"
-                      >{{ getIcon(event.type).text }}</span>
-                    } @else {
-                      <span class="text-lg">{{ getIcon(event.type).fallbackEmoji }}</span>
-                    }
-                    <div [class]="event.team === 'home' ? 'text-left' : 'text-right'">
-                      <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ truncateName(event.player) }}</p>
-                      @if (event.assist) {
-                        <p class="text-xs text-gray-500 dark:text-gray-400">Asist: {{ truncateName(event.assist) }}</p>
+                <div [class]="'grid grid-cols-[1fr_40px_1fr] items-center gap-1' + (isNewEvent(event.id) ? ' motion-safe:animate-fade-in' : '')">
+                  <!-- Home side -->
+                  <div class="flex items-center gap-1.5 justify-end">
+                    @if (event.team === 'home') {
+                      <div class="text-right">
+                        <p class="text-sm font-semibold text-gray-900 dark:text-white leading-tight">{{ truncateName(event.player) }}</p>
+                        @if (event.assist) {
+                          <p class="text-[10px] text-gray-500 dark:text-gray-400">Asist: {{ truncateName(event.assist) }}</p>
+                        }
+                      </div>
+                      @if (fontLoaded()) {
+                        <span [class]="'material-symbols-outlined text-base ' + getIcon(event.type).colorClass">{{ getIcon(event.type).text }}</span>
+                      } @else {
+                        <span class="text-sm">{{ getIcon(event.type).fallbackEmoji }}</span>
                       }
-                    </div>
+                    }
                   </div>
-                  <span class="text-xs font-bold text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-full min-w-[40px] text-center">
+                  <!-- Minute (center) -->
+                  <span class="text-[10px] font-bold text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700/50 px-1.5 py-0.5 rounded-full text-center">
                     {{ formatMin(event.minute) }}
                   </span>
+                  <!-- Away side -->
+                  <div class="flex items-center gap-1.5 justify-start">
+                    @if (event.team === 'away') {
+                      @if (fontLoaded()) {
+                        <span [class]="'material-symbols-outlined text-base ' + getIcon(event.type).colorClass">{{ getIcon(event.type).text }}</span>
+                      } @else {
+                        <span class="text-sm">{{ getIcon(event.type).fallbackEmoji }}</span>
+                      }
+                      <div class="text-left">
+                        <p class="text-sm font-semibold text-gray-900 dark:text-white leading-tight">{{ truncateName(event.player) }}</p>
+                        @if (event.assist) {
+                          <p class="text-[10px] text-gray-500 dark:text-gray-400">Asist: {{ truncateName(event.assist) }}</p>
+                        }
+                      </div>
+                    }
+                  </div>
                 </div>
               }
             </div>

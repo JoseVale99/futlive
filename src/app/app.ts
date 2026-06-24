@@ -1,4 +1,4 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, inject, OnInit, signal, HostListener } from '@angular/core';
 import { RouterModule, Router, NavigationStart, NavigationEnd, NavigationCancel, NavigationError } from '@angular/router';
 import { ThemeToggleComponent } from './shared/components/theme-toggle/theme-toggle';
 import { LoadingBarComponent } from './shared/components/loading-bar/loading-bar';
@@ -16,6 +16,20 @@ export class App implements OnInit {
   protected readonly themeService = inject(ThemeService);
   private readonly router = inject(Router);
   private readonly loadingService = inject(LoadingService);
+
+  readonly headerHidden = signal(false);
+  private lastScrollY = 0;
+
+  @HostListener('window:scroll')
+  onScroll() {
+    const currentY = window.scrollY;
+    if (currentY > 60 && currentY > this.lastScrollY) {
+      this.headerHidden.set(true);
+    } else {
+      this.headerHidden.set(false);
+    }
+    this.lastScrollY = currentY;
+  }
 
   ngOnInit() {
     this.router.events.subscribe(event => {

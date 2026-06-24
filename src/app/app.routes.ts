@@ -14,7 +14,7 @@ export const routes: Routes = [
     loadComponent: () => import('./features/standings/standings-view/standings-view').then(m => m.StandingsViewComponent)
   },
   {
-    path: 'goleadores',
+    path: 'estadisticas',
     loadComponent: () => import('./features/scorers/scorers-view').then(m => m.ScorersViewComponent)
   }
 ];

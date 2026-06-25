@@ -4,7 +4,7 @@ import { HttpClient, HttpParams, HttpHeaders } from '@angular/common/http';
 import { ENVIRONMENT_TOKEN } from '../../core/config/environment';
 import { Match, MatchEvent, MatchStats } from '../../core/models/match-model';
 import { forkJoin, of, catchError, timeout, Subscription, timer, switchMap, map } from 'rxjs';
-import { formatKickoffTime } from '../../shared/utils/match-format-util';
+import { formatKickoffTime, formatKickoffWithDate } from '../../shared/utils/match-format-util';
 import { APP_CONSTANTS } from '../../shared/constants/app-constants';
 import { buildStatBars, StatBar } from '../streaming/estadisticas-tab/estadisticas-tab';
 
@@ -404,11 +404,17 @@ export class HomeViewComponent implements OnInit, OnDestroy {
   }
 
   private buildTodayGroups(matches: Match[]): MatchGroup[] {
-    const today = new Date().toISOString().slice(0, 10);
-    const todayMatches = matches.filter(m => m.kickoff_at.startsWith(today));
+    const today = new Date();
+    const todayStr = today.toISOString().slice(0, 10);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = tomorrow.toISOString().slice(0, 10);
+
+    const todayMatches = matches.filter(m => m.kickoff_at.startsWith(todayStr));
+    const tomorrowMatches = matches.filter(m => m.kickoff_at.startsWith(tomorrowStr) && m.status === 'scheduled');
 
     const live = todayMatches.filter(m => m.status === 'live');
-    const scheduled = todayMatches.filter(m => m.status === 'scheduled');
+    const scheduledToday = todayMatches.filter(m => m.status === 'scheduled');
     const finished = todayMatches.filter(m => m.status === 'finished');
 
     const groups: MatchGroup[] = [];
@@ -417,15 +423,28 @@ export class HomeViewComponent implements OnInit, OnDestroy {
       groups.push({ label: 'En vivo', matches: live, isLive: true });
     }
 
-    const byHour = new Map<string, Match[]>();
-    for (const match of scheduled) {
-      const time = formatKickoffTime(match.kickoff_at);
-      const list = byHour.get(time) || [];
+    // Today's scheduled (solo hora)
+    const byLabel = new Map<string, Match[]>();
+    for (const match of scheduledToday) {
+      const label = formatKickoffTime(match.kickoff_at);
+      const list = byLabel.get(label) || [];
       list.push(match);
-      byHour.set(time, list);
+      byLabel.set(label, list);
     }
-    for (const [time, hourMatches] of byHour) {
-      groups.push({ label: time, matches: hourMatches, isLive: false });
+    for (const [label, hourMatches] of byLabel) {
+      groups.push({ label, matches: hourMatches, isLive: false });
+    }
+
+    // Tomorrow's scheduled (con fecha)
+    const byLabelTomorrow = new Map<string, Match[]>();
+    for (const match of tomorrowMatches) {
+      const label = formatKickoffWithDate(match.kickoff_at);
+      const list = byLabelTomorrow.get(label) || [];
+      list.push(match);
+      byLabelTomorrow.set(label, list);
+    }
+    for (const [label, hourMatches] of byLabelTomorrow) {
+      groups.push({ label, matches: hourMatches, isLive: false });
     }
 
     if (finished.length > 0) {
@@ -439,16 +458,16 @@ export class HomeViewComponent implements OnInit, OnDestroy {
     const scheduled = matches.filter(m => m.status === 'scheduled');
     if (scheduled.length === 0) return [];
 
-    const byHour = new Map<string, Match[]>();
+    const byGroup = new Map<string, Match[]>();
     for (const match of scheduled) {
-      const time = formatKickoffTime(match.kickoff_at);
-      const list = byHour.get(time) || [];
+      const label = formatKickoffWithDate(match.kickoff_at);
+      const list = byGroup.get(label) || [];
       list.push(match);
-      byHour.set(time, list);
+      byGroup.set(label, list);
     }
 
-    return Array.from(byHour.entries()).map(([time, hourMatches]) => ({
-      label: time, matches: hourMatches, isLive: false
+    return Array.from(byGroup.entries()).map(([label, hourMatches]) => ({
+      label, matches: hourMatches, isLive: false
     }));
   }
 

@@ -10,6 +10,24 @@ export function formatKickoffTime(isoString: string): string {
 }
 
 /**
+ * Formatea fecha + hora. Si es hoy solo muestra hora, si es otro día muestra "Mié 25 Jun · 14:00".
+ */
+export function formatKickoffWithDate(isoString: string): string {
+  if (!isoString) return '';
+  const date = new Date(isoString);
+  const today = new Date();
+  const isToday = date.toDateString() === today.toDateString();
+
+  const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+  if (isToday) return time;
+
+  const dayName = date.toLocaleDateString('es', { weekday: 'short' });
+  const day = date.getDate();
+  const month = date.toLocaleDateString('es', { month: 'short' });
+  return `${dayName} ${day} ${month} · ${time}`;
+}
+
+/**
  * Formatea el marcador de un partido.
  * @param home Goles del equipo local.
  * @param away Goles del equipo visitante.

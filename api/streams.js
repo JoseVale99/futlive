@@ -292,8 +292,35 @@ module.exports = async function handler(req, res) {
       console.log(`[streams] Strategy 2 failed for ${matchId}: ${rscResult.status === 'rejected' ? rscResult.reason?.message : 'no streams'}`);
     }
 
-    // Limit to 20
-    streams = streams.slice(0, 20);
+    // Strategy 3: Add known channels from futbol-libres.su as fallback/extra options
+    const futbolLibreChannels = [
+      { name: 'ESPN', slug: 'espn-1' },
+      { name: 'ESPN Premium', slug: 'espn-premium' },
+      { name: 'DSports', slug: 'directv-sports' },
+      { name: 'Fox Sports', slug: 'fox-sports' },
+      { name: 'TUDN', slug: 'tudn' },
+      { name: 'TNT Sports', slug: 'tnt-sports' },
+      { name: 'TyC Sports', slug: 'tyc-sports' },
+    ];
+
+    const existingNamesAll = new Set(streams.map(s => s.embed_name.toLowerCase()));
+    for (const ch of futbolLibreChannels) {
+      if (!existingNamesAll.has(ch.name.toLowerCase())) {
+        streams.push({
+          id: `fl-${streams.length}`,
+          match_id: matchId,
+          channel_id: null,
+          embed_name: `${ch.name} (FL)`,
+          embed_url: `https://futbol-libres.su/${ch.slug}/`,
+          source: 'futbol-libre',
+          stream_param: null,
+          created_at: new Date().toISOString()
+        });
+      }
+    }
+
+    // Limit to 25
+    streams = streams.slice(0, 25);
 
     return res.status(200).json({
       streams,

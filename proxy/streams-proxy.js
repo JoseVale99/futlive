@@ -355,6 +355,7 @@ const server = http.createServer(async (req, res) => {
       }
 
       // Strategy 3: Add known channels from futbol-libres.su
+      // Se embebe la página del canal directamente — el player HLS requiere referer de futbol-libres.su
       const futbolLibreChannels = [
         { name: 'ESPN', slug: 'espn-1' },
         { name: 'ESPN Premium', slug: 'espn-premium' },

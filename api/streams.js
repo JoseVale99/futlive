@@ -293,6 +293,7 @@ module.exports = async function handler(req, res) {
     }
 
     // Strategy 3: Add known channels from futbol-libres.su as fallback/extra options
+    // Se embebe la página del canal directamente — el player HLS requiere referer de futbol-libres.su
     const futbolLibreChannels = [
       { name: 'ESPN', slug: 'espn-1' },
       { name: 'ESPN Premium', slug: 'espn-premium' },

@@ -381,8 +381,37 @@ const server = http.createServer(async (req, res) => {
         }
       }
 
-      // Limit to 25 streams max
-      streams = streams.slice(0, 25);
+      // Strategy 4: ustream.to — canales en vivo 24/7 con embed directo
+      // Solo se agregan como fallback si las strategies 1-3 no encontraron suficientes streams
+      if (streams.length < 5) {
+        const ustreamChannels = [
+          { name: 'TUDN', slug: 'univision-deportes' },
+          { name: 'Fox Sports 1', slug: 'fox-sports-1-b' },
+          { name: 'Fox Sports 2', slug: 'fox-sports-2' },
+          { name: 'beIN Sports', slug: 'bein-sports-usa' },
+          { name: 'Telemundo', slug: 'telemundo' },
+          { name: 'ESPN (US)', slug: 'espn' },
+        ];
+
+        const existingNamesUstream = new Set(streams.map(s => s.embed_name.toLowerCase()));
+        for (const ch of ustreamChannels) {
+          if (!existingNamesUstream.has(ch.name.toLowerCase())) {
+            streams.push({
+              id: `us-${streams.length}`,
+              match_id: matchId,
+              channel_id: null,
+              embed_name: ch.name,
+              embed_url: `https://www.ustream.to/embed?id=${ch.slug}&remove_watermark=true`,
+              source: 'ustream',
+              stream_param: null,
+              created_at: new Date().toISOString()
+            });
+          }
+        }
+      }
+
+      // Limit to 35 streams max
+      streams = streams.slice(0, 35);
 
       console.log(`[${new Date().toISOString()}] Total streams: ${streams.length}`);
       res.writeHead(200);

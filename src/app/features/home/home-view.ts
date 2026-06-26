@@ -2,7 +2,7 @@ import { Component, inject, OnInit, OnDestroy, signal, computed } from '@angular
 import { Router } from '@angular/router';
 import { HttpClient, HttpParams, HttpHeaders } from '@angular/common/http';
 import { ENVIRONMENT_TOKEN } from '../../core/config/environment';
-import { Match, MatchEvent, MatchStats } from '../../core/models/match-model';
+import { Match, MatchEvent } from '../../core/models/match-model';
 import { forkJoin, of, catchError, timeout, Subscription, timer, switchMap, map } from 'rxjs';
 import { formatKickoffTime, formatKickoffWithDate } from '../../shared/utils/match-format-util';
 import { applyEffectiveStatus } from '../../shared/utils/match-status-util';
@@ -320,7 +320,7 @@ export class HomeViewComponent implements OnInit, OnDestroy {
 
   ngOnInit() {
     this.fetchAllMatches();
-    this.pollingSubscription = timer(30_000, 30_000).pipe(
+    this.pollingSubscription = timer(120_000, 120_000).pipe(
       switchMap(() => this.fetchAll$())
     ).subscribe(matches => {
       if (matches.length > 0) this.allMatches.set(matches.map(applyEffectiveStatus));
@@ -523,53 +523,7 @@ export class HomeViewComponent implements OnInit, OnDestroy {
     }).pipe(timeout(10000), catchError(() => of([] as Match[])));
 
     return forkJoin([live$, scheduled$, finished$]).pipe(
-      switchMap(([live, scheduled, finished]) => {
-        if (live.length === 0) return of([...scheduled, ...finished]);
-
-        // Enrich live matches with events + stats
-        const enriched$ = live.map(match =>
-          this.fetchLiveData$(match.id).pipe(
-            map(({ events, stats }) => ({
-              ...match,
-              events,
-              stats,
-              goals: events.filter(e => e.type === 'goal' || e.type === 'own_goal').map(e => ({ team: e.team, scorer: e.player, minute: e.minute }))
-            })),
-            catchError(() => of(match))
-          )
-        );
-
-        return forkJoin(enriched$).pipe(
-          map(enrichedLive => [...enrichedLive, ...scheduled, ...finished])
-        );
-      })
-    );
-  }
-
-  private fetchLiveData$(matchId: string) {
-    const headers = new HttpHeaders({
-      apikey: this.env.supabaseKey,
-      Authorization: `Bearer ${this.env.supabaseKey}`,
-    });
-
-    const events$ = this.http.get<MatchEvent[]>(`${this.env.supabaseUrl}/match_events`, {
-      params: new HttpParams().set('match_id', `eq.${matchId}`).set('order', 'minute.asc'),
-      headers
-    }).pipe(
-      timeout(10000),
-      catchError(() => of([] as MatchEvent[]))
-    );
-
-    const stats$ = this.http.get<MatchStats[]>(`${this.env.supabaseUrl}/match_stats`, {
-      params: new HttpParams().set('match_id', `eq.${matchId}`),
-      headers
-    }).pipe(
-      timeout(10000),
-      catchError(() => of([] as MatchStats[]))
-    );
-
-    return forkJoin([events$, stats$]).pipe(
-      map(([events, stats]) => ({ events, stats }))
+      map(([live, scheduled, finished]) => [...live, ...scheduled, ...finished])
     );
   }
 }

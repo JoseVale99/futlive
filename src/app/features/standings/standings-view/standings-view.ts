@@ -7,7 +7,7 @@ import { GroupStanding } from '../../../core/models/standings-model';
 import { formatKickoffTime } from '../../../shared/utils/match-format-util';
 import { translateTeamName } from '../../../shared/utils/team-name-util';
 
-type TabId = 'grupos' | 'cruces';
+type TabId = 'grupos' | 'terceros' | 'cruces';
 
 interface BracketMatch {
   matchNum: number;
@@ -32,8 +32,11 @@ interface BracketMatch {
             <button (click)="activeTab.set('grupos')" [class]="activeTab() === 'grupos' ? 'px-5 py-3 text-sm font-semibold text-gray-900 dark:text-white border-b-2 border-blue-500' : 'px-5 py-3 text-sm font-medium text-gray-500 dark:text-gray-400 border-b-2 border-transparent'">
               <span class="material-symbols-outlined text-sm align-middle mr-1">groups</span> Grupos
             </button>
+            <button (click)="activeTab.set('terceros')" [class]="activeTab() === 'terceros' ? 'px-5 py-3 text-sm font-semibold text-gray-900 dark:text-white border-b-2 border-blue-500' : 'px-5 py-3 text-sm font-medium text-gray-500 dark:text-gray-400 border-b-2 border-transparent'">
+              <span class="material-symbols-outlined text-sm align-middle mr-1">format_list_numbered</span> Mejores Terceros
+            </button>
             <button (click)="activeTab.set('cruces')" [class]="activeTab() === 'cruces' ? 'px-5 py-3 text-sm font-semibold text-gray-900 dark:text-white border-b-2 border-blue-500' : 'px-5 py-3 text-sm font-medium text-gray-500 dark:text-gray-400 border-b-2 border-transparent'">
-              <span class="material-symbols-outlined text-sm align-middle mr-1">account_tree</span> Posibles Cruces
+              <span class="material-symbols-outlined text-sm align-middle mr-1">account_tree</span> Fase Final
             </button>
           </nav>
         </div>
@@ -81,13 +84,16 @@ interface BracketMatch {
               }
             }
           }
-          @if (getBestThirds().length > 0) {
-            <div class="mt-12 mb-8">
-              <div class="bg-amber-50/50 dark:bg-amber-900/10 border border-amber-200/50 dark:border-amber-700/20 rounded-2xl p-4 mb-4">
-                <p class="text-xs text-amber-700 dark:text-amber-300 font-medium">Los <strong>8 mejores terceros</strong> de los 12 grupos también clasifican a la Ronda de 32.</p>
-              </div>
-              <app-standings-table [groupName]="'Mejores Terceros'" [standings]="getBestThirds()" [qualifyCount]="8" />
+        } @else if (activeTab() === 'terceros') {
+          <div class="mb-4">
+            <div class="bg-amber-50/50 dark:bg-amber-900/10 border border-amber-200/50 dark:border-amber-700/20 rounded-2xl p-4">
+              <p class="text-xs text-amber-700 dark:text-amber-300 font-medium">Los <strong>8 mejores terceros</strong> de los 12 grupos clasifican a los 16vos de Final. Se ordenan por puntos, diferencia de goles y goles a favor.</p>
             </div>
+          </div>
+          @if (getBestThirds().length > 0) {
+            <app-standings-table [groupName]="'Mejores Terceros'" [standings]="getBestThirds()" [qualifyCount]="8" />
+          } @else {
+            <div class="text-center py-12 text-gray-500 dark:text-gray-400 text-sm">Datos no disponibles aún</div>
           }
         } @else {
           <!-- BRACKET SIMÉTRICO PRO -->

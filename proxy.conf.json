@@ -1,4 +1,14 @@
 {
+  "/api/supabase": {
+    "target": "http://localhost:3001",
+    "secure": false,
+    "changeOrigin": true
+  },
+  "/api/streams": {
+    "target": "http://localhost:3001",
+    "secure": false,
+    "changeOrigin": true
+  },
   "/api/scorers/board": {
     "target": "https://lacancha.tv",
     "secure": true,

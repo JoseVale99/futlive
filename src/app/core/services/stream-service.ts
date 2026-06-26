@@ -1,5 +1,5 @@
 import { Injectable, inject, signal } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { ENVIRONMENT_TOKEN } from '../config/environment';
 import { MatchStream } from '../models/stream-model';
 import { Observable, map, catchError, of, timeout } from 'rxjs';
@@ -23,14 +23,13 @@ export class StreamService {
     this._loading.set(true);
     this._error.set(null);
 
-    // Primero intentar Supabase match_streams
-    this.http.get<MatchStream[]>(`${this.env.supabaseUrl}/match_streams`, {
-      params: { match_id: `eq.${matchId}`, select: '*' },
-      headers: {
-        'apikey': this.env.supabaseKey,
-        'Authorization': `Bearer ${this.env.supabaseKey}`
-      }
-    }).pipe(
+    // Primero intentar match_streams via proxy
+    const params = new HttpParams()
+      .set('table', 'match_streams')
+      .set('match_id', `eq.${matchId}`)
+      .set('select', '*');
+
+    this.http.get<MatchStream[]>(this.env.apiBase, { params }).pipe(
       timeout(15000),
       catchError(() => of([]))
     ).subscribe(streams => {
@@ -39,7 +38,6 @@ export class StreamService {
         this._activeStream.set(streams[0]);
         this._loading.set(false);
       } else {
-        // Fallback: obtener streams de lacancha.tv API
         this.fetchFromLaCancha(matchId);
       }
     });
@@ -49,8 +47,6 @@ export class StreamService {
    * Obtiene streams de lacancha.tv via el proxy (local o Vercel serverless).
    */
   private fetchFromLaCancha(matchId: string): void {
-    // En producción usa /api/streams (Vercel function)
-    // En dev usa http://localhost:3001/api/streams (proxy local)
     const proxyUrl = this.env.production
       ? '/api/streams'
       : 'http://localhost:3001/api/streams';
@@ -74,7 +70,6 @@ export class StreamService {
   }
 
   checkAvailability(matchId: string): Observable<boolean> {
-    // Siempre hay streams disponibles via lacancha.tv para partidos live
     return of(true);
   }
 }

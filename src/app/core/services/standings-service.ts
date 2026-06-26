@@ -1,5 +1,5 @@
 import { inject, Injectable, signal, computed } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { ENVIRONMENT_TOKEN } from '../config/environment';
 import { GroupStanding } from '../models/standings-model';
 import { Match } from '../models/match-model';
@@ -29,41 +29,40 @@ export class StandingsService {
     this._loading.set(true);
     this._error.set(null);
 
-    const headers = {
-      'apikey': this.env.supabaseKey,
-      'Authorization': `Bearer ${this.env.supabaseKey}`
-    };
+    const standingsParams = new HttpParams()
+      .set('table', 'group_standings')
+      .set('order', 'group_name.asc,rank.asc');
 
-    const standings$ = this.http.get<GroupStanding[]>(`${this.env.supabaseUrl}/group_standings`, {
-      params: { order: 'group_name.asc,rank.asc' },
-      headers
-    }).pipe(timeout(15000), catchError(err => {
-      this._error.set(err.message || err.statusText || 'Error al cargar posiciones');
-      return of([]);
-    }));
+    const upcomingParams = new HttpParams()
+      .set('table', 'matches')
+      .set('status', 'eq.scheduled')
+      .set('stage', 'eq.Group Stage')
+      .set('order', 'kickoff_at.asc')
+      .set('select', 'id,home_team,away_team,home_flag,away_flag,kickoff_at,group_name,stage');
 
-    const upcoming$ = this.http.get<Match[]>(`${this.env.supabaseUrl}/matches`, {
-      params: {
-        status: 'eq.scheduled',
-        stage: 'eq.Group Stage',
-        order: 'kickoff_at.asc',
-        select: 'id,home_team,away_team,home_flag,away_flag,kickoff_at,group_name,stage'
-      },
-      headers
-    }).pipe(timeout(15000), catchError(() => of([])));
+    const standings$ = this.http.get<GroupStanding[]>(this.env.apiBase, { params: standingsParams }).pipe(
+      timeout(15000),
+      catchError(err => {
+        this._error.set(err.message || err.statusText || 'Error al cargar posiciones');
+        return of([]);
+      })
+    );
+
+    const upcoming$ = this.http.get<Match[]>(this.env.apiBase, { params: upcomingParams }).pipe(
+      timeout(15000),
+      catchError(() => of([]))
+    );
 
     forkJoin([standings$, upcoming$]).pipe(
       finalize(() => this._loading.set(false))
     ).subscribe(([standings, upcoming]) => {
       this._standings.set(standings);
 
-      // Build team→group lookup from standings
       const teamToGroup = new Map<string, string>();
       for (const s of standings) {
         teamToGroup.set(s.team, s.group_name);
       }
 
-      // Assign matches to groups based on teams in standings
       const byGroup = new Map<string, Match[]>();
       for (const match of upcoming) {
         const group = teamToGroup.get(match.home_team) || teamToGroup.get(match.away_team);

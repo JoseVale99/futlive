@@ -39,58 +39,40 @@ export class MatchService {
 
   // Tiempos de expiración en milisegundos
   private readonly CACHE_TTL: Record<MatchStatus, number> = {
-    live: 0, // No cacheamos partidos en vivo, siempre pedimos frescos
-    scheduled: 5 * 60 * 1000, // 5 minutos
-    finished: 30 * 60 * 1000 // 30 minutos
+    live: 0,
+    scheduled: 5 * 60 * 1000,
+    finished: 30 * 60 * 1000
   };
 
   /**
-   * Obtiene los partidos desde la API de Supabase.
-   * @param status Filtro por estado del partido.
-   * @param timeoutMs Tiempo máximo de espera en milisegundos.
+   * Obtiene los partidos desde la API proxy.
    */
   fetchMatches(status?: MatchStatus, timeoutMs: number = 15000): Observable<Match[]> {
-    // Si no hay estado, no cacheamos
     if (!status) return this.fetchMatchesFromApi(status, timeoutMs);
 
-    // Verificamos si tenemos cache válido
     const cachedEntry = this.matchesCache.get(status);
     if (cachedEntry && Date.now() - cachedEntry.timestamp < this.CACHE_TTL[status]) {
       return of(cachedEntry.data);
     }
 
-    // Si no hay cache válido, pedimos a la API
     return this.fetchMatchesFromApi(status, timeoutMs).pipe(
       map(matches => {
-        // Guardamos en cache
-        this.matchesCache.set(status, {
-          data: matches,
-          timestamp: Date.now()
-        });
+        this.matchesCache.set(status, { data: matches, timestamp: Date.now() });
         return matches;
       })
     );
   }
 
-  /**
-   * Obtiene partidos directamente desde la API (sin cache).
-   */
   private fetchMatchesFromApi(status?: MatchStatus, timeoutMs: number = 15000): Observable<Match[]> {
-    let params = new HttpParams();
+    let params = new HttpParams().set('table', 'matches');
     if (status) {
       params = params.set('status', `eq.${status}`);
     }
 
-    return this.http.get<Match[]>(`${this.env.supabaseUrl}/matches`, {
-      params,
-      headers: {
-        'apikey': this.env.supabaseKey,
-        'Authorization': `Bearer ${this.env.supabaseKey}`
-      }
-    }).pipe(
+    return this.http.get<Match[]>(this.env.apiBase, { params }).pipe(
       timeout(timeoutMs),
       retry(1),
-      shareReplay({ refCount: true, bufferSize: 1, windowTime: 5000 }), // Cache rápido para duplicados
+      shareReplay({ refCount: true, bufferSize: 1, windowTime: 5000 }),
       catchError((err: unknown) => {
         let errorMsg = 'Error al obtener partidos';
         if (err instanceof HttpErrorResponse) {
@@ -106,23 +88,16 @@ export class MatchService {
 
   /**
    * Obtiene un partido individual por ID.
-   * Primero busca en el signal de matches en memoria.
-   * Si no está, hace request a Supabase con id=eq.{matchId}.
    */
   fetchMatchById(matchId: string): Observable<Match | null> {
     const found = this._matches().find(m => m.id === matchId);
-    if (found) {
-      return of(found);
-    }
+    if (found) return of(found);
 
-    const params = new HttpParams().set('id', `eq.${matchId}`);
-    return this.http.get<Match[]>(`${this.env.supabaseUrl}/matches`, {
-      params,
-      headers: {
-        'apikey': this.env.supabaseKey,
-        'Authorization': `Bearer ${this.env.supabaseKey}`
-      }
-    }).pipe(
+    const params = new HttpParams()
+      .set('table', 'matches')
+      .set('id', `eq.${matchId}`);
+
+    return this.http.get<Match[]>(this.env.apiBase, { params }).pipe(
       timeout(10000),
       retry(1),
       map(matches => matches.length > 0 ? matches[0] : null),
@@ -143,36 +118,39 @@ export class MatchService {
    * Obtiene los eventos de un partido específico.
    */
   fetchMatchEvents(matchId: string): Observable<MatchEvent[]> {
-    return this.http.get<MatchEvent[]>(`${this.env.supabaseUrl}/match_events`, {
-      params: { match_id: `eq.${matchId}`, select: '*', order: 'minute.asc' },
-      headers: {
-        'apikey': this.env.supabaseKey,
-        'Authorization': `Bearer ${this.env.supabaseKey}`
-      }
-    }).pipe(
+    const params = new HttpParams()
+      .set('table', 'match_events')
+      .set('match_id', `eq.${matchId}`)
+      .set('select', '*')
+      .set('order', 'minute.asc');
+
+    return this.http.get<MatchEvent[]>(this.env.apiBase, { params }).pipe(
       timeout(10000),
       catchError(() => of([]))
     );
   }
 
   /**
-   * Obtiene datos en vivo (eventos + stats) directamente de Supabase.
+   * Obtiene datos en vivo (eventos + stats).
    */
   private fetchLiveData(matchId: string): Observable<{ events: MatchEvent[]; stats: MatchStats[] }> {
-    const headers = {
-      'apikey': this.env.supabaseKey,
-      'Authorization': `Bearer ${this.env.supabaseKey}`
-    };
+    const eventsParams = new HttpParams()
+      .set('table', 'match_events')
+      .set('match_id', `eq.${matchId}`)
+      .set('select', '*')
+      .set('order', 'minute.asc');
 
-    const events$ = this.http.get<MatchEvent[]>(`${this.env.supabaseUrl}/match_events`, {
-      params: { match_id: `eq.${matchId}`, select: '*', order: 'minute.asc' },
-      headers
-    }).pipe(timeout(10000), catchError(() => of([] as MatchEvent[])));
+    const statsParams = new HttpParams()
+      .set('table', 'match_stats')
+      .set('match_id', `eq.${matchId}`)
+      .set('select', '*');
 
-    const stats$ = this.http.get<MatchStats[]>(`${this.env.supabaseUrl}/match_stats`, {
-      params: { match_id: `eq.${matchId}`, select: '*' },
-      headers
-    }).pipe(timeout(10000), catchError(() => of([] as MatchStats[])));
+    const events$ = this.http.get<MatchEvent[]>(this.env.apiBase, { params: eventsParams }).pipe(
+      timeout(10000), catchError(() => of([] as MatchEvent[]))
+    );
+    const stats$ = this.http.get<MatchStats[]>(this.env.apiBase, { params: statsParams }).pipe(
+      timeout(10000), catchError(() => of([] as MatchStats[]))
+    );
 
     return forkJoin([events$, stats$]).pipe(
       map(([events, stats]) => ({ events, stats }))
@@ -188,7 +166,6 @@ export class MatchService {
         if (matches.length === 0) return of([]);
 
         const matchesWithEvents$ = matches.map(match => {
-          // Para partidos LIVE: usar lacancha.tv API para datos en tiempo real
           if (match.status === 'live') {
             return this.fetchLiveData(match.id).pipe(
               map(({ events, stats }) => ({
@@ -202,7 +179,6 @@ export class MatchService {
             );
           }
 
-          // Si el partido está finalizado y tenemos sus eventos en cache, usamos el cache
           if (match.status === 'finished' && this.finishedEventsCache.has(match.id)) {
             const cachedEvents = this.finishedEventsCache.get(match.id)!;
             return of({
@@ -214,7 +190,6 @@ export class MatchService {
             });
           }
 
-          // Para scheduled/finished sin cache: pedir a Supabase
           return this.fetchMatchEvents(match.id).pipe(
             map(events => {
               if (match.status === 'finished') {
@@ -236,22 +211,12 @@ export class MatchService {
     );
   }
 
-  /**
-   * Aplica el ordenamiento adecuado según el estado del partido.
-   */
   private applySorting(matches: Match[], status: MatchStatus): Match[] {
-    if (status === 'scheduled') {
-      return sortMatchesByKickoff(matches, 'asc');
-    } else if (status === 'finished') {
-      return sortMatchesByKickoff(matches, 'desc');
-    }
+    if (status === 'scheduled') return sortMatchesByKickoff(matches, 'asc');
+    if (status === 'finished') return sortMatchesByKickoff(matches, 'desc');
     return matches;
   }
 
-  /**
-   * Cambia el estado activo y reinicia el polling si es necesario.
-   * @param status Nuevo estado a filtrar.
-   */
   setStatus(status: MatchStatus) {
     this._activeStatus.set(status);
     this.stopPolling();
@@ -262,18 +227,13 @@ export class MatchService {
     } else {
       this._loading.set(true);
       this.fetchMatchesWithEvents(status).pipe(
-        finalize(() => {
-          this._loading.set(false);
-        })
+        finalize(() => this._loading.set(false))
       ).subscribe(matches => {
         this._matches.set(this.applySorting(matches, status));
       });
     }
   }
 
-  /**
-   * Inicia el ciclo de polling cada 120 segundos (2 minutos) para partidos en vivo.
-   */
   startPolling() {
     if (this.pollingSubscription) return;
 
@@ -293,9 +253,6 @@ export class MatchService {
       });
   }
 
-  /**
-   * Detiene el ciclo de polling.
-   */
   stopPolling() {
     if (this.pollingSubscription) {
       this.pollingSubscription.unsubscribe();
@@ -303,9 +260,6 @@ export class MatchService {
     }
   }
 
-  /**
-   * Limpia toda la cache manualmente (si es necesario).
-   */
   clearCache() {
     this.matchesCache.clear();
     this.finishedEventsCache.clear();

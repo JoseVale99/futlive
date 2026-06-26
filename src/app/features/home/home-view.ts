@@ -1,6 +1,6 @@
 import { Component, inject, OnInit, OnDestroy, signal, computed } from '@angular/core';
 import { Router } from '@angular/router';
-import { HttpClient, HttpParams, HttpHeaders } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { ENVIRONMENT_TOKEN } from '../../core/config/environment';
 import { Match, MatchEvent } from '../../core/models/match-model';
 import { forkJoin, of, catchError, timeout, Subscription, timer, switchMap, map } from 'rxjs';
@@ -501,25 +501,16 @@ export class HomeViewComponent implements OnInit, OnDestroy {
   }
 
   private fetchAll$() {
-    const headers = new HttpHeaders({
-      apikey: this.env.supabaseKey,
-      Authorization: `Bearer ${this.env.supabaseKey}`,
-    });
-    const base = `${this.env.supabaseUrl}/matches`;
-
-    const live$ = this.http.get<Match[]>(base, {
-      params: new HttpParams().set('status', 'eq.live'),
-      headers
+    const live$ = this.http.get<Match[]>(this.env.apiBase, {
+      params: new HttpParams().set('table', 'matches').set('status', 'eq.live'),
     }).pipe(timeout(10000), catchError(() => of([] as Match[])));
 
-    const scheduled$ = this.http.get<Match[]>(base, {
-      params: new HttpParams().set('status', 'eq.scheduled').set('order', 'kickoff_at.asc'),
-      headers
+    const scheduled$ = this.http.get<Match[]>(this.env.apiBase, {
+      params: new HttpParams().set('table', 'matches').set('status', 'eq.scheduled').set('order', 'kickoff_at.asc'),
     }).pipe(timeout(10000), catchError(() => of([] as Match[])));
 
-    const finished$ = this.http.get<Match[]>(base, {
-      params: new HttpParams().set('status', 'eq.finished').set('order', 'kickoff_at.desc').set('limit', '10'),
-      headers
+    const finished$ = this.http.get<Match[]>(this.env.apiBase, {
+      params: new HttpParams().set('table', 'matches').set('status', 'eq.finished').set('order', 'kickoff_at.desc').set('limit', '10'),
     }).pipe(timeout(10000), catchError(() => of([] as Match[])));
 
     return forkJoin([live$, scheduled$, finished$]).pipe(

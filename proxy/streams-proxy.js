@@ -534,9 +534,40 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200);
       res.end(JSON.stringify(SAMPLE_SCORERS));
     }
+  } else if (parsed.pathname === '/api/supabase') {
+    const ALLOWED_TABLES = ['matches', 'match_events', 'match_stats', 'match_streams', 'match_lineups', 'group_standings', 'top_scorers'];
+    const table = parsed.query.table;
+
+    if (!table) {
+      res.writeHead(400);
+      res.end(JSON.stringify({ error: 'table query parameter required' }));
+      return;
+    }
+
+    if (!ALLOWED_TABLES.includes(table)) {
+      res.writeHead(403);
+      res.end(JSON.stringify({ error: `Table "${table}" not allowed` }));
+      return;
+    }
+
+    try {
+      // Build query params (exclude 'table')
+      const params = new URLSearchParams();
+      for (const [key, value] of Object.entries(parsed.query)) {
+        if (key !== 'table' && value != null) params.set(key, String(value));
+      }
+      const targetUrl = `${SUPABASE_URL}/${table}${params.toString() ? '?' + params.toString() : ''}`;
+      console.log(`[${new Date().toISOString()}] Proxy Supabase: ${table}`);
+      const data = await fetchSupabase(targetUrl);
+      res.writeHead(200);
+      res.end(JSON.stringify(data));
+    } catch (err) {
+      res.writeHead(500);
+      res.end(JSON.stringify({ error: `Failed to fetch ${table}: ${err.message}` }));
+    }
   } else {
     res.writeHead(404);
-    res.end(JSON.stringify({ error: 'Not found. Use /api/streams?matchId={id}, /api/live?matchId={id}, /api/standings, or /api/scorers' }));
+    res.end(JSON.stringify({ error: 'Not found. Use /api/streams?matchId={id}, /api/live?matchId={id}, /api/standings, /api/scorers, or /api/supabase?table={name}' }));
   }
 });
 
@@ -545,4 +576,5 @@ server.listen(PORT, () => {
   console.log(`   Usage: GET /api/streams?matchId={match-uuid}`);
   console.log(`          GET /api/standings`);
   console.log(`          GET /api/scorers`);
+  console.log(`          GET /api/supabase?table={name}&param=value`);
 });

@@ -44,9 +44,9 @@ import { CommonModule } from '@angular/common';
                 <td class="px-4 py-4 text-center">
                   <span
                     class="inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold"
-                    [class.bg-blue-600]="team.rank <= 2"
-                    [class.text-white]="team.rank <= 2"
-                    [class.text-gray-400]="team.rank > 2"
+                    [class.bg-blue-600]="team.rank <= qualifyCount()"
+                    [class.text-white]="team.rank <= qualifyCount()"
+                    [class.text-gray-400]="team.rank > qualifyCount()"
                   >
                     {{ team.rank }}
                   </span>
@@ -93,6 +93,7 @@ import { CommonModule } from '@angular/common';
 export class StandingsTableComponent {
   groupName = input.required<string>();
   standings = input.required<GroupStanding[]>();
+  qualifyCount = input<number>(2);
 
   getTeamFlagUrl = getTeamFlagUrl;
   isQualifying = isQualifying;

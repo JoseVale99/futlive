@@ -5,6 +5,7 @@ import { ENVIRONMENT_TOKEN } from '../../core/config/environment';
 import { Match, MatchEvent, MatchStats } from '../../core/models/match-model';
 import { forkJoin, of, catchError, timeout, Subscription, timer, switchMap, map } from 'rxjs';
 import { formatKickoffTime, formatKickoffWithDate } from '../../shared/utils/match-format-util';
+import { applyEffectiveStatus } from '../../shared/utils/match-status-util';
 import { APP_CONSTANTS } from '../../shared/constants/app-constants';
 import { buildStatBars, StatBar } from '../streaming/estadisticas-tab/estadisticas-tab';
 
@@ -322,7 +323,7 @@ export class HomeViewComponent implements OnInit, OnDestroy {
     this.pollingSubscription = timer(30_000, 30_000).pipe(
       switchMap(() => this.fetchAll$())
     ).subscribe(matches => {
-      if (matches.length > 0) this.allMatches.set(matches);
+      if (matches.length > 0) this.allMatches.set(matches.map(applyEffectiveStatus));
     });
   }
 
@@ -405,15 +406,29 @@ export class HomeViewComponent implements OnInit, OnDestroy {
 
   private buildTodayGroups(matches: Match[]): MatchGroup[] {
     const today = new Date();
-    const todayStr = today.toISOString().slice(0, 10);
+    const todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowStr = tomorrow.toISOString().slice(0, 10);
+    const tomorrowStr = tomorrow.getFullYear() + '-' + String(tomorrow.getMonth() + 1).padStart(2, '0') + '-' + String(tomorrow.getDate()).padStart(2, '0');
 
-    const todayMatches = matches.filter(m => m.kickoff_at.startsWith(todayStr));
-    const tomorrowMatches = matches.filter(m => m.kickoff_at.startsWith(tomorrowStr) && m.status === 'scheduled');
+    // Los partidos live siempre van en "Hoy" sin importar fecha de kickoff
+    const live = matches.filter(m => m.status === 'live');
 
-    const live = todayMatches.filter(m => m.status === 'live');
+    // Para scheduled/finished, usar fecha local del kickoff
+    const todayMatches = matches.filter(m => {
+      if (m.status === 'live') return false; // ya los separamos
+      const kickoffLocal = new Date(m.kickoff_at);
+      const kickoffStr = kickoffLocal.getFullYear() + '-' + String(kickoffLocal.getMonth() + 1).padStart(2, '0') + '-' + String(kickoffLocal.getDate()).padStart(2, '0');
+      return kickoffStr === todayStr;
+    });
+
+    const tomorrowMatches = matches.filter(m => {
+      if (m.status !== 'scheduled') return false;
+      const kickoffLocal = new Date(m.kickoff_at);
+      const kickoffStr = kickoffLocal.getFullYear() + '-' + String(kickoffLocal.getMonth() + 1).padStart(2, '0') + '-' + String(kickoffLocal.getDate()).padStart(2, '0');
+      return kickoffStr === tomorrowStr;
+    });
+
     const scheduledToday = todayMatches.filter(m => m.status === 'scheduled');
     const finished = todayMatches.filter(m => m.status === 'finished');
 
@@ -480,7 +495,7 @@ export class HomeViewComponent implements OnInit, OnDestroy {
   private fetchAllMatches() {
     this.loading.set(true);
     this.fetchAll$().subscribe(matches => {
-      this.allMatches.set(matches);
+      this.allMatches.set(matches.map(applyEffectiveStatus));
       this.loading.set(false);
     });
   }
@@ -537,24 +552,24 @@ export class HomeViewComponent implements OnInit, OnDestroy {
       Authorization: `Bearer ${this.env.supabaseKey}`,
     });
 
-    // Try lacancha.tv first, fallback to supabase events
-    return this.http.get<{
-      match: { status: string; home_score: number; away_score: number; time_elapsed: string };
-      events: MatchEvent[];
-      stats: MatchStats[];
-    }>(`https://lacancha.tv/api/match/${matchId}/live`).pipe(
-      timeout(8000),
-      map(res => ({ events: res.events || [], stats: res.stats || [] })),
-      catchError(() =>
-        this.http.get<MatchEvent[]>(`${this.env.supabaseUrl}/match_events`, {
-          params: new HttpParams().set('match_id', `eq.${matchId}`).set('order', 'minute.asc'),
-          headers
-        }).pipe(
-          timeout(10000),
-          map(events => ({ events, stats: [] as MatchStats[] })),
-          catchError(() => of({ events: [] as MatchEvent[], stats: [] as MatchStats[] }))
-        )
-      )
+    const events$ = this.http.get<MatchEvent[]>(`${this.env.supabaseUrl}/match_events`, {
+      params: new HttpParams().set('match_id', `eq.${matchId}`).set('order', 'minute.asc'),
+      headers
+    }).pipe(
+      timeout(10000),
+      catchError(() => of([] as MatchEvent[]))
+    );
+
+    const stats$ = this.http.get<MatchStats[]>(`${this.env.supabaseUrl}/match_stats`, {
+      params: new HttpParams().set('match_id', `eq.${matchId}`),
+      headers
+    }).pipe(
+      timeout(10000),
+      catchError(() => of([] as MatchStats[]))
+    );
+
+    return forkJoin([events$, stats$]).pipe(
+      map(([events, stats]) => ({ events, stats }))
     );
   }
 }

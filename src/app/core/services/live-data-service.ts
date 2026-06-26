@@ -1,9 +1,9 @@
 import { Injectable, inject, signal, OnDestroy } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { ENVIRONMENT_TOKEN } from '../config/environment';
-import { Subscription, timer, switchMap, catchError, of, timeout, delay, Observable, EMPTY, forkJoin, retry } from 'rxjs';
+import { Subscription, timer, switchMap, catchError, of, timeout, delay, Observable, forkJoin, retry } from 'rxjs';
 import { EventType, MatchEvent, MatchStats, MatchStatus } from '../models/match-model';
-import { LiveMatchResponse, LiveScoreData, MatchLineup, LineupPlayer, POLLING_CONFIG } from '../models/live-data-model';
+import { LiveScoreData, MatchLineup, LineupPlayer, POLLING_CONFIG } from '../models/live-data-model';
 import { mergeEventsById } from '../../shared/utils/event-sort-util';
 
 interface SupabaseLineupRow {
@@ -88,23 +88,24 @@ export class LiveDataService implements OnDestroy {
     }
 
     const source$ = this.buildPollingSource(status);
-    const proxyUrl = this.buildProxyUrl(matchId);
 
     this.pollingSubscription = source$
       .pipe(
-        switchMap(() =>
-          this.http.get<LiveMatchResponse>(proxyUrl).pipe(
-            timeout(POLLING_CONFIG.httpTimeout),
-            catchError((err) => {
-              this.handleError();
-              return of(null);
-            })
-          )
-        )
+        switchMap(() => this.fetchLiveFromSupabase(matchId))
       )
       .subscribe((response) => {
         if (response) {
-          this.handleResponse(response);
+          this._consecutiveErrors.set(0);
+          this._error.set(null);
+
+          const merged = mergeEventsById(this._events(), response.events);
+          this._events.set(merged);
+          this._stats.set(response.stats);
+
+          if (response.liveScore) {
+            this._liveScore.set(response.liveScore);
+            this.handleStatusTransition(response.liveScore.status as MatchStatus);
+          }
         }
         this._loading.set(false);
       });
@@ -118,82 +119,80 @@ export class LiveDataService implements OnDestroy {
     return timer(0);
   }
 
-  private buildProxyUrl(matchId: string): string {
-    return this.env.production
-      ? `/api/streams?matchId=${matchId}&type=live`
-      : `http://localhost:3001/api/live?matchId=${matchId}`;
-  }
-
-  private handleResponse(response: LiveMatchResponse): void {
-    // Reset consecutive errors on success
-    this._consecutiveErrors.set(0);
-    this._error.set(null);
-
-    // Normalize event types (external APIs may use different naming)
-    const incomingEvents = (response.events ?? []).map(e => ({
-      ...e,
-      type: this.normalizeEventType(e.type)
-    }));
-    const merged = mergeEventsById(this._events(), incomingEvents);
-    this._events.set(merged);
-
-    this._stats.set(response.stats ?? []);
-
-    // Update live score
-    if (response.match) {
-      this._liveScore.set({
-        home_score: response.match.home_score,
-        away_score: response.match.away_score,
-        time_elapsed: response.match.time_elapsed,
-        status: response.match.status,
-      });
-
-      // Detect status transitions
-      const newStatus = response.match.status as MatchStatus;
-      this.handleStatusTransition(newStatus);
-    }
-
-    // Use lineups from lacancha.tv if present
-    if (response.lineups && response.lineups.length > 0) {
-      this._lineups.set(response.lineups);
-    }
-  }
-
   private handleError(): void {
     const errors = this._consecutiveErrors() + 1;
     this._consecutiveErrors.set(errors);
 
     if (errors >= POLLING_CONFIG.maxRetries) {
-      // Fallback: try fetching from Supabase directly before giving up
       if (this.currentMatchId && this._events().length === 0) {
         this.fetchEventsFromSupabase(this.currentMatchId);
       }
       this._error.set('Datos en vivo no disponibles');
-    } else {
-      // Schedule a retry after retryDelay
-      this.retrySubscription?.unsubscribe();
-      this.retrySubscription = of(null)
-        .pipe(delay(POLLING_CONFIG.retryDelay))
-        .subscribe(() => {
-          if (this.currentMatchId) {
-            const proxyUrl = this.buildProxyUrl(this.currentMatchId);
-            this.http
-              .get<LiveMatchResponse>(proxyUrl)
-              .pipe(
-                timeout(POLLING_CONFIG.httpTimeout),
-                catchError(() => {
-                  this.handleError();
-                  return EMPTY;
-                })
-              )
-              .subscribe((response) => {
-                if (response) {
-                  this.handleResponse(response);
-                }
-              });
-          }
-        });
     }
+  }
+  /**
+   * Fetch live data directly from Supabase: match record + events + stats.
+   * Replaces the old lacancha.tv /api/match/{id}/live dependency.
+   */
+  private fetchLiveFromSupabase(matchId: string): Observable<{
+    events: MatchEvent[];
+    stats: MatchStats[];
+    liveScore: LiveScoreData | null;
+  } | null> {
+    const headers = new HttpHeaders({
+      apikey: this.env.supabaseKey,
+      Authorization: `Bearer ${this.env.supabaseKey}`,
+    });
+
+    const match$ = this.http
+      .get<Array<{ status: string; home_score: number; away_score: number; time_elapsed: number | null }>>(
+        `${this.env.supabaseUrl}/matches`,
+        { params: { id: `eq.${matchId}`, select: 'status,home_score,away_score,time_elapsed' }, headers }
+      )
+      .pipe(
+        timeout(POLLING_CONFIG.httpTimeout),
+        catchError(() => of([]))
+      );
+
+    const events$ = this.http
+      .get<MatchEvent[]>(`${this.env.supabaseUrl}/match_events`, {
+        params: { match_id: `eq.${matchId}`, select: '*', order: 'minute.asc' },
+        headers,
+      })
+      .pipe(
+        timeout(POLLING_CONFIG.httpTimeout),
+        catchError(() => of([] as MatchEvent[]))
+      );
+
+    const stats$ = this.http
+      .get<MatchStats[]>(`${this.env.supabaseUrl}/match_stats`, {
+        params: { match_id: `eq.${matchId}`, select: '*' },
+        headers,
+      })
+      .pipe(
+        timeout(POLLING_CONFIG.httpTimeout),
+        catchError(() => of([] as MatchStats[]))
+      );
+
+    return forkJoin([match$, events$, stats$]).pipe(
+      switchMap(([matchRows, events, stats]) => {
+        const matchData = matchRows[0] ?? null;
+        const liveScore: LiveScoreData | null = matchData
+          ? {
+              home_score: matchData.home_score ?? 0,
+              away_score: matchData.away_score ?? 0,
+              time_elapsed: matchData.time_elapsed?.toString() ?? '0',
+              status: matchData.status,
+            }
+          : null;
+
+        return of({ events, stats, liveScore });
+      }),
+      catchError(() => {
+        this.handleError();
+        return of(null);
+      })
+    );
   }
 
   /**
@@ -218,7 +217,7 @@ export class LiveDataService implements OnDestroy {
       .subscribe((events) => {
         if (events.length > 0) {
           this._events.set(mergeEventsById(this._events(), events));
-          this._error.set(null); // Clear error since we got data
+          this._error.set(null);
         }
         this._loading.set(false);
       });

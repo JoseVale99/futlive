@@ -156,23 +156,26 @@ export class MatchService {
   }
 
   /**
-   * Obtiene datos en vivo desde lacancha.tv API (eventos + stats reales).
-   * Si falla (CORS u otro), cae a Supabase match_events.
+   * Obtiene datos en vivo (eventos + stats) directamente de Supabase.
    */
   private fetchLiveData(matchId: string): Observable<{ events: MatchEvent[]; stats: MatchStats[] }> {
-    return this.http.get<{
-      match: { status: string; home_score: number; away_score: number; time_elapsed: string };
-      events: MatchEvent[];
-      stats: MatchStats[];
-    }>(`https://lacancha.tv/api/match/${matchId}/live`).pipe(
-      timeout(8000),
-      map(res => ({ events: res.events || [], stats: res.stats || [] })),
-      catchError(() => {
-        // Fallback a Supabase si lacancha.tv falla (CORS, timeout, etc)
-        return this.fetchMatchEvents(matchId).pipe(
-          map(events => ({ events, stats: [] as MatchStats[] }))
-        );
-      })
+    const headers = {
+      'apikey': this.env.supabaseKey,
+      'Authorization': `Bearer ${this.env.supabaseKey}`
+    };
+
+    const events$ = this.http.get<MatchEvent[]>(`${this.env.supabaseUrl}/match_events`, {
+      params: { match_id: `eq.${matchId}`, select: '*', order: 'minute.asc' },
+      headers
+    }).pipe(timeout(10000), catchError(() => of([] as MatchEvent[])));
+
+    const stats$ = this.http.get<MatchStats[]>(`${this.env.supabaseUrl}/match_stats`, {
+      params: { match_id: `eq.${matchId}`, select: '*' },
+      headers
+    }).pipe(timeout(10000), catchError(() => of([] as MatchStats[])));
+
+    return forkJoin([events$, stats$]).pipe(
+      map(([events, stats]) => ({ events, stats }))
     );
   }
 

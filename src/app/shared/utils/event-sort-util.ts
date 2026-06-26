@@ -13,18 +13,28 @@ export function sortEventsByMinuteAndCreatedAt(events: MatchEvent[]): MatchEvent
 
 /**
  * Merges incoming events into existing list without duplicates.
- * Deduplicates by event.id. Preserves insertion order of existing, appends truly new events.
+ * Deduplicates by event.id AND by composite key (player + minute + type + team)
+ * to avoid showing the same goal multiple times from different polling responses.
  */
 export function mergeEventsById(existing: MatchEvent[], incoming: MatchEvent[]): MatchEvent[] {
   const seenIds = new Set(existing.map(e => e.id));
+  const seenKeys = new Set(existing.map(e => eventKey(e)));
   const merged = [...existing];
+
   for (const event of incoming) {
-    if (!seenIds.has(event.id)) {
+    const key = eventKey(event);
+    if (!seenIds.has(event.id) && !seenKeys.has(key)) {
       merged.push(event);
       seenIds.add(event.id);
+      seenKeys.add(key);
     }
   }
   return merged;
+}
+
+/** Composite key to identify semantically identical events */
+function eventKey(e: MatchEvent): string {
+  return `${e.team}|${e.type}|${e.player}|${e.minute}`;
 }
 
 /**

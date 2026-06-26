@@ -91,16 +91,27 @@ export class LiveDataService implements OnDestroy {
 
     this.pollingSubscription = source$
       .pipe(
-        switchMap(() => this.fetchLiveFromSupabase(matchId))
+        switchMap(() => {
+          // When scheduled, only check match status (lightweight)
+          if (this.currentStatus() === 'scheduled') {
+            return this.fetchMatchStatusOnly(matchId);
+          }
+          // When live, fetch full data
+          return this.fetchLiveFromSupabase(matchId);
+        })
       )
       .subscribe((response) => {
         if (response) {
           this._consecutiveErrors.set(0);
           this._error.set(null);
 
-          const merged = mergeEventsById(this._events(), response.events);
-          this._events.set(merged);
-          this._stats.set(response.stats);
+          if (response.events.length > 0) {
+            const merged = mergeEventsById(this._events(), response.events);
+            this._events.set(merged);
+          }
+          if (response.stats.length > 0) {
+            this._stats.set(response.stats);
+          }
 
           if (response.liveScore) {
             this._liveScore.set(response.liveScore);
@@ -115,7 +126,11 @@ export class LiveDataService implements OnDestroy {
     if (status === 'live') {
       return timer(0, POLLING_CONFIG.liveInterval);
     }
-    // scheduled or finished: one-shot
+    // scheduled: poll every 60s to detect when match goes live
+    if (status === 'scheduled') {
+      return timer(0, POLLING_CONFIG.liveInterval);
+    }
+    // finished: one-shot
     return timer(0);
   }
 
@@ -130,6 +145,45 @@ export class LiveDataService implements OnDestroy {
       this._error.set('Datos en vivo no disponibles');
     }
   }
+  /**
+   * Lightweight check: only fetch match status to detect scheduled → live transition.
+   */
+  private fetchMatchStatusOnly(matchId: string): Observable<{
+    events: MatchEvent[];
+    stats: MatchStats[];
+    liveScore: LiveScoreData | null;
+  } | null> {
+    const headers = new HttpHeaders({
+      apikey: this.env.supabaseKey,
+      Authorization: `Bearer ${this.env.supabaseKey}`,
+    });
+
+    return this.http
+      .get<Array<{ status: string; home_score: number; away_score: number; time_elapsed: number | null }>>(
+        `${this.env.supabaseUrl}/matches`,
+        { params: { id: `eq.${matchId}`, select: 'status,home_score,away_score,time_elapsed' }, headers }
+      )
+      .pipe(
+        timeout(POLLING_CONFIG.httpTimeout),
+        switchMap(matchRows => {
+          const matchData = matchRows[0] ?? null;
+          const liveScore: LiveScoreData | null = matchData
+            ? {
+                home_score: matchData.home_score ?? 0,
+                away_score: matchData.away_score ?? 0,
+                time_elapsed: matchData.time_elapsed?.toString() ?? '0',
+                status: matchData.status,
+              }
+            : null;
+          return of({ events: [] as MatchEvent[], stats: [] as MatchStats[], liveScore });
+        }),
+        catchError(() => {
+          this.handleError();
+          return of(null);
+        })
+      );
+  }
+
   /**
    * Fetch live data directly from Supabase: match record + events + stats.
    * Replaces the old lacancha.tv /api/match/{id}/live dependency.

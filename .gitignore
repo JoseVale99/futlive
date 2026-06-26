@@ -43,3 +43,7 @@ __screenshots__/
 .DS_Store
 Thumbs.db
 .kiro/
+.vscode/settings.json
+.vercel
+scripts/write-env.js
+.env

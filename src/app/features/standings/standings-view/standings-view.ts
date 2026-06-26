@@ -98,15 +98,17 @@ interface BracketMatch {
             </div>
 
             <div class="overflow-x-auto pb-2">
-              <div class="min-w-[920px] grid grid-cols-[1fr_140px_140px_140px_1fr] gap-3 items-stretch">
+              <div class="min-w-[1100px] grid grid-cols-[1fr_130px_120px_150px_120px_130px_1fr] gap-2 items-stretch">
                 <!-- HEADERS -->
-                <div class="text-center pb-3 border-b border-gray-200 dark:border-gray-700/50"><span class="text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400">Octavos</span></div>
-                <div class="text-center pb-3 border-b border-gray-200 dark:border-gray-700/50"><span class="text-[10px] font-black uppercase tracking-widest text-cyan-600 dark:text-cyan-400">Cuartos</span></div>
+                <div class="text-center pb-3 border-b border-gray-200 dark:border-gray-700/50"><span class="text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400">Ronda de 32</span></div>
+                <div class="text-center pb-3 border-b border-gray-200 dark:border-gray-700/50"><span class="text-[10px] font-black uppercase tracking-widest text-cyan-600 dark:text-cyan-400">Ronda de 16</span></div>
+                <div class="text-center pb-3 border-b border-gray-200 dark:border-gray-700/50"><span class="text-[10px] font-black uppercase tracking-widest text-violet-600 dark:text-violet-400">Cuartos</span></div>
                 <div class="text-center pb-3 border-b border-gray-200 dark:border-gray-700/50"><span class="text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">Semis · Final</span></div>
-                <div class="text-center pb-3 border-b border-gray-200 dark:border-gray-700/50"><span class="text-[10px] font-black uppercase tracking-widest text-cyan-600 dark:text-cyan-400">Cuartos</span></div>
-                <div class="text-center pb-3 border-b border-gray-200 dark:border-gray-700/50"><span class="text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400">Octavos</span></div>
+                <div class="text-center pb-3 border-b border-gray-200 dark:border-gray-700/50"><span class="text-[10px] font-black uppercase tracking-widest text-violet-600 dark:text-violet-400">Cuartos</span></div>
+                <div class="text-center pb-3 border-b border-gray-200 dark:border-gray-700/50"><span class="text-[10px] font-black uppercase tracking-widest text-cyan-600 dark:text-cyan-400">Ronda de 16</span></div>
+                <div class="text-center pb-3 border-b border-gray-200 dark:border-gray-700/50"><span class="text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400">Ronda de 32</span></div>
 
-                <!-- LEFT OCTAVOS -->
+                <!-- LEFT R32 -->
                 <div class="space-y-1.5 pt-3">
                   @for (m of leftBracket(); track m.matchNum) {
                     <div class="bg-gray-50 dark:bg-gray-800/80 rounded-lg border border-gray-200 dark:border-gray-700/60 overflow-hidden hover:border-blue-500/40 transition-colors">
@@ -124,20 +126,30 @@ interface BracketMatch {
                   }
                 </div>
 
-                <!-- LEFT CUARTOS -->
-                <div class="space-y-6 pt-6 flex flex-col justify-around">
+                <!-- LEFT R16 -->
+                <div class="space-y-4 pt-6 flex flex-col justify-around">
                   @for (i of [1,2,3,4]; track i) {
                     <div class="bg-cyan-50/50 dark:bg-gray-800/50 rounded-lg border border-dashed border-cyan-300/50 dark:border-cyan-500/30 px-3 py-3 text-center">
-                      <span class="text-[10px] font-bold text-cyan-600 dark:text-cyan-400">Ganador {{ i }}</span>
+                      <span class="text-[10px] font-bold text-cyan-600 dark:text-cyan-400">R16 - {{ i }}</span>
                       <p class="text-[8px] text-gray-500 mt-0.5">Por definir</p>
                     </div>
                   }
                 </div>
 
-                <!-- CENTER -->
+                <!-- LEFT CUARTOS -->
+                <div class="space-y-6 pt-8 flex flex-col justify-around">
+                  @for (i of [1,2]; track i) {
+                    <div class="bg-violet-50/50 dark:bg-gray-800/50 rounded-lg border border-dashed border-violet-300/50 dark:border-violet-500/30 px-3 py-4 text-center">
+                      <span class="text-[10px] font-bold text-violet-600 dark:text-violet-400">Cuarto {{ i }}</span>
+                      <p class="text-[8px] text-gray-500 mt-0.5">Por definir</p>
+                    </div>
+                  }
+                </div>
+
+                <!-- CENTER: SEMIS + FINAL -->
                 <div class="flex flex-col items-center justify-center gap-4 pt-6">
-                  <div class="bg-violet-50/50 dark:bg-gray-800/50 rounded-lg border border-dashed border-violet-300/50 dark:border-violet-500/30 px-3 py-3 text-center w-full">
-                    <span class="text-[10px] font-bold text-violet-400">Semifinal 1</span>
+                  <div class="bg-emerald-50/50 dark:bg-gray-800/50 rounded-lg border border-dashed border-emerald-300/50 dark:border-emerald-500/30 px-3 py-3 text-center w-full">
+                    <span class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">Semifinal 1</span>
                     <p class="text-[8px] text-gray-500 mt-0.5">Por definir</p>
                   </div>
                   <div class="bg-linear-to-b from-amber-900/30 to-yellow-900/20 rounded-xl border border-amber-500/30 px-4 py-5 text-center w-full shadow-lg shadow-amber-500/5">
@@ -149,23 +161,33 @@ interface BracketMatch {
                       <p class="text-[9px] text-gray-500">Por definir</p>
                     </div>
                   </div>
-                  <div class="bg-violet-50/50 dark:bg-gray-800/50 rounded-lg border border-dashed border-violet-300/50 dark:border-violet-500/30 px-3 py-3 text-center w-full">
-                    <span class="text-[10px] font-bold text-violet-400">Semifinal 2</span>
+                  <div class="bg-emerald-50/50 dark:bg-gray-800/50 rounded-lg border border-dashed border-emerald-300/50 dark:border-emerald-500/30 px-3 py-3 text-center w-full">
+                    <span class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">Semifinal 2</span>
                     <p class="text-[8px] text-gray-500 mt-0.5">Por definir</p>
                   </div>
                 </div>
 
                 <!-- RIGHT CUARTOS -->
-                <div class="space-y-6 pt-6 flex flex-col justify-around">
-                  @for (i of [5,6,7,8]; track i) {
-                    <div class="bg-cyan-50/50 dark:bg-gray-800/50 rounded-lg border border-dashed border-cyan-300/50 dark:border-cyan-500/30 px-3 py-3 text-center">
-                      <span class="text-[10px] font-bold text-cyan-600 dark:text-cyan-400">Ganador {{ i }}</span>
+                <div class="space-y-6 pt-8 flex flex-col justify-around">
+                  @for (i of [3,4]; track i) {
+                    <div class="bg-violet-50/50 dark:bg-gray-800/50 rounded-lg border border-dashed border-violet-300/50 dark:border-violet-500/30 px-3 py-4 text-center">
+                      <span class="text-[10px] font-bold text-violet-600 dark:text-violet-400">Cuarto {{ i }}</span>
                       <p class="text-[8px] text-gray-500 mt-0.5">Por definir</p>
                     </div>
                   }
                 </div>
 
-                <!-- RIGHT OCTAVOS -->
+                <!-- RIGHT R16 -->
+                <div class="space-y-4 pt-6 flex flex-col justify-around">
+                  @for (i of [5,6,7,8]; track i) {
+                    <div class="bg-cyan-50/50 dark:bg-gray-800/50 rounded-lg border border-dashed border-cyan-300/50 dark:border-cyan-500/30 px-3 py-3 text-center">
+                      <span class="text-[10px] font-bold text-cyan-600 dark:text-cyan-400">R16 - {{ i }}</span>
+                      <p class="text-[8px] text-gray-500 mt-0.5">Por definir</p>
+                    </div>
+                  }
+                </div>
+
+                <!-- RIGHT R32 -->
                 <div class="space-y-1.5 pt-3">
                   @for (m of rightBracket(); track m.matchNum) {
                     <div class="bg-gray-50 dark:bg-gray-800/80 rounded-lg border border-gray-200 dark:border-gray-700/60 overflow-hidden hover:border-blue-500/40 transition-colors">

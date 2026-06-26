@@ -2,7 +2,7 @@
  * Vercel Serverless Function — Proxy genérico a Supabase REST API.
  * Oculta la URL y API key del cliente.
  *
- * Usage: /api/supabase?table=matches&status=eq.live&order=kickoff_at.asc&select=*
+ * Usage: /api/v1?table=matches&status=eq.live&order=kickoff_at.asc&select=*
  *
  * Params especiales (no se reenvían a Supabase):
  *   - table (requerido): nombre de la tabla/vista

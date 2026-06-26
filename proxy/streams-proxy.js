@@ -534,7 +534,7 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200);
       res.end(JSON.stringify(SAMPLE_SCORERS));
     }
-  } else if (parsed.pathname === '/api/supabase') {
+  } else if (parsed.pathname === '/api/v1') {
     const ALLOWED_TABLES = ['matches', 'match_events', 'match_stats', 'match_streams', 'match_lineups', 'group_standings', 'top_scorers'];
     const table = parsed.query.table;
 
@@ -567,7 +567,7 @@ const server = http.createServer(async (req, res) => {
     }
   } else {
     res.writeHead(404);
-    res.end(JSON.stringify({ error: 'Not found. Use /api/streams?matchId={id}, /api/live?matchId={id}, /api/standings, /api/scorers, or /api/supabase?table={name}' }));
+    res.end(JSON.stringify({ error: 'Not found. Use /api/streams?matchId={id}, /api/live?matchId={id}, /api/standings, /api/scorers, or /api/v1?table={name}' }));
   }
 });
 
@@ -576,5 +576,5 @@ server.listen(PORT, () => {
   console.log(`   Usage: GET /api/streams?matchId={match-uuid}`);
   console.log(`          GET /api/standings`);
   console.log(`          GET /api/scorers`);
-  console.log(`          GET /api/supabase?table={name}&param=value`);
+  console.log(`          GET /api/v1?table={name}&param=value`);
 });

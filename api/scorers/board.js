@@ -1,6 +1,6 @@
 /**
  * Vercel Serverless Function — Proxy de estadísticas desde lacancha.tv
- * Se despliega automáticamente en /api/scorers
+ * Se despliega en /api/scorers/board
  */
 
 const SCORERS_API = 'https://lacancha.tv/api/scorers/board';

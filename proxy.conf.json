@@ -1,0 +1,8 @@
+{
+  "/api/scorers/board": {
+    "target": "https://lacancha.tv",
+    "secure": true,
+    "changeOrigin": true,
+    "logLevel": "debug"
+  }
+}

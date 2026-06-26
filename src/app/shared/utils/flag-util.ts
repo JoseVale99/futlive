@@ -1,0 +1,61 @@
+/**
+ * Mapea código FIFA (3 letras) a código ISO 3166-1 alpha-2 (2 letras) para usar con flagcdn.
+ */
+const FIFA_TO_ISO: Record<string, string> = {
+  'ALG': 'dz',
+  'ARG': 'ar',
+  'AUS': 'au',
+  'AUT': 'at',
+  'BEL': 'be',
+  'BIH': 'ba',
+  'BRA': 'br',
+  'CAN': 'ca',
+  'COL': 'co',
+  'CPV': 'cv',
+  'CRC': 'cr',
+  'CRO': 'hr',
+  'CUW': 'cw',
+  'CZE': 'cz',
+  'COD': 'cd',
+  'DEN': 'dk',
+  'ECU': 'ec',
+  'EGY': 'eg',
+  'ENG': 'gb-eng',
+  'FRA': 'fr',
+  'GER': 'de',
+  'GHA': 'gh',
+  'HAI': 'ht',
+  'IRN': 'ir',
+  'IRQ': 'iq',
+  'CIV': 'ci',
+  'JPN': 'jp',
+  'JOR': 'jo',
+  'MEX': 'mx',
+  'MAR': 'ma',
+  'NED': 'nl',
+  'NZL': 'nz',
+  'NOR': 'no',
+  'PAN': 'pa',
+  'PAR': 'py',
+  'POR': 'pt',
+  'QAT': 'qa',
+  'KSA': 'sa',
+  'SCO': 'gb-sct',
+  'SEN': 'sn',
+  'RSA': 'za',
+  'KOR': 'kr',
+  'ESP': 'es',
+  'SWE': 'se',
+  'SUI': 'ch',
+  'TUN': 'tn',
+  'TUR': 'tr',
+  'URU': 'uy',
+  'USA': 'us',
+  'UZB': 'uz',
+};
+
+export function getFlagUrl(teamCode: string): string {
+  const iso = FIFA_TO_ISO[teamCode];
+  if (!iso) return '';
+  return `https://flagcdn.com/w40/${iso}.png`;
+}

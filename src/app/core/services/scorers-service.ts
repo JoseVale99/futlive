@@ -1,32 +1,25 @@
-import { inject, Injectable, signal } from '@angular/core';
+import { inject, Injectable, signal, computed } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { ENVIRONMENT_TOKEN } from '../config/environment';
-import { TopScorer } from '../models/scorers-model';
+import { ScorersApiResponse, TopScorer, TopAssister, CardEntry } from '../models/scorers-model';
 import { catchError, finalize, of, timeout } from 'rxjs';
+import { translateTeamName } from '../../shared/utils/team-name-util';
+import { getFlagUrl } from '../../shared/utils/flag-util';
 
-const SAMPLE_SCORERS: TopScorer[] = [
-  { rank: 1, player_name: "L. Messi", team: "Argentina", team_flag: "https://flagcdn.com/w40/ar.png", goals: 5, assists: 0, matches_played: 2 },
-  { rank: 2, player_name: "Kylian Mbappé", team: "Francia", team_flag: "https://flagcdn.com/w40/fr.png", goals: 4, assists: 0, matches_played: 3 },
-  { rank: 3, player_name: "E. Haaland", team: "Noruega", team_flag: "https://flagcdn.com/w40/no.png", goals: 4, assists: 0, matches_played: 3 },
-  { rank: 4, player_name: "D. Undav", team: "Alemania", team_flag: "https://flagcdn.com/w40/de.png", goals: 3, assists: 0, matches_played: 2 },
-  { rank: 5, player_name: "J. David", team: "Canadá", team_flag: "https://flagcdn.com/w40/ca.png", goals: 3, assists: 0, matches_played: 3 },
-  { rank: 6, player_name: "C. Summerville", team: "Países Bajos", team_flag: "https://flagcdn.com/w40/nl.png", goals: 2, assists: 0, matches_played: 2 },
-  { rank: 7, player_name: "Mikel Oyarzabal", team: "España", team_flag: "https://flagcdn.com/w40/es.png", goals: 2, assists: 0, matches_played: 2 },
-  { rank: 8, player_name: "M. Araújo", team: "Uruguay", team_flag: "https://flagcdn.com/w40/uy.png", goals: 2, assists: 0, matches_played: 2 },
-  { rank: 9, player_name: "A. Ueda", team: "Japón", team_flag: "https://flagcdn.com/w40/jp.png", goals: 2, assists: 0, matches_played: 2 },
-  { rank: 10, player_name: "Vinícius Júnior", team: "Brasil", team_flag: "https://flagcdn.com/w40/br.png", goals: 2, assists: 0, matches_played: 3 }
-];
+const SCORERS_API = '/api/scorers/board';
 
 @Injectable({ providedIn: 'root' })
 export class ScorersService {
   private readonly http = inject(HttpClient);
-  private readonly env = inject(ENVIRONMENT_TOKEN);
 
   private _scorers = signal<TopScorer[]>([]);
+  private _assisters = signal<TopAssister[]>([]);
+  private _cards = signal<CardEntry[]>([]);
   private _loading = signal<boolean>(false);
   private _error = signal<string | null>(null);
 
   readonly scorers = this._scorers.asReadonly();
+  readonly assisters = this._assisters.asReadonly();
+  readonly cards = this._cards.asReadonly();
   readonly loading = this._loading.asReadonly();
   readonly error = this._error.asReadonly();
 
@@ -34,25 +27,86 @@ export class ScorersService {
     this._loading.set(true);
     this._error.set(null);
 
-    this.http.get<TopScorer[]>(`${this.env.supabaseUrl}/top_scorers`, {
-      params: { order: 'goals.desc,assists.desc', limit: '10' },
-      headers: {
-        'apikey': this.env.supabaseKey,
-        'Authorization': `Bearer ${this.env.supabaseKey}`
-      }
+    this.http.get<ScorersApiResponse>(SCORERS_API, {
+      headers: { 'Accept': 'application/json' }
     }).pipe(
       timeout(15000),
-      catchError(() => {
-        // Table might not exist — use sample data
-        return of(SAMPLE_SCORERS);
+      catchError(err => {
+        console.error('[ScorersService] Error:', err);
+        this._error.set('Error al cargar estadísticas');
+        return of(null);
       }),
       finalize(() => this._loading.set(false))
-    ).subscribe(data => {
-      if (!data || data.length === 0) {
-        this._scorers.set(SAMPLE_SCORERS);
-      } else {
-        this._scorers.set(data);
+    ).subscribe(response => {
+      if (!response || !response.players || response.players.length === 0) {
+        if (!this._error()) this._error.set('Sin datos disponibles');
+        return;
       }
+
+      const players = response.players;
+
+      // Goals
+      const goals = players
+        .filter(p => p.category === 'goals')
+        .sort((a, b) => a.rank - b.rank)
+        .map(p => ({
+          rank: p.rank,
+          player_name: p.player_name,
+          player_photo: p.player_photo,
+          team: translateTeamName(p.team),
+          team_code: p.team_code,
+          team_flag: getFlagUrl(p.team_code),
+          goals: p.value,
+        }));
+      this._scorers.set(goals);
+
+      // Assists
+      const assists = players
+        .filter(p => p.category === 'assists')
+        .sort((a, b) => a.rank - b.rank)
+        .map(p => ({
+          rank: p.rank,
+          player_name: p.player_name,
+          player_photo: p.player_photo,
+          team: translateTeamName(p.team),
+          team_code: p.team_code,
+          team_flag: getFlagUrl(p.team_code),
+          assists: p.value,
+        }));
+      this._assisters.set(assists);
+
+      // Cards (yellow + red combined, sorted: reds first then yellows)
+      const reds = players
+        .filter(p => p.category === 'red')
+        .sort((a, b) => a.rank - b.rank)
+        .map(p => ({
+          rank: p.rank,
+          player_name: p.player_name,
+          player_photo: p.player_photo,
+          team: translateTeamName(p.team),
+          team_code: p.team_code,
+          team_flag: getFlagUrl(p.team_code),
+          value: p.value,
+          card_type: 'red' as const,
+        }));
+
+      const yellows = players
+        .filter(p => p.category === 'yellow')
+        .sort((a, b) => a.rank - b.rank)
+        .map(p => ({
+          rank: p.rank,
+          player_name: p.player_name,
+          player_photo: p.player_photo,
+          team: translateTeamName(p.team),
+          team_code: p.team_code,
+          team_flag: getFlagUrl(p.team_code),
+          value: p.value,
+          card_type: 'yellow' as const,
+        }));
+
+      // Merge: reds first, then yellows, re-rank
+      const allCards = [...reds, ...yellows].map((c, i) => ({ ...c, rank: i + 1 }));
+      this._cards.set(allCards);
     });
   }
 }

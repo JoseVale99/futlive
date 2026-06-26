@@ -31,8 +31,7 @@ export class ScorersService {
       headers: { 'Accept': 'application/json' }
     }).pipe(
       timeout(15000),
-      catchError(err => {
-        console.error('[ScorersService] Error:', err);
+      catchError(() => {
         this._error.set('Error al cargar estadísticas');
         return of(null);
       }),

@@ -494,10 +494,49 @@ export class HomeViewComponent implements OnInit, OnDestroy {
 
   private fetchAllMatches() {
     this.loading.set(true);
-    this.fetchAll$().subscribe(matches => {
-      this.allMatches.set(matches.map(applyEffectiveStatus));
-      this.loading.set(false);
-    });
+    this.fetchAll$().pipe(
+      switchMap(matches => {
+        const enriched = matches.map(applyEffectiveStatus);
+        // Enriquecer partidos live/finished con eventos (goles, tarjetas)
+        const needEvents = enriched.filter(m => m.status === 'live' || m.status === 'finished');
+        if (needEvents.length === 0) {
+          this.allMatches.set(enriched);
+          this.loading.set(false);
+          return of(null);
+        }
+
+        const eventRequests = needEvents.map(match =>
+          this.http.get<MatchEvent[]>(this.env.apiBase, {
+            params: new HttpParams()
+              .set('table', 'match_events')
+              .set('match_id', `eq.${match.id}`)
+              .set('select', '*')
+              .set('order', 'minute.asc')
+          }).pipe(timeout(8000), catchError(() => of([] as MatchEvent[])),
+            map(events => ({ matchId: match.id, events }))
+          )
+        );
+
+        return forkJoin(eventRequests).pipe(
+          map(results => {
+            const eventsMap = new Map(results.map(r => [r.matchId, r.events]));
+            const final = enriched.map(match => {
+              const events = eventsMap.get(match.id) ?? [];
+              return {
+                ...match,
+                events,
+                goals: events
+                  .filter(e => e.type === 'goal' || e.type === 'own_goal')
+                  .map(e => ({ team: e.team, scorer: e.player, minute: e.minute }))
+              };
+            });
+            this.allMatches.set(final);
+            this.loading.set(false);
+            return null;
+          })
+        );
+      })
+    ).subscribe();
   }
 
   private fetchAll$() {

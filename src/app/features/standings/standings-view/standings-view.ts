@@ -354,7 +354,7 @@ export class StandingsViewComponent implements OnInit {
       const label = `3° ${groups.join('/')}`;
       const assigned = thirdAssignment.get(code);
       if (assigned) {
-        return { label, name: translateTeamName(assigned.team), flag: this.getFlag(assigned.team_external_id) };
+        return { label, name: translateTeamName(assigned.team), flag: assigned.team_logo || '' };
       }
       return { label, name: 'Por definir', flag: '' };
     }
@@ -367,7 +367,7 @@ export class StandingsViewComponent implements OnInit {
     const label = rank === 1 ? `1° Grupo ${groupLetter}` : `2° Grupo ${groupLetter}`;
 
     if (team) {
-      return { label, name: translateTeamName(team.team), flag: this.getFlag(team.team_external_id) };
+      return { label, name: translateTeamName(team.team), flag: team.team_logo || '' };
     }
     return { label, name: 'Por definir', flag: '' };
   }

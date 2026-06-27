@@ -25,9 +25,11 @@ export function groupByGroupName(standings: GroupStanding[]): Map<string, GroupS
 }
 
 /**
- * Returns the flag image URL for a given team_external_id
+ * Returns the flag image URL for a given team.
+ * Primero usa team_logo (ESPN), fallback a api-sports por team_external_id.
  */
-export function getTeamFlagUrl(teamExternalId: number): string {
+export function getTeamFlagUrl(teamExternalId: number, teamLogo?: string | null): string {
+  if (teamLogo) return teamLogo;
   if (!teamExternalId) return 'assets/flags/placeholder.png';
   return `https://media.api-sports.io/football/teams/${teamExternalId}.png`;
 }

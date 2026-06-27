@@ -54,7 +54,7 @@ import { CommonModule } from '@angular/common';
                 <td class="px-4 py-4 sticky left-0 bg-white dark:bg-gray-800 group-hover:bg-blue-50/30 dark:group-hover:bg-blue-900/10 z-10">
                   <div class="flex items-center gap-3">
                     <img
-                      [src]="getTeamFlagUrl(team.team_external_id)"
+                      [src]="getTeamFlagUrl(team.team_external_id, team.team_logo)"
                       [alt]="team.team"
                       class="w-6 h-6 object-contain rounded-sm shadow-xs"
                       (error)="$any($event.target).src = 'assets/flags/placeholder.png'"

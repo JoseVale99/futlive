@@ -4,6 +4,11 @@
     "secure": false,
     "changeOrigin": true
   },
+  "/api/embed": {
+    "target": "http://localhost:3001",
+    "secure": false,
+    "changeOrigin": true
+  },
   "/api/streams": {
     "target": "http://localhost:3001",
     "secure": false,

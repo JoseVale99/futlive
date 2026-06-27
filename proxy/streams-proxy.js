@@ -98,14 +98,12 @@ function fetchMatchPageHTML(matchId) {
 
 /**
  * Parse match page HTML to extract streams from Next.js hydration data.
- * The hydration contains full stream objects with embed_url already resolved.
+ * Uses proximity-based pairing: each embed_name is matched to its closest embed_url.
  */
 function parseMatchPageStreams(html, matchId) {
   const streams = [];
   const seen = new Set();
 
-  // Strategy 1: Find embed_name/embed_url pairs in escaped JSON hydration data
-  // The data looks like: \"embed_name\":\"FOX\",... \"embed_url\":\"https://...\",... \"source\":\"futbol-libre\"
   const embedNameRegex = /\\?"embed_name\\?":\\?"([^"\\]+)\\?"/g;
   const embedUrlRegex = /\\?"embed_url\\?":\\?"(https?:\/\/[^"\\]+)\\?"/g;
   const sourceRegex = /\\?"source\\?":\\?"([^"\\]+)\\?"/g;
@@ -119,34 +117,46 @@ function parseMatchPageStreams(html, matchId) {
   while ((m = embedUrlRegex.exec(html)) !== null) urls.push({ val: m[1], idx: m.index });
   while ((m = sourceRegex.exec(html)) !== null) sources.push({ val: m[1], idx: m.index });
 
-  // Pair names with their closest url (they appear sequentially in the same object)
-  for (let i = 0; i < Math.min(names.length, urls.length); i++) {
-    const name = names[i].val;
-    const url = urls[i].val;
+  // Para cada nombre, encontrar la URL más cercana en el texto
+  const usedUrls = new Set();
 
+  for (const nameEntry of names) {
+    const name = nameEntry.val;
     if (seen.has(name)) continue;
-    seen.add(name);
 
-    // Find the closest source to this name
+    let closestUrl = null;
+    let minDist = Infinity;
+    let closestIdx = -1;
+
+    for (let j = 0; j < urls.length; j++) {
+      if (usedUrls.has(j)) continue;
+      const dist = Math.abs(urls[j].idx - nameEntry.idx);
+      if (dist < minDist) {
+        minDist = dist;
+        closestUrl = urls[j].val;
+        closestIdx = j;
+      }
+    }
+
+    if (!closestUrl || minDist > 2000) continue;
+
+    seen.add(name);
+    usedUrls.add(closestIdx);
+
     let source = 'lacancha-proxy';
-    const nameIdx = names[i].idx;
     for (const s of sources) {
-      if (Math.abs(s.idx - nameIdx) < 500) {
+      if (Math.abs(s.idx - nameEntry.idx) < 500) {
         source = s.val;
         break;
       }
     }
-
-    let embedUrl = url;
-    // For futbol-libre sources, use the direct URL (the player loads directly)
-    // No need to wrap in futbol-libres.su — that adds an unnecessary layer
 
     streams.push({
       id: `match-${streams.length}`,
       match_id: matchId,
       channel_id: null,
       embed_name: name,
-      embed_url: embedUrl,
+      embed_url: closestUrl,
       source: source,
       stream_param: null,
       created_at: new Date().toISOString()

@@ -55,6 +55,7 @@ async function fetchMatchPageHTML(matchId) {
 
 /**
  * Parse match page HTML to extract streams from Next.js hydration data.
+ * Uses proximity-based pairing: each embed_name is matched to its closest embed_url.
  */
 function parseMatchPageStreams(html, matchId) {
   const streams = [];
@@ -73,30 +74,49 @@ function parseMatchPageStreams(html, matchId) {
   while ((m = embedUrlRegex.exec(html)) !== null) urls.push({ val: m[1], idx: m.index });
   while ((m = sourceRegex.exec(html)) !== null) sources.push({ val: m[1], idx: m.index });
 
-  for (let i = 0; i < Math.min(names.length, urls.length); i++) {
-    const name = names[i].val;
-    const url = urls[i].val;
+  // Para cada nombre, encontrar la URL más cercana en el texto
+  const usedUrls = new Set();
 
+  for (const nameEntry of names) {
+    const name = nameEntry.val;
     if (seen.has(name)) continue;
-    seen.add(name);
 
+    // Buscar la URL más cercana que no haya sido usada
+    let closestUrl = null;
+    let minDist = Infinity;
+    let closestIdx = -1;
+
+    for (let j = 0; j < urls.length; j++) {
+      if (usedUrls.has(j)) continue;
+      const dist = Math.abs(urls[j].idx - nameEntry.idx);
+      if (dist < minDist) {
+        minDist = dist;
+        closestUrl = urls[j].val;
+        closestIdx = j;
+      }
+    }
+
+    // Solo parear si están razonablemente cerca (dentro del mismo objeto JSON, ~2000 chars)
+    if (!closestUrl || minDist > 2000) continue;
+
+    seen.add(name);
+    usedUrls.add(closestIdx);
+
+    // Buscar source más cercano
     let source = 'lacancha-proxy';
-    const nameIdx = names[i].idx;
     for (const s of sources) {
-      if (Math.abs(s.idx - nameIdx) < 500) {
+      if (Math.abs(s.idx - nameEntry.idx) < 500) {
         source = s.val;
         break;
       }
     }
-
-    let embedUrl = url;
 
     streams.push({
       id: `match-${streams.length}`,
       match_id: matchId,
       channel_id: null,
       embed_name: name,
-      embed_url: embedUrl,
+      embed_url: closestUrl,
       source: source,
       stream_param: null,
       created_at: new Date().toISOString()
@@ -126,7 +146,7 @@ function parseMatchPageStreams(html, matchId) {
     }
   }
 
-  return streams.slice(0, 30);
+  return streams.slice(0, 50);
 }
 
 function parseStreams(rscText, matchId) {
@@ -350,8 +370,8 @@ module.exports = async function handler(req, res) {
       }
     }
 
-    // Limit to 35
-    streams = streams.slice(0, 35);
+    // Limit to 50
+    streams = streams.slice(0, 50);
 
     return res.status(200).json({
       streams,

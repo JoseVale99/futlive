@@ -4,6 +4,7 @@ export interface GroupStanding {
   team: string;
   team_code: string;
   team_external_id: number;
+  team_logo?: string | null;
   played: number;
   win: number;
   draw: number;

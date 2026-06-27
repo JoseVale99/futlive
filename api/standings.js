@@ -1,44 +1,79 @@
 /**
- * Vercel Serverless Function — Proxy de posiciones desde Supabase
- * Se despliega automáticamente en /api/standings
+ * Vercel Serverless Function — Posiciones desde ESPN API (datos en tiempo real).
+ * Transforma la respuesta de ESPN al formato GroupStanding[] que espera el frontend.
  */
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_KEY;
+const ESPN_STANDINGS_URL = process.env.ESPN_STANDINGS_URL;
 
-async function handler(req, res) {
-  // CORS headers
+function getStat(stats, name) {
+  const stat = stats.find(s => s.name === name);
+  return stat ? stat.value : 0;
+}
+
+function transformEspnToGroupStandings(espnData) {
+  const standings = [];
+
+  for (const group of espnData.children || []) {
+    const groupName = group.name; // "Group A", "Group B", etc.
+    const entries = group.standings?.entries || [];
+
+    // Ordenar por rank
+    const sorted = [...entries].sort((a, b) => getStat(a.stats, 'rank') - getStat(b.stats, 'rank'));
+
+    for (const entry of sorted) {
+      const team = entry.team;
+      const stats = entry.stats || [];
+      const note = entry.note;
+
+      standings.push({
+        group_name: groupName,
+        rank: getStat(stats, 'rank'),
+        team: team.displayName,
+        team_code: team.abbreviation,
+        team_external_id: parseInt(team.id, 10),
+        team_logo: team.logos?.[0]?.href || null,
+        played: getStat(stats, 'gamesPlayed'),
+        win: getStat(stats, 'wins'),
+        draw: getStat(stats, 'ties'),
+        lose: getStat(stats, 'losses'),
+        gf: getStat(stats, 'pointsFor'),
+        ga: getStat(stats, 'pointsAgainst'),
+        gd: getStat(stats, 'pointDifferential'),
+        points: getStat(stats, 'points'),
+        description: note?.description || null,
+        form: null,
+        updated_at: new Date().toISOString(),
+      });
+    }
+  }
+
+  return standings;
+}
+
+module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  // Cache headers: 5 min CDN cache
-  res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=60');
+  res.setHeader('Cache-Control', 's-maxage=120, stale-while-revalidate=60');
 
   if (req.method === 'OPTIONS') {
     return res.status(204).end();
   }
 
   try {
-    const response = await fetch(
-      `${SUPABASE_URL}/group_standings?order=group_name.asc,rank.asc`,
-      {
-        headers: {
-          'apikey': SUPABASE_KEY,
-          'Authorization': `Bearer ${SUPABASE_KEY}`,
-          'Content-Type': 'application/json',
-        },
-      }
-    );
+    const response = await fetch(ESPN_STANDINGS_URL, {
+      headers: { 'Accept': 'application/json' },
+    });
 
     if (!response.ok) {
-      throw new Error(`Supabase responded with status ${response.status}`);
+      return res.status(502).json({ error: `ESPN API responded with ${response.status}` });
     }
 
-    const data = await response.json();
-    return res.status(200).json(data);
+    const espnData = await response.json();
+    const standings = transformEspnToGroupStandings(espnData);
+
+    return res.status(200).json(standings);
   } catch (err) {
     return res.status(500).json({ error: `Failed to fetch standings: ${err.message}` });
   }
-}
-
-module.exports = handler;
+};

@@ -514,14 +514,54 @@ const server = http.createServer(async (req, res) => {
     }
   } else if (parsed.pathname === '/api/standings') {
     try {
-      console.log(`[${new Date().toISOString()}] Fetching standings from Supabase`);
-      const supabaseUrl = `${SUPABASE_URL}/group_standings?order=group_name.asc,rank.asc`;
-      const data = await fetchSupabase(supabaseUrl);
-      console.log(`[${new Date().toISOString()}] Got ${data.length} standings entries`);
+      console.log(`[${new Date().toISOString()}] Fetching standings from ESPN`);
+      const espnUrl = process.env.ESPN_STANDINGS_URL || 'https://site.api.espn.com/apis/v2/sports/soccer/fifa.world/standings';
+      const espnRes = await new Promise((resolve, reject) => {
+        https.get(espnUrl, {
+          headers: { 'Accept': 'application/json' }
+        }, (response) => {
+          let data = '';
+          response.on('data', chunk => data += chunk);
+          response.on('end', () => {
+            try { resolve(JSON.parse(data)); } catch (e) { reject(e); }
+          });
+        }).on('error', reject);
+      });
+
+      const standings = [];
+      for (const group of espnRes.children || []) {
+        const entries = group.standings?.entries || [];
+        for (const entry of entries) {
+          const team = entry.team;
+          const stats = entry.stats || [];
+          const getStat = (name) => { const s = stats.find(x => x.name === name); return s ? s.value : 0; };
+          standings.push({
+            group_name: group.name,
+            rank: getStat('rank'),
+            team: team.displayName,
+            team_code: team.abbreviation,
+            team_external_id: parseInt(team.id, 10),
+            team_logo: team.logos?.[0]?.href || null,
+            played: getStat('gamesPlayed'),
+            win: getStat('wins'),
+            draw: getStat('ties'),
+            lose: getStat('losses'),
+            gf: getStat('pointsFor'),
+            ga: getStat('pointsAgainst'),
+            gd: getStat('pointDifferential'),
+            points: getStat('points'),
+            description: entry.note?.description || null,
+            form: null,
+            updated_at: new Date().toISOString(),
+          });
+        }
+      }
+      standings.sort((a, b) => a.group_name.localeCompare(b.group_name) || a.rank - b.rank);
+      console.log(`[${new Date().toISOString()}] Got ${standings.length} standings from ESPN`);
       res.writeHead(200);
-      res.end(JSON.stringify(data));
+      res.end(JSON.stringify(standings));
     } catch (err) {
-      console.error('Standings proxy error:', err);
+      console.error('Standings ESPN error:', err);
       res.writeHead(500);
       res.end(JSON.stringify({ error: `Failed to fetch standings: ${err.message}` }));
     }

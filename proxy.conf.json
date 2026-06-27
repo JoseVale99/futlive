@@ -1,4 +1,9 @@
 {
+  "/api/standings": {
+    "target": "http://localhost:3001",
+    "secure": false,
+    "changeOrigin": true
+  },
   "/api/v1": {
     "target": "http://localhost:3001",
     "secure": false,

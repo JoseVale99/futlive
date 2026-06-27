@@ -29,24 +29,22 @@ export class StandingsService {
     this._loading.set(true);
     this._error.set(null);
 
-    const standingsParams = new HttpParams()
-      .set('table', 'group_standings')
-      .set('order', 'group_name.asc,rank.asc');
-
-    const upcomingParams = new HttpParams()
-      .set('table', 'matches')
-      .set('status', 'eq.scheduled')
-      .set('stage', 'eq.Group Stage')
-      .set('order', 'kickoff_at.asc')
-      .set('select', 'id,home_team,away_team,home_flag,away_flag,kickoff_at,group_name,stage');
-
-    const standings$ = this.http.get<GroupStanding[]>(this.env.apiBase, { params: standingsParams }).pipe(
+    // Standings desde ESPN (via /api/standings serverless function)
+    const standings$ = this.http.get<GroupStanding[]>('/api/standings').pipe(
       timeout(15000),
       catchError(err => {
         this._error.set(err.message || err.statusText || 'Error al cargar posiciones');
         return of([]);
       })
     );
+
+    // Próximos partidos desde Supabase proxy
+    const upcomingParams = new HttpParams()
+      .set('table', 'matches')
+      .set('status', 'eq.scheduled')
+      .set('stage', 'eq.Group Stage')
+      .set('order', 'kickoff_at.asc')
+      .set('select', 'id,home_team,away_team,home_flag,away_flag,kickoff_at,group_name,stage');
 
     const upcoming$ = this.http.get<Match[]>(this.env.apiBase, { params: upcomingParams }).pipe(
       timeout(15000),

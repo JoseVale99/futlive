@@ -321,13 +321,17 @@ export class HomeViewComponent implements OnInit, OnDestroy {
 
   ngOnInit() {
     this.fetchAndEnrich();
+    // Polling solo si hay partidos live
     this.pollingSubscription = timer(120_000, 120_000).pipe(
-      switchMap(() => this.fetchAll$())
+      switchMap(() => {
+        const hasLive = this.allMatches().some(m => m.status === 'live');
+        if (!hasLive) return of([]);
+        return this.fetchAll$();
+      })
     ).subscribe(matches => {
       if (matches.length > 0) {
         const enriched = matches.map(applyEffectiveStatus).map(m => this.enrichFromCache(m));
         this.allMatches.set(enriched);
-        // Re-fetch events for live matches only
         this.fetchEventsForLive(enriched.filter(m => m.status === 'live'));
       }
     });

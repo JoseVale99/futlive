@@ -297,6 +297,7 @@ export class HomeViewComponent implements OnInit, OnDestroy {
   private readonly router = inject(Router);
 
   private pollingSubscription?: Subscription;
+  private readonly eventsCache = new Map<string, MatchEvent[]>();
 
   readonly tabs: { id: TabId; label: string }[] = [
     { id: 'today', label: 'Hoy' },
@@ -319,11 +320,16 @@ export class HomeViewComponent implements OnInit, OnDestroy {
   });
 
   ngOnInit() {
-    this.fetchAllMatches();
+    this.fetchAndEnrich();
     this.pollingSubscription = timer(120_000, 120_000).pipe(
       switchMap(() => this.fetchAll$())
     ).subscribe(matches => {
-      if (matches.length > 0) this.allMatches.set(matches.map(applyEffectiveStatus));
+      if (matches.length > 0) {
+        const enriched = matches.map(applyEffectiveStatus).map(m => this.enrichFromCache(m));
+        this.allMatches.set(enriched);
+        // Re-fetch events for live matches only
+        this.fetchEventsForLive(enriched.filter(m => m.status === 'live'));
+      }
     });
   }
 
@@ -492,51 +498,86 @@ export class HomeViewComponent implements OnInit, OnDestroy {
     return [{ label: 'Resultados', matches: finished, isLive: false }];
   }
 
-  private fetchAllMatches() {
+  private fetchAndEnrich() {
     this.loading.set(true);
     this.fetchAll$().pipe(
       switchMap(matches => {
         const enriched = matches.map(applyEffectiveStatus);
-        // Enriquecer partidos live/finished con eventos (goles, tarjetas)
         const needEvents = enriched.filter(m => m.status === 'live' || m.status === 'finished');
+
         if (needEvents.length === 0) {
-          this.allMatches.set(enriched);
-          this.loading.set(false);
-          return of(null);
+          return of(enriched);
         }
 
-        const eventRequests = needEvents.map(match =>
-          this.http.get<MatchEvent[]>(this.env.apiBase, {
-            params: new HttpParams()
-              .set('table', 'match_events')
-              .set('match_id', `eq.${match.id}`)
-              .set('select', '*')
-              .set('order', 'minute.asc')
-          }).pipe(timeout(8000), catchError(() => of([] as MatchEvent[])),
-            map(events => ({ matchId: match.id, events }))
-          )
-        );
-
-        return forkJoin(eventRequests).pipe(
-          map(results => {
-            const eventsMap = new Map(results.map(r => [r.matchId, r.events]));
-            const final = enriched.map(match => {
-              const events = eventsMap.get(match.id) ?? [];
-              return {
-                ...match,
-                events,
-                goals: events
-                  .filter(e => e.type === 'goal' || e.type === 'own_goal')
-                  .map(e => ({ team: e.team, scorer: e.player, minute: e.minute }))
-              };
-            });
-            this.allMatches.set(final);
-            this.loading.set(false);
-            return null;
+        // UNA sola petición batch: match_id=in.(id1,id2,...)
+        const ids = needEvents.map(m => m.id).join(',');
+        return this.http.get<MatchEvent[]>(this.env.apiBase, {
+          params: new HttpParams()
+            .set('table', 'match_events')
+            .set('match_id', `in.(${ids})`)
+            .set('select', '*')
+            .set('order', 'minute.asc')
+        }).pipe(
+          timeout(10000),
+          catchError(() => of([] as MatchEvent[])),
+          map(allEvents => {
+            // Agrupar eventos por match_id
+            const byMatch = new Map<string, MatchEvent[]>();
+            for (const ev of allEvents) {
+              const list = byMatch.get(ev.match_id) ?? [];
+              list.push(ev);
+              byMatch.set(ev.match_id, list);
+            }
+            // Guardar en cache y enriquecer
+            for (const [matchId, events] of byMatch) {
+              this.eventsCache.set(matchId, events);
+            }
+            return enriched.map(m => this.enrichFromCache(m));
           })
         );
       })
-    ).subscribe();
+    ).subscribe(matches => {
+      this.allMatches.set(matches);
+      this.loading.set(false);
+    });
+  }
+
+  /** Re-fetch solo eventos de partidos live (ligero, para actualizar goles en poll) */
+  private fetchEventsForLive(liveMatches: Match[]) {
+    if (liveMatches.length === 0) return;
+    const ids = liveMatches.map(m => m.id).join(',');
+    this.http.get<MatchEvent[]>(this.env.apiBase, {
+      params: new HttpParams()
+        .set('table', 'match_events')
+        .set('match_id', `in.(${ids})`)
+        .set('select', '*')
+        .set('order', 'minute.asc')
+    }).pipe(timeout(8000), catchError(() => of([] as MatchEvent[]))).subscribe(events => {
+      const byMatch = new Map<string, MatchEvent[]>();
+      for (const ev of events) {
+        const list = byMatch.get(ev.match_id) ?? [];
+        list.push(ev);
+        byMatch.set(ev.match_id, list);
+      }
+      for (const [matchId, evts] of byMatch) {
+        this.eventsCache.set(matchId, evts);
+      }
+      // Actualizar señal con eventos frescos
+      this.allMatches.update(current => current.map(m => this.enrichFromCache(m)));
+    });
+  }
+
+  /** Enriquece un match con eventos del cache */
+  private enrichFromCache(match: Match): Match {
+    const events = this.eventsCache.get(match.id);
+    if (!events || events.length === 0) return match;
+    return {
+      ...match,
+      events,
+      goals: events
+        .filter(e => e.type === 'goal' || e.type === 'own_goal')
+        .map(e => ({ team: e.team, scorer: e.player, minute: e.minute }))
+    };
   }
 
   private fetchAll$() {

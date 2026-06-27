@@ -38,7 +38,7 @@ export class StandingsService {
       })
     );
 
-    // Próximos partidos desde Supabase proxy
+    // Próximos partidos (grupo stage)
     const upcomingParams = new HttpParams()
       .set('table', 'matches')
       .set('status', 'eq.scheduled')

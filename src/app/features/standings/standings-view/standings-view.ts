@@ -400,11 +400,6 @@ export class StandingsViewComponent implements OnInit {
     return thirds;
   }
 
-  private getFlag(externalId: number): string {
-    if (!externalId) return '';
-    return `https://media.api-sports.io/football/teams/${externalId}.png`;
-  }
-
   getUpcomingForGroup(groupName: string): Match[] {
     return this.standingsService.upcomingByGroup().get(groupName) ?? [];
   }

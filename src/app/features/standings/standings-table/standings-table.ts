@@ -2,13 +2,12 @@ import { Component, input } from '@angular/core';
 import { GroupStanding } from '../../../core/models/standings-model';
 import { getTeamFlagUrl, isQualifying } from '../../../shared/utils/standings-util';
 import { translateTeamName } from '../../../shared/utils/team-name-util';
-import { FormIndicatorComponent } from '../form-indicator/form-indicator';
 import { CommonModule } from '@angular/common';
 
 @Component({
   selector: 'app-standings-table',
   standalone: true,
-  imports: [CommonModule, FormIndicatorComponent],
+  imports: [CommonModule],
   template: `
     <div class="mb-8 bg-white dark:bg-gray-800/60 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700/50 overflow-hidden">
       <div class="bg-linear-to-r from-blue-600/5 to-indigo-600/5 dark:from-blue-600/10 dark:to-indigo-600/10 px-5 py-4 border-b border-gray-100 dark:border-gray-700/50">
@@ -31,7 +30,6 @@ import { CommonModule } from '@angular/common';
               <th class="px-3 py-4 text-center hidden sm:table-cell">GC</th>
               <th class="px-3 py-4 text-center">DG</th>
               <th class="px-4 py-4 text-center font-black">Pts</th>
-              <th class="px-4 py-4 text-center">Forma</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-50 dark:divide-gray-700/50">
@@ -77,11 +75,6 @@ import { CommonModule } from '@angular/common';
                   {{ team.gd > 0 ? '+' : '' }}{{ team.gd }}
                 </td>
                 <td class="px-4 py-4 text-center font-black text-gray-900 dark:text-white">{{ team.points }}</td>
-                <td class="px-4 py-4">
-                  <div class="flex justify-center">
-                    <app-form-indicator [form]="team.form" />
-                  </div>
-                </td>
               </tr>
             }
           </tbody>

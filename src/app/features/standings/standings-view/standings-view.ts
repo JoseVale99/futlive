@@ -42,7 +42,7 @@ interface BracketMatch {
         </div>
       </div>
 
-      <div class="mx-auto px-4 py-8" [class]="activeTab() === 'cruces' ? 'max-w-7xl' : 'max-w-4xl'">
+      <div class="mx-auto px-4 py-8" [class]="activeTab() === 'cruces' ? 'max-w-[1600px]' : 'max-w-4xl'">
         @if (standingsService.loading()) {
           <div class="space-y-8">
             @for (i of [1,2,3]; track i) {
@@ -96,116 +96,118 @@ interface BracketMatch {
             <div class="text-center py-12 text-gray-500 dark:text-gray-400 text-sm">Datos no disponibles aún</div>
           }
         } @else {
-          <!-- BRACKET SIMÉTRICO PRO -->
-          <div class="bg-white dark:bg-[#0a0e17] rounded-2xl p-4 sm:p-6 border border-gray-200 dark:border-gray-800 shadow-lg">
-            <div class="flex items-center justify-center gap-2 mb-6">
-              <span class="material-symbols-outlined text-blue-500 dark:text-blue-400 text-lg">trophy</span>
-              <span class="text-xs font-bold text-gray-600 dark:text-gray-400 uppercase tracking-widest">Bracket Fase Final — Proyección en vivo</span>
+          <!-- BRACKET ÁRBOL SIMÉTRICO -->
+          <div class="bg-white dark:bg-[#0a0e17] rounded-2xl p-5 sm:p-8 border border-gray-200 dark:border-gray-800 shadow-lg">
+            <div class="flex items-center justify-center gap-2 mb-8">
+              <span class="material-symbols-outlined text-amber-500 dark:text-amber-400 text-xl">trophy</span>
+              <span class="text-sm font-bold text-gray-600 dark:text-gray-400 uppercase tracking-widest">Bracket Fase Final — Proyección en vivo</span>
             </div>
 
-            <div class="overflow-x-auto pb-2">
-              <div class="min-w-[1100px] grid grid-cols-[1fr_130px_120px_150px_120px_130px_1fr] gap-2 items-stretch">
+            <div class="overflow-x-auto pb-3">
+              <div class="min-w-[1400px] grid grid-cols-[1.2fr_1fr_1fr_0.8fr_1fr_1fr_1.2fr] gap-x-3 items-stretch">
                 <!-- HEADERS -->
-                <div class="text-center pb-3 border-b border-gray-200 dark:border-gray-700/50"><span class="text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400">16vos de Final</span></div>
-                <div class="text-center pb-3 border-b border-gray-200 dark:border-gray-700/50"><span class="text-[10px] font-black uppercase tracking-widest text-cyan-600 dark:text-cyan-400">Octavos</span></div>
-                <div class="text-center pb-3 border-b border-gray-200 dark:border-gray-700/50"><span class="text-[10px] font-black uppercase tracking-widest text-violet-600 dark:text-violet-400">Cuartos</span></div>
-                <div class="text-center pb-3 border-b border-gray-200 dark:border-gray-700/50"><span class="text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">Semis · Final</span></div>
-                <div class="text-center pb-3 border-b border-gray-200 dark:border-gray-700/50"><span class="text-[10px] font-black uppercase tracking-widest text-violet-600 dark:text-violet-400">Cuartos</span></div>
-                <div class="text-center pb-3 border-b border-gray-200 dark:border-gray-700/50"><span class="text-[10px] font-black uppercase tracking-widest text-cyan-600 dark:text-cyan-400">Octavos</span></div>
-                <div class="text-center pb-3 border-b border-gray-200 dark:border-gray-700/50"><span class="text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400">16vos de Final</span></div>
+                <div class="text-center pb-4 border-b border-gray-200 dark:border-gray-700/50"><span class="text-xs font-black uppercase tracking-widest text-blue-600 dark:text-blue-400">16vos de Final</span></div>
+                <div class="text-center pb-4 border-b border-gray-200 dark:border-gray-700/50"><span class="text-xs font-black uppercase tracking-widest text-cyan-600 dark:text-cyan-400">Octavos</span></div>
+                <div class="text-center pb-4 border-b border-gray-200 dark:border-gray-700/50"><span class="text-xs font-black uppercase tracking-widest text-violet-600 dark:text-violet-400">Cuartos</span></div>
+                <div class="text-center pb-4 border-b border-gray-200 dark:border-gray-700/50"><span class="text-xs font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">Semis · Final</span></div>
+                <div class="text-center pb-4 border-b border-gray-200 dark:border-gray-700/50"><span class="text-xs font-black uppercase tracking-widest text-violet-600 dark:text-violet-400">Cuartos</span></div>
+                <div class="text-center pb-4 border-b border-gray-200 dark:border-gray-700/50"><span class="text-xs font-black uppercase tracking-widest text-cyan-600 dark:text-cyan-400">Octavos</span></div>
+                <div class="text-center pb-4 border-b border-gray-200 dark:border-gray-700/50"><span class="text-xs font-black uppercase tracking-widest text-blue-600 dark:text-blue-400">16vos de Final</span></div>
 
-                <!-- LEFT R32 -->
-                <div class="space-y-1.5 pt-3">
+                <!-- LEFT R32 (8 matches) -->
+                <div class="space-y-2 pt-4">
                   @for (m of leftBracket(); track m.matchNum) {
-                    <div class="bg-gray-50 dark:bg-gray-800/80 rounded-lg border border-gray-200 dark:border-gray-700/60 overflow-hidden hover:border-blue-500/40 transition-colors">
-                      <div class="flex items-center gap-2 px-2.5 py-1.5 border-b border-gray-100 dark:border-gray-700/40">
+                    <div class="bg-gray-50 dark:bg-gray-800/80 rounded-xl border border-gray-200 dark:border-gray-700/60 overflow-hidden hover:border-blue-500/40 transition-colors">
+                      <div class="flex items-center gap-2 px-3 py-2 border-b border-gray-100 dark:border-gray-700/40">
                         @if (m.team1Flag) { <img [src]="m.team1Flag" class="w-5 h-5 rounded object-cover shrink-0"> } @else { <div class="w-5 h-5 rounded bg-gray-200 dark:bg-gray-700 shrink-0"></div> }
-                        <span class="text-[11px] font-bold text-gray-900 dark:text-white truncate flex-1">{{ m.team1Name }}</span>
-                        <span class="text-[8px] text-gray-500 shrink-0">{{ m.team1Label }}</span>
+                        <span class="text-xs font-bold text-gray-900 dark:text-white truncate flex-1">{{ m.team1Name }}</span>
+                        <span class="text-[9px] text-gray-400 shrink-0">{{ m.team1Label }}</span>
                       </div>
-                      <div class="flex items-center gap-2 px-2.5 py-1.5">
+                      <div class="flex items-center gap-2 px-3 py-2">
                         @if (m.team2Flag) { <img [src]="m.team2Flag" class="w-5 h-5 rounded object-cover shrink-0"> } @else { <div class="w-5 h-5 rounded bg-gray-200 dark:bg-gray-700 shrink-0"></div> }
-                        <span class="text-[11px] font-bold text-gray-900 dark:text-white truncate flex-1">{{ m.team2Name }}</span>
-                        <span class="text-[8px] text-gray-500 shrink-0">{{ m.team2Label }}</span>
+                        <span class="text-xs font-bold text-gray-900 dark:text-white truncate flex-1">{{ m.team2Name }}</span>
+                        <span class="text-[9px] text-gray-400 shrink-0">{{ m.team2Label }}</span>
                       </div>
                     </div>
                   }
                 </div>
 
-                <!-- LEFT R16 (Octavos) -->
-                <div class="space-y-4 pt-6 flex flex-col justify-around">
-                  @for (i of [1,2,3,4]; track i) {
-                    <div class="bg-cyan-50/50 dark:bg-gray-800/50 rounded-lg border border-dashed border-cyan-300/50 dark:border-cyan-500/30 px-3 py-3 text-center">
-                      <span class="text-[10px] font-bold text-cyan-600 dark:text-cyan-400">Octavos {{ i }}</span>
-                      <p class="text-[8px] text-gray-500 mt-0.5">Por definir</p>
+                <!-- LEFT OCTAVOS (4 slots) -->
+                <div class="flex flex-col justify-around pt-4">
+                  @for (r of leftR16(); track r.matchNum) {
+                    <div class="bg-cyan-50/50 dark:bg-gray-800/60 rounded-xl border border-cyan-300/40 dark:border-cyan-500/20 px-3 py-4 text-center">
+                      <span class="text-xs font-bold text-cyan-600 dark:text-cyan-400">M{{ r.matchNum }} · {{ r.date }}</span>
+                      <p class="text-[10px] text-gray-500 mt-1">W(M{{ r.from1 }}) vs W(M{{ r.from2 }})</p>
                     </div>
                   }
                 </div>
 
-                <!-- LEFT CUARTOS -->
-                <div class="space-y-6 pt-8 flex flex-col justify-around">
-                  @for (i of [1,2]; track i) {
-                    <div class="bg-violet-50/50 dark:bg-gray-800/50 rounded-lg border border-dashed border-violet-300/50 dark:border-violet-500/30 px-3 py-4 text-center">
-                      <span class="text-[10px] font-bold text-violet-600 dark:text-violet-400">Cuarto {{ i }}</span>
-                      <p class="text-[8px] text-gray-500 mt-0.5">Por definir</p>
+                <!-- LEFT CUARTOS (2 slots) -->
+                <div class="flex flex-col justify-around pt-4">
+                  @for (qf of leftQF(); track qf.matchNum) {
+                    <div class="bg-violet-50/50 dark:bg-gray-800/60 rounded-xl border border-violet-300/40 dark:border-violet-500/20 px-3 py-6 text-center">
+                      <span class="text-xs font-bold text-violet-600 dark:text-violet-400">M{{ qf.matchNum }} · {{ qf.date }}</span>
+                      <p class="text-[10px] text-gray-500 mt-1">W(M{{ qf.from1 }}) vs W(M{{ qf.from2 }})</p>
                     </div>
                   }
                 </div>
 
-                <!-- CENTER: SEMIS + FINAL -->
-                <div class="flex flex-col items-center justify-center gap-4 pt-6">
-                  <div class="bg-emerald-50/50 dark:bg-gray-800/50 rounded-lg border border-dashed border-emerald-300/50 dark:border-emerald-500/30 px-3 py-3 text-center w-full">
-                    <span class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">Semifinal 1</span>
-                    <p class="text-[8px] text-gray-500 mt-0.5">Por definir</p>
+                <!-- CENTER: 1 SEMI arriba + FINAL centro + 1 SEMI abajo -->
+                <div class="flex flex-col items-center justify-center gap-5 pt-4">
+                  <div class="bg-emerald-50/50 dark:bg-gray-800/60 rounded-xl border border-emerald-300/40 dark:border-emerald-500/20 px-4 py-4 text-center w-full">
+                    <span class="text-xs font-bold text-emerald-600 dark:text-emerald-400">Semifinal 1</span>
+                    <p class="text-[9px] text-gray-500 mt-1">14 Jul · Dallas</p>
+                    <p class="text-[10px] text-gray-400 mt-1">W(M97) vs W(M98)</p>
                   </div>
-                  <div class="bg-linear-to-b from-amber-900/30 to-yellow-900/20 rounded-xl border border-amber-500/30 px-4 py-5 text-center w-full shadow-lg shadow-amber-500/5">
-                    <span class="text-3xl">🏆</span>
-                    <p class="text-xs font-black text-amber-400 mt-2">GRAN FINAL</p>
-                    <p class="text-[9px] text-amber-500/70 mt-0.5">Jul 19 · MetLife Stadium</p>
-                    <div class="mt-3 pt-2 border-t border-amber-600/20">
-                      <p class="text-[10px] font-bold text-gray-400">Campeón 2026</p>
-                      <p class="text-[9px] text-gray-500">Por definir</p>
+                  <div class="bg-linear-to-b from-amber-900/30 to-yellow-900/20 rounded-2xl border border-amber-500/30 px-5 py-6 text-center w-full shadow-lg shadow-amber-500/5">
+                    <span class="text-4xl">🏆</span>
+                    <p class="text-sm font-black text-amber-400 mt-2">GRAN FINAL</p>
+                    <p class="text-[10px] text-amber-500/70 mt-1">19 Jul · MetLife Stadium</p>
+                    <div class="mt-3 pt-3 border-t border-amber-600/20">
+                      <p class="text-xs font-bold text-gray-400">Campeón 2026</p>
+                      <p class="text-[10px] text-gray-500">Por definir</p>
                     </div>
                   </div>
-                  <div class="bg-emerald-50/50 dark:bg-gray-800/50 rounded-lg border border-dashed border-emerald-300/50 dark:border-emerald-500/30 px-3 py-3 text-center w-full">
-                    <span class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">Semifinal 2</span>
-                    <p class="text-[8px] text-gray-500 mt-0.5">Por definir</p>
+                  <div class="bg-emerald-50/50 dark:bg-gray-800/60 rounded-xl border border-emerald-300/40 dark:border-emerald-500/20 px-4 py-4 text-center w-full">
+                    <span class="text-xs font-bold text-emerald-600 dark:text-emerald-400">Semifinal 2</span>
+                    <p class="text-[9px] text-gray-500 mt-1">15 Jul · Atlanta</p>
+                    <p class="text-[10px] text-gray-400 mt-1">W(M99) vs W(M100)</p>
                   </div>
                 </div>
 
-                <!-- RIGHT CUARTOS -->
-                <div class="space-y-6 pt-8 flex flex-col justify-around">
-                  @for (i of [3,4]; track i) {
-                    <div class="bg-violet-50/50 dark:bg-gray-800/50 rounded-lg border border-dashed border-violet-300/50 dark:border-violet-500/30 px-3 py-4 text-center">
-                      <span class="text-[10px] font-bold text-violet-600 dark:text-violet-400">Cuarto {{ i }}</span>
-                      <p class="text-[8px] text-gray-500 mt-0.5">Por definir</p>
+                <!-- RIGHT CUARTOS (2 slots) -->
+                <div class="flex flex-col justify-around pt-4">
+                  @for (qf of rightQF(); track qf.matchNum) {
+                    <div class="bg-violet-50/50 dark:bg-gray-800/60 rounded-xl border border-violet-300/40 dark:border-violet-500/20 px-3 py-6 text-center">
+                      <span class="text-xs font-bold text-violet-600 dark:text-violet-400">M{{ qf.matchNum }} · {{ qf.date }}</span>
+                      <p class="text-[10px] text-gray-500 mt-1">W(M{{ qf.from1 }}) vs W(M{{ qf.from2 }})</p>
                     </div>
                   }
                 </div>
 
-                <!-- RIGHT R16 (Octavos) -->
-                <div class="space-y-4 pt-6 flex flex-col justify-around">
-                  @for (i of [5,6,7,8]; track i) {
-                    <div class="bg-cyan-50/50 dark:bg-gray-800/50 rounded-lg border border-dashed border-cyan-300/50 dark:border-cyan-500/30 px-3 py-3 text-center">
-                      <span class="text-[10px] font-bold text-cyan-600 dark:text-cyan-400">Octavos {{ i }}</span>
-                      <p class="text-[8px] text-gray-500 mt-0.5">Por definir</p>
+                <!-- RIGHT OCTAVOS (4 slots) -->
+                <div class="flex flex-col justify-around pt-4">
+                  @for (r of rightR16(); track r.matchNum) {
+                    <div class="bg-cyan-50/50 dark:bg-gray-800/60 rounded-xl border border-cyan-300/40 dark:border-cyan-500/20 px-3 py-4 text-center">
+                      <span class="text-xs font-bold text-cyan-600 dark:text-cyan-400">M{{ r.matchNum }} · {{ r.date }}</span>
+                      <p class="text-[10px] text-gray-500 mt-1">W(M{{ r.from1 }}) vs W(M{{ r.from2 }})</p>
                     </div>
                   }
                 </div>
 
-                <!-- RIGHT R32 -->
-                <div class="space-y-1.5 pt-3">
+                <!-- RIGHT R32 (8 matches) -->
+                <div class="space-y-2 pt-4">
                   @for (m of rightBracket(); track m.matchNum) {
-                    <div class="bg-gray-50 dark:bg-gray-800/80 rounded-lg border border-gray-200 dark:border-gray-700/60 overflow-hidden hover:border-blue-500/40 transition-colors">
-                      <div class="flex items-center gap-2 px-2.5 py-1.5 border-b border-gray-100 dark:border-gray-700/40">
+                    <div class="bg-gray-50 dark:bg-gray-800/80 rounded-xl border border-gray-200 dark:border-gray-700/60 overflow-hidden hover:border-blue-500/40 transition-colors">
+                      <div class="flex items-center gap-2 px-3 py-2 border-b border-gray-100 dark:border-gray-700/40">
                         @if (m.team1Flag) { <img [src]="m.team1Flag" class="w-5 h-5 rounded object-cover shrink-0"> } @else { <div class="w-5 h-5 rounded bg-gray-200 dark:bg-gray-700 shrink-0"></div> }
-                        <span class="text-[11px] font-bold text-gray-900 dark:text-white truncate flex-1">{{ m.team1Name }}</span>
-                        <span class="text-[8px] text-gray-500 shrink-0">{{ m.team1Label }}</span>
+                        <span class="text-xs font-bold text-gray-900 dark:text-white truncate flex-1">{{ m.team1Name }}</span>
+                        <span class="text-[9px] text-gray-400 shrink-0">{{ m.team1Label }}</span>
                       </div>
-                      <div class="flex items-center gap-2 px-2.5 py-1.5">
+                      <div class="flex items-center gap-2 px-3 py-2">
                         @if (m.team2Flag) { <img [src]="m.team2Flag" class="w-5 h-5 rounded object-cover shrink-0"> } @else { <div class="w-5 h-5 rounded bg-gray-200 dark:bg-gray-700 shrink-0"></div> }
-                        <span class="text-[11px] font-bold text-gray-900 dark:text-white truncate flex-1">{{ m.team2Name }}</span>
-                        <span class="text-[8px] text-gray-500 shrink-0">{{ m.team2Label }}</span>
+                        <span class="text-xs font-bold text-gray-900 dark:text-white truncate flex-1">{{ m.team2Name }}</span>
+                        <span class="text-[9px] text-gray-400 shrink-0">{{ m.team2Label }}</span>
                       </div>
                     </div>
                   }
@@ -213,7 +215,7 @@ interface BracketMatch {
               </div>
             </div>
 
-            <div class="mt-5 flex items-start gap-2 px-1 border-t border-gray-800 pt-4">
+            <div class="mt-6 flex items-start gap-2 px-1 border-t border-gray-200 dark:border-gray-800 pt-4">
               <span class="material-symbols-outlined text-gray-600 text-sm shrink-0">info</span>
               <p class="text-[10px] text-gray-500">Los cruces se basan en el formato del torneo: 1° de grupo vs 2° de grupo según el cuadro oficial. Los 8 mejores terceros se distribuyen según tabla de combinaciones FIFA.</p>
             </div>
@@ -232,29 +234,36 @@ export class StandingsViewComponent implements OnInit {
   }
 
   private readonly BRACKET: { matchNum: number; date: string; team1: string; team2: string }[] = [
-    // LEFT SIDE (8 matches)
+    // LEFT SIDE — alimenta SF1 (QF97: M89 vs M90, QF98: M93 vs M94)
+    // Octavo M89 = W74 vs W77
     { matchNum: 74, date: 'Jun 29', team1: '1E', team2: '3ABCDF' },
     { matchNum: 77, date: 'Jun 30', team1: '1I', team2: '3CDFGH' },
+    // Octavo M90 = W73 vs W75
     { matchNum: 73, date: 'Jun 28', team1: '2A', team2: '2B' },
-    { matchNum: 75, date: 'Jun 30', team1: '1F', team2: '2C' },
-    { matchNum: 79, date: 'Jul 1', team1: '1A', team2: '3CEFHI' },
-    { matchNum: 80, date: 'Jul 1', team1: '1L', team2: '3EHIJK' },
-    { matchNum: 78, date: 'Jun 30', team1: '2E', team2: '2I' },
-    { matchNum: 76, date: 'Jun 29', team1: '1C', team2: '2F' },
-    // RIGHT SIDE (8 matches)
+    { matchNum: 75, date: 'Jun 29', team1: '1F', team2: '2C' },
+    // Octavo M93 = W83 vs W84
+    { matchNum: 83, date: 'Jul 2', team1: '2K', team2: '2L' },
     { matchNum: 84, date: 'Jul 2', team1: '1H', team2: '2J' },
-    { matchNum: 83, date: 'Jul 3', team1: '2K', team2: '2L' },
-    { matchNum: 81, date: 'Jul 2', team1: '1D', team2: '3BEFIJ' },
+    // Octavo M94 = W81 vs W82
+    { matchNum: 81, date: 'Jul 1', team1: '1D', team2: '3BEFIJ' },
     { matchNum: 82, date: 'Jul 1', team1: '1G', team2: '3AEHIJ' },
+    // RIGHT SIDE — alimenta SF2 (QF99: M91 vs M92, QF100: M95 vs M96)
+    // Octavo M91 = W76 vs W78
+    { matchNum: 76, date: 'Jun 29', team1: '1C', team2: '2F' },
+    { matchNum: 78, date: 'Jun 30', team1: '2E', team2: '2I' },
+    // Octavo M92 = W79 vs W80
+    { matchNum: 79, date: 'Jun 30', team1: '1A', team2: '3CEFHI' },
+    { matchNum: 80, date: 'Jul 1', team1: '1L', team2: '3EHIJK' },
+    // Octavo M95 = W86 vs W88
     { matchNum: 86, date: 'Jul 3', team1: '1J', team2: '2H' },
     { matchNum: 88, date: 'Jul 3', team1: '2D', team2: '2G' },
-    { matchNum: 85, date: 'Jul 3', team1: '1B', team2: '3EFGIJ' },
-    { matchNum: 87, date: 'Jul 4', team1: '1K', team2: '3DEIJL' },
+    // Octavo M96 = W85 vs W87
+    { matchNum: 85, date: 'Jul 2', team1: '1B', team2: '3EFGIJ' },
+    { matchNum: 87, date: 'Jul 3', team1: '1K', team2: '3DEIJL' },
   ];
 
   readonly bracketMatches = computed((): BracketMatch[] => {
     const grouped = this.standingsService.groupedStandings();
-    const usedThirds = new Set<string>();
 
     // Pre-calculate the assignment of thirds using FIFA combination table
     const thirdAssignment = this.assignThirdsToSlots(grouped);
@@ -269,6 +278,30 @@ export class StandingsViewComponent implements OnInit {
 
   readonly leftBracket = computed(() => this.bracketMatches().slice(0, 8));
   readonly rightBracket = computed(() => this.bracketMatches().slice(8, 16));
+
+  readonly leftR16 = computed(() => [
+    { matchNum: 89, date: '4 Jul', from1: 74, from2: 77 },
+    { matchNum: 90, date: '4 Jul', from1: 73, from2: 75 },
+    { matchNum: 93, date: '6 Jul', from1: 83, from2: 84 },
+    { matchNum: 94, date: '6 Jul', from1: 81, from2: 82 },
+  ]);
+
+  readonly rightR16 = computed(() => [
+    { matchNum: 91, date: '5 Jul', from1: 76, from2: 78 },
+    { matchNum: 92, date: '5 Jul', from1: 79, from2: 80 },
+    { matchNum: 95, date: '7 Jul', from1: 86, from2: 88 },
+    { matchNum: 96, date: '7 Jul', from1: 85, from2: 87 },
+  ]);
+
+  readonly leftQF = computed(() => [
+    { matchNum: 97, date: '9 Jul', from1: 89, from2: 90 },
+    { matchNum: 98, date: '10 Jul', from1: 93, from2: 94 },
+  ]);
+
+  readonly rightQF = computed(() => [
+    { matchNum: 99, date: '11 Jul', from1: 91, from2: 92 },
+    { matchNum: 100, date: '11 Jul', from1: 95, from2: 96 },
+  ]);
 
   /**
    * Assigns each qualifying 3rd-place team to a specific bracket slot.

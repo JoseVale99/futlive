@@ -103,7 +103,7 @@ interface BracketMatch {
             </div>
           </div>
           @if (getBestThirds().length > 0) {
-            <app-standings-table [groupName]="'Mejores Terceros'" [standings]="getBestThirds()" [qualifyCount]="8" />
+            <app-standings-table [groupName]="'Mejores Terceros'" [standings]="getBestThirds()" [qualifyCount]="8" [useIndex]="true" />
           } @else {
             <div class="text-center py-12 text-gray-500 dark:text-gray-400 text-sm">Datos no disponibles aún</div>
           }

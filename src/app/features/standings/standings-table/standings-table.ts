@@ -33,7 +33,7 @@ import { CommonModule } from '@angular/common';
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-50 dark:divide-gray-700/50">
-            @for (team of standings(); track team.team) {
+            @for (team of standings(); track team.team; let i = $index) {
               <tr
                 class="hover:bg-blue-50/30 dark:hover:bg-blue-900/10 transition-colors group"
                 [class.bg-green-50/50]="isQualifying(team)"
@@ -42,11 +42,11 @@ import { CommonModule } from '@angular/common';
                 <td class="px-4 py-4 text-center">
                   <span
                     class="inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold"
-                    [class.bg-blue-600]="team.rank <= qualifyCount()"
-                    [class.text-white]="team.rank <= qualifyCount()"
-                    [class.text-gray-400]="team.rank > qualifyCount()"
+                    [class.bg-blue-600]="useIndex() ? (i + 1) <= qualifyCount() : team.rank <= qualifyCount()"
+                    [class.text-white]="useIndex() ? (i + 1) <= qualifyCount() : team.rank <= qualifyCount()"
+                    [class.text-gray-400]="useIndex() ? (i + 1) > qualifyCount() : team.rank > qualifyCount()"
                   >
-                    {{ team.rank }}
+                    {{ useIndex() ? i + 1 : team.rank }}
                   </span>
                 </td>
                 <td class="px-4 py-4 sticky left-0 bg-white dark:bg-gray-800 group-hover:bg-blue-50/30 dark:group-hover:bg-blue-900/10 z-10">
@@ -87,6 +87,7 @@ export class StandingsTableComponent {
   groupName = input.required<string>();
   standings = input.required<GroupStanding[]>();
   qualifyCount = input<number>(2);
+  useIndex = input<boolean>(false);
 
   getTeamFlagUrl = getTeamFlagUrl;
   isQualifying = isQualifying;

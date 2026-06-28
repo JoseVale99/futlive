@@ -6,6 +6,7 @@ import { Match, MatchEvent } from '../../core/models/match-model';
 import { forkJoin, of, catchError, timeout, Subscription, timer, switchMap, map } from 'rxjs';
 import { formatKickoffTime, formatKickoffWithDate } from '../../shared/utils/match-format-util';
 import { applyEffectiveStatus } from '../../shared/utils/match-status-util';
+import { translateTeamName } from '../../shared/utils/team-name-util';
 import { APP_CONSTANTS } from '../../shared/constants/app-constants';
 import { buildStatBars, StatBar } from '../streaming/estadisticas-tab/estadisticas-tab';
 
@@ -100,7 +101,7 @@ interface MatchGroup {
                             <!-- Home team -->
                             <div class="flex flex-col items-center gap-2 flex-1 min-w-0">
                               <img [src]="match.home_flag" [alt]="match.home_team" (error)="handleImgError($event)" class="w-12 h-12 sm:w-14 sm:h-14 rounded-lg object-cover shadow-sm">
-                              <span class="text-xs sm:text-sm font-semibold text-gray-900 dark:text-gray-100 text-center truncate max-w-full">{{ match.home_team }}</span>
+                              <span class="text-xs sm:text-sm font-semibold text-gray-900 dark:text-gray-100 text-center truncate max-w-full">{{ t(match.home_team) }}</span>
                             </div>
 
                             <!-- Score -->
@@ -113,7 +114,7 @@ interface MatchGroup {
                             <!-- Away team -->
                             <div class="flex flex-col items-center gap-2 flex-1 min-w-0">
                               <img [src]="match.away_flag" [alt]="match.away_team" (error)="handleImgError($event)" class="w-12 h-12 sm:w-14 sm:h-14 rounded-lg object-cover shadow-sm">
-                              <span class="text-xs sm:text-sm font-semibold text-gray-900 dark:text-gray-100 text-center truncate max-w-full">{{ match.away_team }}</span>
+                              <span class="text-xs sm:text-sm font-semibold text-gray-900 dark:text-gray-100 text-center truncate max-w-full">{{ t(match.away_team) }}</span>
                             </div>
                           </div>
 
@@ -187,7 +188,7 @@ interface MatchGroup {
                                             <span>{{ card.type === 'yellow' ? '🟨' : '🟥' }}</span>
                                             <span class="font-medium text-gray-800 dark:text-gray-200">{{ card.player }}</span>
                                             <span class="text-gray-400 dark:text-gray-500">{{ card.minute }}'</span>
-                                            <span class="text-[10px] text-gray-400 dark:text-gray-500 ml-auto">{{ card.team === 'home' ? match.home_team : match.away_team }}</span>
+                                            <span class="text-[10px] text-gray-400 dark:text-gray-500 ml-auto">{{ card.team === 'home' ? t(match.home_team) : t(match.away_team) }}</span>
                                           </div>
                                         }
                                       </div>
@@ -204,7 +205,7 @@ interface MatchGroup {
                                             <span>🔄</span>
                                             <span class="font-medium text-gray-800 dark:text-gray-200">{{ sub.player }}</span>
                                             <span class="text-gray-400 dark:text-gray-500">{{ sub.minute }}'</span>
-                                            <span class="text-[10px] text-gray-400 dark:text-gray-500 ml-auto">{{ sub.team === 'home' ? match.home_team : match.away_team }}</span>
+                                            <span class="text-[10px] text-gray-400 dark:text-gray-500 ml-auto">{{ sub.team === 'home' ? t(match.home_team) : t(match.away_team) }}</span>
                                           </div>
                                         }
                                       </div>
@@ -298,6 +299,8 @@ export class HomeViewComponent implements OnInit, OnDestroy {
 
   private pollingSubscription?: Subscription;
   private readonly eventsCache = new Map<string, MatchEvent[]>();
+
+  readonly t = translateTeamName;
 
   readonly tabs: { id: TabId; label: string }[] = [
     { id: 'today', label: 'Hoy' },

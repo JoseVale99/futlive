@@ -7,7 +7,7 @@ export interface EventCategory {
 }
 
 const CATEGORY_ORDER: { key: EventCategory['key']; label: string; types: EventType[] }[] = [
-  { key: 'goals', label: 'Goles', types: ['goal', 'own_goal'] },
+  { key: 'goals', label: 'Goles', types: ['goal', 'own_goal', 'penalty'] },
   { key: 'substitutions', label: 'Sustituciones', types: ['sub'] },
   { key: 'cards', label: 'Tarjetas', types: ['yellow', 'red'] },
 ];

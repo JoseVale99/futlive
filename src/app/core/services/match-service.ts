@@ -173,7 +173,7 @@ export class MatchService {
                 events,
                 stats,
                 goals: events
-                  .filter(e => e.type === 'goal' || e.type === 'own_goal')
+                  .filter(e => e.type === 'goal' || e.type === 'own_goal' || e.type === 'penalty')
                   .map(e => ({ team: e.team, scorer: e.player, minute: e.minute }))
               }))
             );
@@ -185,7 +185,7 @@ export class MatchService {
               ...match,
               events: cachedEvents,
               goals: cachedEvents
-                .filter(e => e.type === 'goal' || e.type === 'own_goal')
+                .filter(e => e.type === 'goal' || e.type === 'own_goal' || e.type === 'penalty')
                 .map(e => ({ team: e.team, scorer: e.player, minute: e.minute }))
             });
           }
@@ -199,7 +199,7 @@ export class MatchService {
                 ...match,
                 events,
                 goals: events
-                  .filter(e => e.type === 'goal' || e.type === 'own_goal')
+                  .filter(e => e.type === 'goal' || e.type === 'own_goal' || e.type === 'penalty')
                   .map(e => ({ team: e.team, scorer: e.player, minute: e.minute }))
               };
             })

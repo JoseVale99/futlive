@@ -14,6 +14,7 @@ export interface MaterialIconConfig {
 const ICON_MAP: Record<EventType, MaterialIconConfig> = {
   goal: { text: 'sports_soccer', colorClass: '', fallbackEmoji: '⚽' },
   own_goal: { text: 'sports_soccer', colorClass: 'text-red-400', fallbackEmoji: '⚽🔴' },
+  penalty: { text: 'sports_soccer', colorClass: 'text-blue-400', fallbackEmoji: '⚽(P)' },
   sub: { text: 'swap_horiz', colorClass: '', fallbackEmoji: '🔄' },
   yellow: { text: 'square', colorClass: 'text-yellow-400', fallbackEmoji: '🟨' },
   red: { text: 'square', colorClass: 'text-red-500', fallbackEmoji: '🟥' },

@@ -1,6 +1,6 @@
 export type MatchStatus = 'scheduled' | 'live' | 'finished';
 
-export type EventType = 'goal' | 'own_goal' | 'yellow' | 'red' | 'sub';
+export type EventType = 'goal' | 'own_goal' | 'penalty' | 'yellow' | 'red' | 'sub';
 
 export interface MatchEvent {
   id: string;

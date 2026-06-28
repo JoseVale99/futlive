@@ -131,6 +131,9 @@ interface MatchGroup {
                                       @if (group.isOwnGoal) {
                                         <span class="text-red-400 dark:text-red-500 ml-0.5 text-[10px]">(GEC)</span>
                                       }
+                                      @if (group.isPenalty) {
+                                        <span class="text-blue-400 dark:text-blue-500 ml-0.5 text-[10px]">(P)</span>
+                                      }
                                     </p>
                                   }
                                 </div>
@@ -144,6 +147,9 @@ interface MatchGroup {
                                       <span class="font-medium text-gray-800 dark:text-gray-200">{{ group.player }}</span>
                                       @if (group.isOwnGoal) {
                                         <span class="text-red-400 dark:text-red-500 ml-0.5 text-[10px]">(GEC)</span>
+                                      }
+                                      @if (group.isPenalty) {
+                                        <span class="text-blue-400 dark:text-blue-500 ml-0.5 text-[10px]">(P)</span>
                                       }
                                     </p>
                                   }
@@ -358,7 +364,7 @@ export class HomeViewComponent implements OnInit, OnDestroy {
   }
 
   getGoals(match: Match): MatchEvent[] {
-    return (match.events ?? []).filter(e => e.type === 'goal' || e.type === 'own_goal');
+    return (match.events ?? []).filter(e => e.type === 'goal' || e.type === 'own_goal' || e.type === 'penalty');
   }
 
   getHomeGoals(match: Match): MatchEvent[] {
@@ -369,27 +375,28 @@ export class HomeViewComponent implements OnInit, OnDestroy {
     return this.getGoals(match).filter(e => e.team === 'away');
   }
 
-  getGroupedHomeGoals(match: Match): { player: string; minutes: number[]; isOwnGoal: boolean }[] {
+  getGroupedHomeGoals(match: Match): { player: string; minutes: number[]; isOwnGoal: boolean; isPenalty: boolean }[] {
     return this.groupGoalsByPlayer(this.getHomeGoals(match));
   }
 
-  getGroupedAwayGoals(match: Match): { player: string; minutes: number[]; isOwnGoal: boolean }[] {
+  getGroupedAwayGoals(match: Match): { player: string; minutes: number[]; isOwnGoal: boolean; isPenalty: boolean }[] {
     return this.groupGoalsByPlayer(this.getAwayGoals(match));
   }
 
-  private groupGoalsByPlayer(goals: MatchEvent[]): { player: string; minutes: number[]; isOwnGoal: boolean }[] {
-    const map = new Map<string, { minutes: number[]; isOwnGoal: boolean }>();
+  private groupGoalsByPlayer(goals: MatchEvent[]): { player: string; minutes: number[]; isOwnGoal: boolean; isPenalty: boolean }[] {
+    const map = new Map<string, { minutes: number[]; isOwnGoal: boolean; isPenalty: boolean }>();
     for (const g of goals) {
       const key = `${g.player}_${g.type}`;
-      const existing = map.get(key) ?? { minutes: [], isOwnGoal: g.type === 'own_goal' };
+      const existing = map.get(key) ?? { minutes: [], isOwnGoal: g.type === 'own_goal', isPenalty: g.type === 'penalty' };
       existing.minutes.push(g.minute);
       map.set(key, existing);
     }
     return Array.from(map.entries())
-      .map(([key, { minutes, isOwnGoal }]) => ({
-        player: key.replace(/_goal$|_own_goal$/, ''),
+      .map(([key, { minutes, isOwnGoal, isPenalty }]) => ({
+        player: key.replace(/_goal$|_own_goal$|_penalty$/, ''),
         minutes: minutes.sort((a, b) => a - b),
-        isOwnGoal
+        isOwnGoal,
+        isPenalty,
       }))
       .sort((a, b) => a.minutes[0] - b.minutes[0]);
   }
@@ -404,7 +411,7 @@ export class HomeViewComponent implements OnInit, OnDestroy {
 
   hasEvents(match: Match): boolean {
     const events = match.events ?? [];
-    const hasNonGoalEvents = events.some(e => e.type !== 'goal' && e.type !== 'own_goal');
+    const hasNonGoalEvents = events.some(e => e.type !== 'goal' && e.type !== 'own_goal' && e.type !== 'penalty');
     const hasStats = (match.stats ?? []).length > 0;
     return hasNonGoalEvents || hasStats;
   }
@@ -582,7 +589,7 @@ export class HomeViewComponent implements OnInit, OnDestroy {
       ...match,
       events,
       goals: events
-        .filter(e => e.type === 'goal' || e.type === 'own_goal')
+        .filter(e => e.type === 'goal' || e.type === 'own_goal' || e.type === 'penalty')
         .map(e => ({ team: e.team, scorer: e.player, minute: e.minute }))
     };
   }

@@ -242,7 +242,7 @@ export class MatchCardComponent implements OnInit {
   }
 
   goalEvents(): MatchEvent[] {
-    return (this.match().events || []).filter(e => e.type === 'goal' || e.type === 'own_goal').sort((a, b) => a.minute - b.minute);
+    return (this.match().events || []).filter(e => e.type === 'goal' || e.type === 'own_goal' || e.type === 'penalty').sort((a, b) => a.minute - b.minute);
   }
 
   homeGoalEvents(): MatchEvent[] {
@@ -253,33 +253,34 @@ export class MatchCardComponent implements OnInit {
     return this.goalEvents().filter(e => e.team === 'away');
   }
 
-  groupedHomeGoals(): { player: string; minutes: number[]; isOwnGoal: boolean }[] {
+  groupedHomeGoals(): { player: string; minutes: number[]; isOwnGoal: boolean; isPenalty: boolean }[] {
     return this.groupGoalsByPlayer(this.homeGoalEvents());
   }
 
-  groupedAwayGoals(): { player: string; minutes: number[]; isOwnGoal: boolean }[] {
+  groupedAwayGoals(): { player: string; minutes: number[]; isOwnGoal: boolean; isPenalty: boolean }[] {
     return this.groupGoalsByPlayer(this.awayGoalEvents());
   }
 
-  private groupGoalsByPlayer(goals: MatchEvent[]): { player: string; minutes: number[]; isOwnGoal: boolean }[] {
-    const map = new Map<string, { minutes: number[]; isOwnGoal: boolean }>();
+  private groupGoalsByPlayer(goals: MatchEvent[]): { player: string; minutes: number[]; isOwnGoal: boolean; isPenalty: boolean }[] {
+    const map = new Map<string, { minutes: number[]; isOwnGoal: boolean; isPenalty: boolean }>();
     for (const g of goals) {
       const key = `${g.player}_${g.type}`;
-      const existing = map.get(key) ?? { minutes: [], isOwnGoal: g.type === 'own_goal' };
+      const existing = map.get(key) ?? { minutes: [], isOwnGoal: g.type === 'own_goal', isPenalty: g.type === 'penalty' };
       existing.minutes.push(g.minute);
       map.set(key, existing);
     }
     return Array.from(map.entries())
-      .map(([key, { minutes, isOwnGoal }]) => ({
-        player: key.replace(/_goal$|_own_goal$/, ''),
+      .map(([key, { minutes, isOwnGoal, isPenalty }]) => ({
+        player: key.replace(/_goal$|_own_goal$|_penalty$/, ''),
         minutes: minutes.sort((a, b) => a - b),
-        isOwnGoal
+        isOwnGoal,
+        isPenalty,
       }))
       .sort((a, b) => a.minutes[0] - b.minutes[0]);
   }
 
   nonGoalEvents(): MatchEvent[] {
-    return (this.match().events || []).filter(e => e.type !== 'goal' && e.type !== 'own_goal').sort((a, b) => a.minute - b.minute);
+    return (this.match().events || []).filter(e => e.type !== 'goal' && e.type !== 'own_goal' && e.type !== 'penalty').sort((a, b) => a.minute - b.minute);
   }
 
   hasDetailedEvents(): boolean {

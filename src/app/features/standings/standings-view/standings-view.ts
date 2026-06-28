@@ -4,10 +4,22 @@ import { StandingsTableComponent } from '../standings-table/standings-table';
 import { CommonModule } from '@angular/common';
 import { Match } from '../../../core/models/match-model';
 import { GroupStanding } from '../../../core/models/standings-model';
+import { KnockoutMatch } from '../../../core/models/bracket-model';
 import { formatKickoffTime } from '../../../shared/utils/match-format-util';
 import { translateTeamName } from '../../../shared/utils/team-name-util';
 
 type TabId = 'grupos' | 'terceros' | 'cruces';
+
+interface KnockoutSlot {
+  matchNum: number;
+  date: string;
+  from1: number;
+  from2: number;
+  home: { name: string; logo: string; score: number | null } | null;
+  away: { name: string; logo: string; score: number | null } | null;
+  winner: 'home' | 'away' | null;
+  status: string;
+}
 
 interface BracketMatch {
   matchNum: number;
@@ -135,9 +147,22 @@ interface BracketMatch {
                 <!-- LEFT OCTAVOS (4 slots) -->
                 <div class="flex flex-col justify-around pt-4">
                   @for (r of leftR16(); track r.matchNum) {
-                    <div class="bg-cyan-50/50 dark:bg-gray-800/60 rounded-xl border border-cyan-300/40 dark:border-cyan-500/20 px-3 py-4 text-center">
-                      <span class="text-xs font-bold text-cyan-600 dark:text-cyan-400">M{{ r.matchNum }} · {{ r.date }}</span>
-                      <p class="text-[10px] text-gray-500 mt-1">W(M{{ r.from1 }}) vs W(M{{ r.from2 }})</p>
+                    <div class="bg-cyan-50/50 dark:bg-gray-800/60 rounded-xl border border-cyan-300/40 dark:border-cyan-500/20 px-3 py-3 overflow-hidden">
+                      <span class="text-[9px] font-bold text-cyan-600 dark:text-cyan-400 block text-center mb-1">M{{ r.matchNum }} · {{ r.date }}</span>
+                      @if (r.home && r.home.name !== 'TBD') {
+                        <div class="flex items-center gap-1.5 py-0.5" [class.font-black]="r.winner === 'home'">
+                          @if (r.home.logo) { <img [src]="r.home.logo" class="w-4 h-4 rounded object-cover shrink-0"> }
+                          <span class="text-[10px] text-gray-900 dark:text-white truncate flex-1">{{ r.home.name }}</span>
+                          @if (r.home.score != null) { <span class="text-[10px] font-bold text-gray-600 dark:text-gray-300">{{ r.home.score }}</span> }
+                        </div>
+                        <div class="flex items-center gap-1.5 py-0.5" [class.font-black]="r.winner === 'away'">
+                          @if (r.away!.logo) { <img [src]="r.away!.logo" class="w-4 h-4 rounded object-cover shrink-0"> }
+                          <span class="text-[10px] text-gray-900 dark:text-white truncate flex-1">{{ r.away!.name }}</span>
+                          @if (r.away!.score != null) { <span class="text-[10px] font-bold text-gray-600 dark:text-gray-300">{{ r.away!.score }}</span> }
+                        </div>
+                      } @else {
+                        <p class="text-[9px] text-gray-500 text-center">W(M{{ r.from1 }}) vs W(M{{ r.from2 }})</p>
+                      }
                     </div>
                   }
                 </div>
@@ -145,42 +170,111 @@ interface BracketMatch {
                 <!-- LEFT CUARTOS (2 slots) -->
                 <div class="flex flex-col justify-around pt-4">
                   @for (qf of leftQF(); track qf.matchNum) {
-                    <div class="bg-violet-50/50 dark:bg-gray-800/60 rounded-xl border border-violet-300/40 dark:border-violet-500/20 px-3 py-6 text-center">
-                      <span class="text-xs font-bold text-violet-600 dark:text-violet-400">M{{ qf.matchNum }} · {{ qf.date }}</span>
-                      <p class="text-[10px] text-gray-500 mt-1">W(M{{ qf.from1 }}) vs W(M{{ qf.from2 }})</p>
+                    <div class="bg-violet-50/50 dark:bg-gray-800/60 rounded-xl border border-violet-300/40 dark:border-violet-500/20 px-3 py-4 overflow-hidden">
+                      <span class="text-[9px] font-bold text-violet-600 dark:text-violet-400 block text-center mb-1">M{{ qf.matchNum }} · {{ qf.date }}</span>
+                      @if (qf.home && qf.home.name !== 'TBD') {
+                        <div class="flex items-center gap-1.5 py-0.5" [class.font-black]="qf.winner === 'home'">
+                          @if (qf.home.logo) { <img [src]="qf.home.logo" class="w-4 h-4 rounded object-cover shrink-0"> }
+                          <span class="text-[10px] text-gray-900 dark:text-white truncate flex-1">{{ qf.home.name }}</span>
+                          @if (qf.home.score != null) { <span class="text-[10px] font-bold text-gray-600 dark:text-gray-300">{{ qf.home.score }}</span> }
+                        </div>
+                        <div class="flex items-center gap-1.5 py-0.5" [class.font-black]="qf.winner === 'away'">
+                          @if (qf.away!.logo) { <img [src]="qf.away!.logo" class="w-4 h-4 rounded object-cover shrink-0"> }
+                          <span class="text-[10px] text-gray-900 dark:text-white truncate flex-1">{{ qf.away!.name }}</span>
+                          @if (qf.away!.score != null) { <span class="text-[10px] font-bold text-gray-600 dark:text-gray-300">{{ qf.away!.score }}</span> }
+                        </div>
+                      } @else {
+                        <p class="text-[9px] text-gray-500 text-center">W(M{{ qf.from1 }}) vs W(M{{ qf.from2 }})</p>
+                      }
                     </div>
                   }
                 </div>
 
                 <!-- CENTER: 1 SEMI arriba + FINAL centro + 1 SEMI abajo -->
                 <div class="flex flex-col items-center justify-center gap-5 pt-4">
-                  <div class="bg-emerald-50/50 dark:bg-gray-800/60 rounded-xl border border-emerald-300/40 dark:border-emerald-500/20 px-4 py-4 text-center w-full">
-                    <span class="text-xs font-bold text-emerald-600 dark:text-emerald-400">Semifinal 1</span>
-                    <p class="text-[9px] text-gray-500 mt-1">14 Jul · Dallas</p>
-                    <p class="text-[10px] text-gray-400 mt-1">W(M97) vs W(M98)</p>
+                  <!-- SF1 -->
+                  <div class="bg-emerald-50/50 dark:bg-gray-800/60 rounded-xl border border-emerald-300/40 dark:border-emerald-500/20 px-4 py-3 w-full overflow-hidden">
+                    <span class="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 block text-center mb-1">SF1 · 14 Jul · Dallas</span>
+                    @if (semiFinal1().home && semiFinal1().home!.name !== 'TBD') {
+                      <div class="flex items-center gap-1.5 py-0.5" [class.font-black]="semiFinal1().winner === 'home'">
+                        @if (semiFinal1().home!.logo) { <img [src]="semiFinal1().home!.logo" class="w-4 h-4 rounded object-cover shrink-0"> }
+                        <span class="text-[10px] text-gray-900 dark:text-white truncate flex-1">{{ semiFinal1().home!.name }}</span>
+                        @if (semiFinal1().home!.score != null) { <span class="text-[10px] font-bold">{{ semiFinal1().home!.score }}</span> }
+                      </div>
+                      <div class="flex items-center gap-1.5 py-0.5" [class.font-black]="semiFinal1().winner === 'away'">
+                        @if (semiFinal1().away!.logo) { <img [src]="semiFinal1().away!.logo" class="w-4 h-4 rounded object-cover shrink-0"> }
+                        <span class="text-[10px] text-gray-900 dark:text-white truncate flex-1">{{ semiFinal1().away!.name }}</span>
+                        @if (semiFinal1().away!.score != null) { <span class="text-[10px] font-bold">{{ semiFinal1().away!.score }}</span> }
+                      </div>
+                    } @else {
+                      <p class="text-[9px] text-gray-500 text-center">W(M97) vs W(M98)</p>
+                    }
                   </div>
-                  <div class="bg-linear-to-b from-amber-900/30 to-yellow-900/20 rounded-2xl border border-amber-500/30 px-5 py-6 text-center w-full shadow-lg shadow-amber-500/5">
+                  <!-- FINAL -->
+                  <div class="bg-linear-to-b from-amber-900/30 to-yellow-900/20 rounded-2xl border border-amber-500/30 px-5 py-5 text-center w-full shadow-lg shadow-amber-500/5">
                     <span class="text-4xl">🏆</span>
                     <p class="text-sm font-black text-amber-400 mt-2">GRAN FINAL</p>
                     <p class="text-[10px] text-amber-500/70 mt-1">19 Jul · MetLife Stadium</p>
-                    <div class="mt-3 pt-3 border-t border-amber-600/20">
-                      <p class="text-xs font-bold text-gray-400">Campeón 2026</p>
-                      <p class="text-[10px] text-gray-500">Por definir</p>
-                    </div>
+                    @if (finalMatch().home && finalMatch().home!.name !== 'TBD') {
+                      <div class="mt-3 pt-2 border-t border-amber-600/20 space-y-1">
+                        <div class="flex items-center justify-center gap-2" [class.font-black]="finalMatch().winner === 'home'">
+                          @if (finalMatch().home!.logo) { <img [src]="finalMatch().home!.logo" class="w-5 h-5 rounded object-cover"> }
+                          <span class="text-xs text-white">{{ finalMatch().home!.name }}</span>
+                          @if (finalMatch().home!.score != null) { <span class="text-xs font-bold text-amber-300">{{ finalMatch().home!.score }}</span> }
+                        </div>
+                        <span class="text-[9px] text-gray-500">vs</span>
+                        <div class="flex items-center justify-center gap-2" [class.font-black]="finalMatch().winner === 'away'">
+                          @if (finalMatch().away!.logo) { <img [src]="finalMatch().away!.logo" class="w-5 h-5 rounded object-cover"> }
+                          <span class="text-xs text-white">{{ finalMatch().away!.name }}</span>
+                          @if (finalMatch().away!.score != null) { <span class="text-xs font-bold text-amber-300">{{ finalMatch().away!.score }}</span> }
+                        </div>
+                      </div>
+                    } @else {
+                      <div class="mt-3 pt-3 border-t border-amber-600/20">
+                        <p class="text-xs font-bold text-gray-400">Campeón 2026</p>
+                        <p class="text-[10px] text-gray-500">Por definir</p>
+                      </div>
+                    }
                   </div>
-                  <div class="bg-emerald-50/50 dark:bg-gray-800/60 rounded-xl border border-emerald-300/40 dark:border-emerald-500/20 px-4 py-4 text-center w-full">
-                    <span class="text-xs font-bold text-emerald-600 dark:text-emerald-400">Semifinal 2</span>
-                    <p class="text-[9px] text-gray-500 mt-1">15 Jul · Atlanta</p>
-                    <p class="text-[10px] text-gray-400 mt-1">W(M99) vs W(M100)</p>
+                  <!-- SF2 -->
+                  <div class="bg-emerald-50/50 dark:bg-gray-800/60 rounded-xl border border-emerald-300/40 dark:border-emerald-500/20 px-4 py-3 w-full overflow-hidden">
+                    <span class="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 block text-center mb-1">SF2 · 15 Jul · Atlanta</span>
+                    @if (semiFinal2().home && semiFinal2().home!.name !== 'TBD') {
+                      <div class="flex items-center gap-1.5 py-0.5" [class.font-black]="semiFinal2().winner === 'home'">
+                        @if (semiFinal2().home!.logo) { <img [src]="semiFinal2().home!.logo" class="w-4 h-4 rounded object-cover shrink-0"> }
+                        <span class="text-[10px] text-gray-900 dark:text-white truncate flex-1">{{ semiFinal2().home!.name }}</span>
+                        @if (semiFinal2().home!.score != null) { <span class="text-[10px] font-bold">{{ semiFinal2().home!.score }}</span> }
+                      </div>
+                      <div class="flex items-center gap-1.5 py-0.5" [class.font-black]="semiFinal2().winner === 'away'">
+                        @if (semiFinal2().away!.logo) { <img [src]="semiFinal2().away!.logo" class="w-4 h-4 rounded object-cover shrink-0"> }
+                        <span class="text-[10px] text-gray-900 dark:text-white truncate flex-1">{{ semiFinal2().away!.name }}</span>
+                        @if (semiFinal2().away!.score != null) { <span class="text-[10px] font-bold">{{ semiFinal2().away!.score }}</span> }
+                      </div>
+                    } @else {
+                      <p class="text-[9px] text-gray-500 text-center">W(M99) vs W(M100)</p>
+                    }
                   </div>
                 </div>
 
                 <!-- RIGHT CUARTOS (2 slots) -->
                 <div class="flex flex-col justify-around pt-4">
                   @for (qf of rightQF(); track qf.matchNum) {
-                    <div class="bg-violet-50/50 dark:bg-gray-800/60 rounded-xl border border-violet-300/40 dark:border-violet-500/20 px-3 py-6 text-center">
-                      <span class="text-xs font-bold text-violet-600 dark:text-violet-400">M{{ qf.matchNum }} · {{ qf.date }}</span>
-                      <p class="text-[10px] text-gray-500 mt-1">W(M{{ qf.from1 }}) vs W(M{{ qf.from2 }})</p>
+                    <div class="bg-violet-50/50 dark:bg-gray-800/60 rounded-xl border border-violet-300/40 dark:border-violet-500/20 px-3 py-4 overflow-hidden">
+                      <span class="text-[9px] font-bold text-violet-600 dark:text-violet-400 block text-center mb-1">M{{ qf.matchNum }} · {{ qf.date }}</span>
+                      @if (qf.home && qf.home.name !== 'TBD') {
+                        <div class="flex items-center gap-1.5 py-0.5" [class.font-black]="qf.winner === 'home'">
+                          @if (qf.home.logo) { <img [src]="qf.home.logo" class="w-4 h-4 rounded object-cover shrink-0"> }
+                          <span class="text-[10px] text-gray-900 dark:text-white truncate flex-1">{{ qf.home.name }}</span>
+                          @if (qf.home.score != null) { <span class="text-[10px] font-bold text-gray-600 dark:text-gray-300">{{ qf.home.score }}</span> }
+                        </div>
+                        <div class="flex items-center gap-1.5 py-0.5" [class.font-black]="qf.winner === 'away'">
+                          @if (qf.away!.logo) { <img [src]="qf.away!.logo" class="w-4 h-4 rounded object-cover shrink-0"> }
+                          <span class="text-[10px] text-gray-900 dark:text-white truncate flex-1">{{ qf.away!.name }}</span>
+                          @if (qf.away!.score != null) { <span class="text-[10px] font-bold text-gray-600 dark:text-gray-300">{{ qf.away!.score }}</span> }
+                        </div>
+                      } @else {
+                        <p class="text-[9px] text-gray-500 text-center">W(M{{ qf.from1 }}) vs W(M{{ qf.from2 }})</p>
+                      }
                     </div>
                   }
                 </div>
@@ -188,9 +282,22 @@ interface BracketMatch {
                 <!-- RIGHT OCTAVOS (4 slots) -->
                 <div class="flex flex-col justify-around pt-4">
                   @for (r of rightR16(); track r.matchNum) {
-                    <div class="bg-cyan-50/50 dark:bg-gray-800/60 rounded-xl border border-cyan-300/40 dark:border-cyan-500/20 px-3 py-4 text-center">
-                      <span class="text-xs font-bold text-cyan-600 dark:text-cyan-400">M{{ r.matchNum }} · {{ r.date }}</span>
-                      <p class="text-[10px] text-gray-500 mt-1">W(M{{ r.from1 }}) vs W(M{{ r.from2 }})</p>
+                    <div class="bg-cyan-50/50 dark:bg-gray-800/60 rounded-xl border border-cyan-300/40 dark:border-cyan-500/20 px-3 py-3 overflow-hidden">
+                      <span class="text-[9px] font-bold text-cyan-600 dark:text-cyan-400 block text-center mb-1">M{{ r.matchNum }} · {{ r.date }}</span>
+                      @if (r.home && r.home.name !== 'TBD') {
+                        <div class="flex items-center gap-1.5 py-0.5" [class.font-black]="r.winner === 'home'">
+                          @if (r.home.logo) { <img [src]="r.home.logo" class="w-4 h-4 rounded object-cover shrink-0"> }
+                          <span class="text-[10px] text-gray-900 dark:text-white truncate flex-1">{{ r.home.name }}</span>
+                          @if (r.home.score != null) { <span class="text-[10px] font-bold text-gray-600 dark:text-gray-300">{{ r.home.score }}</span> }
+                        </div>
+                        <div class="flex items-center gap-1.5 py-0.5" [class.font-black]="r.winner === 'away'">
+                          @if (r.away!.logo) { <img [src]="r.away!.logo" class="w-4 h-4 rounded object-cover shrink-0"> }
+                          <span class="text-[10px] text-gray-900 dark:text-white truncate flex-1">{{ r.away!.name }}</span>
+                          @if (r.away!.score != null) { <span class="text-[10px] font-bold text-gray-600 dark:text-gray-300">{{ r.away!.score }}</span> }
+                        </div>
+                      } @else {
+                        <p class="text-[9px] text-gray-500 text-center">W(M{{ r.from1 }}) vs W(M{{ r.from2 }})</p>
+                      }
                     </div>
                   }
                 </div>
@@ -279,29 +386,55 @@ export class StandingsViewComponent implements OnInit {
   readonly leftBracket = computed(() => this.bracketMatches().slice(0, 8));
   readonly rightBracket = computed(() => this.bracketMatches().slice(8, 16));
 
-  readonly leftR16 = computed(() => [
+  readonly leftR16 = computed((): KnockoutSlot[] => this.resolveKnockoutSlots([
     { matchNum: 89, date: '4 Jul', from1: 74, from2: 77 },
     { matchNum: 90, date: '4 Jul', from1: 73, from2: 75 },
     { matchNum: 93, date: '6 Jul', from1: 83, from2: 84 },
     { matchNum: 94, date: '6 Jul', from1: 81, from2: 82 },
-  ]);
+  ]));
 
-  readonly rightR16 = computed(() => [
+  readonly rightR16 = computed((): KnockoutSlot[] => this.resolveKnockoutSlots([
     { matchNum: 91, date: '5 Jul', from1: 76, from2: 78 },
     { matchNum: 92, date: '5 Jul', from1: 79, from2: 80 },
     { matchNum: 95, date: '7 Jul', from1: 86, from2: 88 },
     { matchNum: 96, date: '7 Jul', from1: 85, from2: 87 },
-  ]);
+  ]));
 
-  readonly leftQF = computed(() => [
+  readonly leftQF = computed((): KnockoutSlot[] => this.resolveKnockoutSlots([
     { matchNum: 97, date: '9 Jul', from1: 89, from2: 90 },
     { matchNum: 98, date: '10 Jul', from1: 93, from2: 94 },
-  ]);
+  ]));
 
-  readonly rightQF = computed(() => [
+  readonly rightQF = computed((): KnockoutSlot[] => this.resolveKnockoutSlots([
     { matchNum: 99, date: '11 Jul', from1: 91, from2: 92 },
     { matchNum: 100, date: '11 Jul', from1: 95, from2: 96 },
-  ]);
+  ]));
+
+  readonly semiFinal1 = computed((): KnockoutSlot => this.resolveKnockoutSlots([
+    { matchNum: 101, date: '14 Jul', from1: 97, from2: 98 },
+  ])[0]);
+
+  readonly semiFinal2 = computed((): KnockoutSlot => this.resolveKnockoutSlots([
+    { matchNum: 102, date: '15 Jul', from1: 99, from2: 100 },
+  ])[0]);
+
+  readonly finalMatch = computed((): KnockoutSlot => this.resolveKnockoutSlots([
+    { matchNum: 104, date: '19 Jul', from1: 101, from2: 102 },
+  ])[0]);
+
+  private resolveKnockoutSlots(slots: { matchNum: number; date: string; from1: number; from2: number }[]): KnockoutSlot[] {
+    const koMap = this.standingsService.knockoutByMatchNum();
+    return slots.map(s => {
+      const match = koMap.get(s.matchNum);
+      return {
+        ...s,
+        home: match?.home ? { name: match.home.name, logo: match.home.logo, score: match.home.score } : null,
+        away: match?.away ? { name: match.away.name, logo: match.away.logo, score: match.away.score } : null,
+        winner: match?.winner ?? null,
+        status: match?.status ?? 'STATUS_SCHEDULED',
+      };
+    });
+  }
 
   /**
    * Assigns each qualifying 3rd-place team to a specific bracket slot.

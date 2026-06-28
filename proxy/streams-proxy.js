@@ -515,7 +515,7 @@ const server = http.createServer(async (req, res) => {
   } else if (parsed.pathname === '/api/standings') {
     try {
       console.log(`[${new Date().toISOString()}] Fetching standings from ESPN`);
-      const espnUrl = process.env.ESPN_STANDINGS_URL || 'https://site.api.espn.com/apis/v2/sports/soccer/fifa.world/standings';
+      const espnUrl = `${process.env.ESPN_API_BASE}/apis/v2/sports/soccer/fifa.world/standings`;
       const espnRes = await new Promise((resolve, reject) => {
         https.get(espnUrl, {
           headers: { 'Accept': 'application/json' }

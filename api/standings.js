@@ -3,7 +3,7 @@
  * Transforma la respuesta de ESPN al formato GroupStanding[] que espera el frontend.
  */
 
-const ESPN_STANDINGS_URL = process.env.ESPN_STANDINGS_URL;
+const ESPN_STANDINGS_URL = `${process.env.ESPN_API_BASE}/apis/v2/sports/soccer/fifa.world/standings`;
 
 function getStat(stats, name) {
   const stat = stats.find(s => s.name === name);

@@ -3,6 +3,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { ENVIRONMENT_TOKEN } from '../config/environment';
 import { GroupStanding } from '../models/standings-model';
 import { Match } from '../models/match-model';
+import { KnockoutMatch, BracketResponse } from '../models/bracket-model';
 import { groupByGroupName } from '../../shared/utils/standings-util';
 import { catchError, finalize, of, timeout, forkJoin } from 'rxjs';
 
@@ -15,15 +16,26 @@ export class StandingsService {
 
   private _standings = signal<GroupStanding[]>([]);
   private _upcomingByGroup = signal<Map<string, Match[]>>(new Map());
+  private _knockoutMatches = signal<KnockoutMatch[]>([]);
   private _loading = signal<boolean>(false);
   private _error = signal<string | null>(null);
 
   readonly standings = this._standings.asReadonly();
   readonly upcomingByGroup = this._upcomingByGroup.asReadonly();
+  readonly knockoutMatches = this._knockoutMatches.asReadonly();
   readonly loading = this._loading.asReadonly();
   readonly error = this._error.asReadonly();
 
   readonly groupedStandings = computed(() => groupByGroupName(this._standings()));
+
+  /** Mapa matchNum → KnockoutMatch para lookup rápido */
+  readonly knockoutByMatchNum = computed(() => {
+    const map = new Map<number, KnockoutMatch>();
+    for (const m of this._knockoutMatches()) {
+      if (m.matchNum != null) map.set(m.matchNum, m);
+    }
+    return map;
+  });
 
   fetchStandings(): void {
     this._loading.set(true);
@@ -51,10 +63,17 @@ export class StandingsService {
       catchError(() => of([]))
     );
 
-    forkJoin([standings$, upcoming$]).pipe(
+    // Bracket knockout desde ESPN (via /api/bracket serverless function)
+    const bracket$ = this.http.get<BracketResponse>('/api/bracket').pipe(
+      timeout(15000),
+      catchError(() => of({ matches: [] } as BracketResponse))
+    );
+
+    forkJoin([standings$, upcoming$, bracket$]).pipe(
       finalize(() => this._loading.set(false))
-    ).subscribe(([standings, upcoming]) => {
+    ).subscribe(([standings, upcoming, bracket]) => {
       this._standings.set(standings);
+      this._knockoutMatches.set(bracket.matches);
 
       const teamToGroup = new Map<string, string>();
       for (const s of standings) {

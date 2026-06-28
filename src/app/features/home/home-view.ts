@@ -262,14 +262,14 @@ interface MatchGroup {
                         <div class="flex-1 min-w-0 space-y-1.5">
                           <div class="flex items-center gap-2.5">
                             <img [src]="match.home_flag" [alt]="match.home_team" (error)="handleImgError($event)" class="w-5 h-5 rounded-sm object-cover">
-                            <span class="text-[13px] font-medium text-gray-900 dark:text-gray-100 truncate">{{ match.home_team }}</span>
+                            <span class="text-[13px] font-medium text-gray-900 dark:text-gray-100 truncate">{{ t(match.home_team) }}</span>
                             @if (match.status === 'finished') {
                               <span class="ml-auto text-sm font-bold text-gray-900 dark:text-white tabular-nums">{{ match.home_score }}</span>
                             }
                           </div>
                           <div class="flex items-center gap-2.5">
                             <img [src]="match.away_flag" [alt]="match.away_team" (error)="handleImgError($event)" class="w-5 h-5 rounded-sm object-cover">
-                            <span class="text-[13px] font-medium text-gray-900 dark:text-gray-100 truncate">{{ match.away_team }}</span>
+                            <span class="text-[13px] font-medium text-gray-900 dark:text-gray-100 truncate">{{ t(match.away_team) }}</span>
                             @if (match.status === 'finished') {
                               <span class="ml-auto text-sm font-bold text-gray-900 dark:text-white tabular-nums">{{ match.away_score }}</span>
                             }

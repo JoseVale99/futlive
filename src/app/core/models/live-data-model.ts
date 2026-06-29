@@ -10,6 +10,7 @@ export interface LineupPlayer {
 export interface MatchLineup {
   team: 'home' | 'away';
   team_name: string;
+  formation: string;
   players: LineupPlayer[];
 }
 

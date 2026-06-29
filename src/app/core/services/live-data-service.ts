@@ -205,6 +205,7 @@ export class LiveDataService implements OnDestroy {
         const lineups: MatchLineup[] = raw.map(r => ({
           team: (r.side === 'home' ? 'home' : 'away') as 'home' | 'away',
           team_name: r.team,
+          formation: r.formation || '',
           players: r.players.map(p => ({
             name: p.name,
             number: parseInt(p.number, 10) || 0,

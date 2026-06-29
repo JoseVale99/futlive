@@ -551,11 +551,36 @@ const server = http.createServer(async (req, res) => {
           starter: p.starter || false,
         })),
       }));
+
+      // Extraer sustituciones de keyEvents
+      const homeTeamId = rosters.find(r => r.homeAway === 'home')?.team?.id;
+      const substitutions = (data.keyEvents || [])
+        .filter(e => e.type?.type === 'substitution' && e.participants?.length >= 2)
+        .map(e => {
+          const playerIn = e.participants[0]?.athlete;
+          const playerOut = e.participants[1]?.athlete;
+          if (!playerIn || !playerOut) return null;
+          const clockVal = e.clock?.displayValue || '';
+          const minute = parseInt(clockVal, 10) || 0;
+          const teamSide = e.team?.id === homeTeamId ? 'home' : 'away';
+          return {
+            id: `sub-${e.id}`,
+            match_id: matchId,
+            team: teamSide,
+            type: 'sub',
+            player: playerIn.displayName,
+            assist: playerOut.displayName,
+            minute,
+            created_at: e.wallclock || new Date().toISOString(),
+          };
+        })
+        .filter(Boolean);
+
       res.writeHead(200);
-      res.end(JSON.stringify(lineups));
+      res.end(JSON.stringify({ lineups, substitutions }));
     } catch (err) {
       res.writeHead(200);
-      res.end(JSON.stringify([]));
+      res.end(JSON.stringify({ lineups: [], substitutions: [] }));
     }
 
   } else if (parsed.pathname === '/api/v1') {

@@ -190,23 +190,30 @@ export class LiveDataService implements OnDestroy {
   }
 
   /**
-   * Obtiene alineaciones desde ESPN summary API.
+   * Obtiene alineaciones y sustituciones desde ESPN summary API.
    */
   private fetchLineups(matchId: string): void {
     const url = this.env.production
       ? `/api/lineups?matchId=${matchId}`
       : `http://localhost:3001/api/lineups?matchId=${matchId}`;
 
-    this.http.get<{ team: string; side: string; formation: string; players: { name: string; number: string; position: string; starter: boolean }[] }[]>(url).pipe(
+    this.http.get<{
+      lineups: { team: string; side: string; formation: string; players: { name: string; number: string; position: string; starter: boolean }[] }[];
+      substitutions?: { id: string; match_id: string; team: string; type: string; player: string; assist: string; minute: number; created_at: string }[];
+    }>(url).pipe(
       timeout(15_000),
-      catchError(() => of([]))
-    ).subscribe(raw => {
-      if (raw && raw.length > 0) {
-        const lineups: MatchLineup[] = raw.map(r => ({
+      catchError(() => of({ lineups: [], substitutions: [] }))
+    ).subscribe(response => {
+      // Handle both old format (array) and new format (object with lineups + substitutions)
+      const raw = Array.isArray(response) ? response : (response.lineups || []);
+      const subs = Array.isArray(response) ? [] : (response.substitutions || []);
+
+      if (raw.length > 0) {
+        const lineups: MatchLineup[] = raw.map((r: any) => ({
           team: (r.side === 'home' ? 'home' : 'away') as 'home' | 'away',
           team_name: r.team,
           formation: r.formation || '',
-          players: r.players.map(p => ({
+          players: r.players.map((p: any) => ({
             name: p.name,
             number: parseInt(p.number, 10) || 0,
             position: p.position,
@@ -214,6 +221,27 @@ export class LiveDataService implements OnDestroy {
           })),
         }));
         this._lineups.set(lineups);
+      }
+
+      // Merge sustituciones con los eventos existentes
+      if (subs.length > 0) {
+        const currentEvents = this._events();
+        const existingIds = new Set(currentEvents.map(e => e.id));
+        const newSubs = subs
+          .filter((s: any) => !existingIds.has(s.id))
+          .map((s: any) => ({
+            id: s.id,
+            match_id: s.match_id,
+            team: s.team as 'home' | 'away',
+            type: 'sub' as const,
+            player: s.player,
+            assist: s.assist,
+            minute: s.minute,
+            created_at: s.created_at,
+          }));
+        if (newSubs.length > 0) {
+          this._events.set([...currentEvents, ...newSubs]);
+        }
       }
     });
   }

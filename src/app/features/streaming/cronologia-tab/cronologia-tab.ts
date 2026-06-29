@@ -46,7 +46,9 @@ const ICON_MAP: Record<EventType, MaterialIconConfig> = {
                     @if (event.team === 'home') {
                       <div class="text-right">
                         <p class="text-sm font-semibold text-gray-900 dark:text-white leading-tight">{{ truncateName(event.player) }}</p>
-                        @if (event.assist) {
+                        @if (event.assist && event.type === 'sub') {
+                          <p class="text-[10px] text-gray-500 dark:text-gray-400">↓ {{ truncateName(event.assist) }}</p>
+                        } @else if (event.assist) {
                           <p class="text-[10px] text-gray-500 dark:text-gray-400">Asist: {{ truncateName(event.assist) }}</p>
                         }
                       </div>
@@ -71,7 +73,9 @@ const ICON_MAP: Record<EventType, MaterialIconConfig> = {
                       }
                       <div class="text-left">
                         <p class="text-sm font-semibold text-gray-900 dark:text-white leading-tight">{{ truncateName(event.player) }}</p>
-                        @if (event.assist) {
+                        @if (event.assist && event.type === 'sub') {
+                          <p class="text-[10px] text-gray-500 dark:text-gray-400">↓ {{ truncateName(event.assist) }}</p>
+                        } @else if (event.assist) {
                           <p class="text-[10px] text-gray-500 dark:text-gray-400">Asist: {{ truncateName(event.assist) }}</p>
                         }
                       </div>

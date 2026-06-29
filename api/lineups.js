@@ -47,7 +47,31 @@ module.exports = async function handler(req, res) {
       })),
     }));
 
-    return res.status(200).json(lineups);
+    // Extraer sustituciones de keyEvents
+    const homeTeamId = rosters.find(r => r.homeAway === 'home')?.team?.id;
+    const substitutions = (data.keyEvents || [])
+      .filter(e => e.type?.type === 'substitution' && e.participants?.length >= 2)
+      .map(e => {
+        const playerIn = e.participants[0]?.athlete;
+        const playerOut = e.participants[1]?.athlete;
+        if (!playerIn || !playerOut) return null;
+        const clockVal = e.clock?.displayValue || '';
+        const minute = parseInt(clockVal, 10) || 0;
+        const teamSide = e.team?.id === homeTeamId ? 'home' : 'away';
+        return {
+          id: `sub-${e.id}`,
+          match_id: matchId,
+          team: teamSide,
+          type: 'sub',
+          player: playerIn.displayName,
+          assist: playerOut.displayName,
+          minute,
+          created_at: e.wallclock || new Date().toISOString(),
+        };
+      })
+      .filter(Boolean);
+
+    return res.status(200).json({ lineups, substitutions });
   } catch (err) {
     return res.status(200).json([]);
   }

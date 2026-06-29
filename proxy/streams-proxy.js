@@ -174,76 +174,196 @@ function transformEspnEvent(event) {
   };
 }
 
-// --- Streams (sin lacancha.tv) ---
-function buildStreams(matchId) {
+// --- Streams: lacancha.tv scrape + fallback futbol-libre ---
+function parseMatchPageStreams(html, matchId) {
   const streams = [];
+  const seen = new Set();
 
-  // Source 1: futbol-libres.su — canales verificados
-  const futbolLibreChannels = [
-    { name: 'ESPN', slug: 'espn-1', priority: 1 },
-    { name: 'ESPN Premium', slug: 'espn-premium', priority: 1 },
-    { name: 'DSports', slug: 'directv-sports', priority: 1 },
-    { name: 'Fox Sports', slug: 'fox-sports', priority: 1 },
-    { name: 'TUDN', slug: 'tudn', priority: 1 },
-    { name: 'TNT Sports', slug: 'tnt-sports', priority: 2 },
-    { name: 'TyC Sports', slug: 'tyc-sports', priority: 2 },
-    { name: 'Telemundo', slug: 'telemundo', priority: 2 },
-  ];
+  const embedNameRegex = /\\?"embed_name\\?":\\?"([^"\\]+)\\?"/g;
+  const embedUrlRegex = /\\?"embed_url\\?":\\?"(https?:\/\/[^"\\]+)\\?"/g;
+  const sourceRegex = /\\?"source\\?":\\?"([^"\\]+)\\?"/g;
 
-  for (const ch of futbolLibreChannels) {
+  const names = [];
+  const urls = [];
+  const sources = [];
+  let m;
+
+  while ((m = embedNameRegex.exec(html)) !== null) names.push({ val: m[1], idx: m.index });
+  while ((m = embedUrlRegex.exec(html)) !== null) urls.push({ val: m[1], idx: m.index });
+  while ((m = sourceRegex.exec(html)) !== null) sources.push({ val: m[1], idx: m.index });
+
+  const usedUrls = new Set();
+
+  for (const nameEntry of names) {
+    const name = nameEntry.val;
+    if (seen.has(name)) continue;
+
+    let closestUrl = null;
+    let minDist = Infinity;
+    let closestIdx = -1;
+
+    for (let j = 0; j < urls.length; j++) {
+      if (usedUrls.has(j)) continue;
+      const dist = Math.abs(urls[j].idx - nameEntry.idx);
+      if (dist < minDist) {
+        minDist = dist;
+        closestUrl = urls[j].val;
+        closestIdx = j;
+      }
+    }
+
+    if (!closestUrl || minDist > 2000) continue;
+    seen.add(name);
+    usedUrls.add(closestIdx);
+
+    let source = 'lacancha';
+    for (const s of sources) {
+      if (Math.abs(s.idx - nameEntry.idx) < 500) { source = s.val; break; }
+    }
+
     streams.push({
-      id: `fl-${streams.length}`,
+      id: `lc-${streams.length}`,
       match_id: matchId,
       channel_id: null,
-      embed_name: ch.name,
-      embed_url: `https://futbol-libres.su/${ch.slug}/`,
-      source: 'futbol-libre',
+      embed_name: name,
+      embed_url: closestUrl,
+      source,
       stream_param: null,
-      priority: ch.priority,
       created_at: new Date().toISOString(),
     });
   }
 
-  // Source 2: librepelota.su (Pelota Libre TV) — mismos canales, otro dominio
-  const pelotaLibreChannels = [
-    { name: 'ESPN (PL)', slug: 'espn-1', priority: 2 },
-    { name: 'ESPN Premium (PL)', slug: 'espn-premium', priority: 2 },
-    { name: 'DSports (PL)', slug: 'directv-sports', priority: 2 },
-    { name: 'Fox Sports (PL)', slug: 'fox-sports', priority: 2 },
-    { name: 'TUDN (PL)', slug: 'tudn', priority: 2 },
-    { name: 'TNT Sports (PL)', slug: 'tnt-sports', priority: 3 },
-    { name: 'TyC Sports (PL)', slug: 'tyc-sports', priority: 3 },
-    { name: 'Win Sports+ (PL)', slug: 'win-sports-premium', priority: 3 },
-  ];
+  return streams.slice(0, 30);
+}
 
-  for (const ch of pelotaLibreChannels) {
-    streams.push({
-      id: `pl-${streams.length}`,
-      match_id: matchId,
-      channel_id: null,
-      embed_name: ch.name,
-      embed_url: `https://librepelota.su/es/${ch.slug}/`,
-      source: 'pelota-libre',
-      stream_param: null,
-      priority: ch.priority,
-      created_at: new Date().toISOString(),
-    });
+function parseRSCStreams(rscText, matchId) {
+  const streams = [];
+  const seen = new Set();
+
+  const embedRegex = /"embed_url":"(https?:\/\/[^"]+)"/g;
+  const allEmbeds = [];
+  let m;
+  while ((m = embedRegex.exec(rscText)) !== null) {
+    allEmbeds.push({ url: m[1], index: m.index });
   }
 
-  // Source 3: Replay+ (replayplusapp.com) — DSports, DSports+, DSports 2
-  streams.push({
-    id: `rp-${streams.length}`,
-    match_id: matchId,
-    channel_id: null,
-    embed_name: 'Replay+ (DSports/DSports+)',
-    embed_url: 'https://www.replayplusapp.com/en-vivo',
-    source: 'replay-plus',
-    stream_param: null,
-    priority: 1,
-    created_at: new Date().toISOString(),
+  const nameRegex = /"embed_name":"([^"]+)"/g;
+  const allNames = [];
+  while ((m = nameRegex.exec(rscText)) !== null) {
+    allNames.push({ name: m[1], index: m.index });
+  }
+
+  // Tomar todos los streams disponibles (sin filtrar por matchId)
+  for (let i = 0; i < Math.min(allNames.length, allEmbeds.length); i++) {
+    const name = allNames[i].name;
+    if (!seen.has(name)) {
+      seen.add(name);
+      streams.push({
+        id: `rsc-${i}`,
+        match_id: matchId,
+        channel_id: null,
+        embed_name: name,
+        embed_url: allEmbeds[i].url,
+        source: 'lacancha',
+        stream_param: null,
+        created_at: new Date().toISOString(),
+      });
+    }
+  }
+
+  return streams.slice(0, 25);
+}
+
+function fetchLaCanchaMatchPage(matchId) {
+  return new Promise((resolve, reject) => {
+    https.get(`https://lacancha.tv/es/partido/${matchId}`, {
+      headers: {
+        'Accept': 'text/html',
+        'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36',
+        'Referer': 'https://lacancha.tv/es/en-vivo',
+      }
+    }, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => resolve(data));
+    }).on('error', reject);
   });
+}
 
-  streams.sort((a, b) => a.priority - b.priority);
+function fetchLaCanchaRSC() {
+  return new Promise((resolve, reject) => {
+    https.get(`https://lacancha.tv/es/en-vivo?_rsc=Jo6jRgXoLltzsDtw`, {
+      headers: {
+        'Accept': '*/*',
+        'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36',
+        'Referer': 'https://lacancha.tv/es/en-vivo',
+        'RSC': '1',
+        'Next-Router-State-Tree': '%5B%22%22%2C%7B%22children%22%3A%5B%5B%22locale%22%2C%22es%22%2C%22d%22%5D%2C%7B%22children%22%3A%5B%22(shell)%22%2C%7B%22children%22%3A%5B%22en-vivo%22%2C%7B%22children%22%3A%5B%22__PAGE__%22%2C%7B%7D%5D%7D%5D%7D%5D%7D%5D%7D%5D',
+        'Next-Url': '/es/en-vivo',
+      }
+    }, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => resolve(data));
+    }).on('error', reject);
+  });
+}
+
+async function buildStreams(matchId) {
+  let streams = [];
+
+  // Strategy 1+2: Scrape lacancha.tv (en-vivo general + RSC)
+  try {
+    const [htmlResult, rscResult] = await Promise.allSettled([
+      fetchLaCanchaMatchPage(matchId).then(html => parseMatchPageStreams(html, matchId)),
+      fetchLaCanchaRSC().then(rsc => parseRSCStreams(rsc, matchId)),
+    ]);
+
+    // Preferir RSC que trae todos los canales en vivo
+    if (rscResult.status === 'fulfilled' && rscResult.value.length > 0) {
+      streams = rscResult.value;
+    }
+
+    // Merge match page results
+    if (htmlResult.status === 'fulfilled' && htmlResult.value.length > 0) {
+      const existingNames = new Set(streams.map(s => s.embed_name));
+      for (const s of htmlResult.value) {
+        if (!existingNames.has(s.embed_name)) {
+          streams.push(s);
+          existingNames.add(s.embed_name);
+        }
+      }
+    }
+  } catch (e) {
+    console.log(`[streams] lacancha.tv scrape failed: ${e.message}`);
+  }
+
+  // Fallback: futbol-libres.su (si lacancha.tv no dio resultados)
+  if (streams.length === 0) {
+    const fallbackChannels = [
+      { name: 'ESPN', slug: 'espn-1' },
+      { name: 'ESPN Premium', slug: 'espn-premium' },
+      { name: 'DSports', slug: 'directv-sports' },
+      { name: 'Fox Sports', slug: 'fox-sports' },
+      { name: 'TUDN', slug: 'tudn' },
+      { name: 'TNT Sports', slug: 'tnt-sports' },
+      { name: 'TyC Sports', slug: 'tyc-sports' },
+      { name: 'Telemundo', slug: 'telemundo' },
+    ];
+    for (const ch of fallbackChannels) {
+      streams.push({
+        id: `fb-${streams.length}`,
+        match_id: matchId,
+        channel_id: null,
+        embed_name: ch.name,
+        embed_url: `https://futbol-libres.su/${ch.slug}/`,
+        source: 'futbol-libre',
+        stream_param: null,
+        created_at: new Date().toISOString(),
+      });
+    }
+  }
+
   return streams;
 }
 
@@ -297,10 +417,16 @@ const server = http.createServer(async (req, res) => {
     const matchId = parsed.query.matchId;
     if (!matchId) { res.writeHead(400); res.end(JSON.stringify({ error: 'matchId parameter required' })); return; }
 
-    console.log(`[${new Date().toISOString()}] Building streams for: ${matchId}`);
-    const streams = buildStreams(matchId);
-    res.writeHead(200);
-    res.end(JSON.stringify({ streams, matchId, count: streams.length }));
+    try {
+      console.log(`[${new Date().toISOString()}] Fetching streams for: ${matchId}`);
+      const streams = await buildStreams(matchId);
+      console.log(`[${new Date().toISOString()}] Got ${streams.length} streams`);
+      res.writeHead(200);
+      res.end(JSON.stringify({ streams, matchId, count: streams.length }));
+    } catch (err) {
+      res.writeHead(500);
+      res.end(JSON.stringify({ error: 'Failed to build streams', detail: err.message }));
+    }
 
   } else if (parsed.pathname === '/api/standings') {
     try {

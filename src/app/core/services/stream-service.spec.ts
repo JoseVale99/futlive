@@ -3,14 +3,14 @@ import { HttpClientTestingModule, HttpTestingController } from '@angular/common/
 import { StreamService } from './stream-service';
 import { ENVIRONMENT_TOKEN } from '../config/environment';
 import { MatchStream } from '../models/stream-model';
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 describe('StreamService', () => {
   let service: StreamService;
   let httpMock: HttpTestingController;
   const mockEnv = {
-    supabaseUrl: 'https://mock.supabase.co',
-    supabaseKey: 'mock-key'
+    production: false,
+    apiBase: '/api/v1',
   };
 
   beforeEach(() => {
@@ -36,61 +36,28 @@ describe('StreamService', () => {
   describe('fetchStreams', () => {
     it('should fetch streams and update signals', () => {
       const mockStreams: Partial<MatchStream>[] = [
-        { id: '1', embed_name: 'Stream 1' },
-        { id: '2', embed_name: 'Stream 2' }
+        { id: '1', embed_name: 'Stream 1', embed_url: 'https://example.com/1' },
+        { id: '2', embed_name: 'Stream 2', embed_url: 'https://example.com/2' }
       ];
 
       service.fetchStreams('match-123');
       expect(service.loading()).toBe(true);
 
-      const req = httpMock.expectOne(req => req.url.includes('/match_streams'));
-      expect(req.request.params.get('match_id')).toBe('eq.match-123');
-      expect(req.request.headers.get('apikey')).toBe('mock-key');
-
-      req.flush(mockStreams);
+      const req = httpMock.expectOne(r => r.url.includes('streams') && r.params.get('matchId') === 'match-123');
+      req.flush({ streams: mockStreams, count: 2 });
 
       expect(service.loading()).toBe(false);
       expect(service.streams().length).toBe(2);
       expect(service.activeStream()?.id).toBe('1');
     });
 
-    it('should handle errors correctly', () => {
+    it('should handle errors gracefully', () => {
       service.fetchStreams('match-123');
-      const req = httpMock.expectOne(req => req.url.includes('/match_streams'));
-      req.error(new ErrorEvent('Network error'), { status: 500, statusText: 'Internal Server Error' });
+      const req = httpMock.expectOne(r => r.url.includes('streams'));
+      req.error(new ErrorEvent('Network error'));
 
       expect(service.loading()).toBe(false);
-      expect(service.error()).toContain('Internal Server Error');
       expect(service.streams()).toEqual([]);
-    });
-  });
-
-  describe('checkAvailability', () => {
-    it('should return true if streams exist', () => {
-      service.checkAvailability('match-123').subscribe(available => {
-        expect(available).toBe(true);
-      });
-
-      const req = httpMock.expectOne(req => req.url.includes('/match_streams'));
-      req.flush([{ id: '1' }]);
-    });
-
-    it('should return false if no streams exist', () => {
-      service.checkAvailability('match-123').subscribe(available => {
-        expect(available).toBe(false);
-      });
-
-      const req = httpMock.expectOne(req => req.url.includes('/match_streams'));
-      req.flush([]);
-    });
-
-    it('should return false on error', () => {
-      service.checkAvailability('match-123').subscribe(available => {
-        expect(available).toBe(false);
-      });
-
-      const req = httpMock.expectOne(req => req.url.includes('/match_streams'));
-      req.error(new ErrorEvent('Timeout'));
     });
   });
 });

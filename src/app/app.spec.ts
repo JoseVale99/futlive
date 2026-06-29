@@ -9,7 +9,7 @@ describe('App', () => {
     await TestBed.configureTestingModule({
       imports: [App, HttpClientTestingModule],
       providers: [
-        { provide: ENVIRONMENT_TOKEN, useValue: { supabaseUrl: '', supabaseKey: '' } }
+        { provide: ENVIRONMENT_TOKEN, useValue: { production: false, apiBase: '/api/v1' } }
       ]
     }).compileComponents();
   });

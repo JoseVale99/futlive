@@ -1,7 +1,6 @@
 /**
  * Pre-build script: writes environment files from env vars or .env file.
- * Used in Vercel deploy to inject secrets at build time.
- * En local, lee del archivo .env en la raíz del proyecto.
+ * Used in Vercel deploy to inject config at build time.
  */
 const fs = require('fs');
 const path = require('path');
@@ -23,18 +22,19 @@ if (fs.existsSync(envPath)) {
 const dir = path.join(__dirname, '..', 'src', 'environments');
 if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
-const supabaseUrl = process.env.SUPABASE_URL || '';
-const supabaseKey = process.env.SUPABASE_KEY || '';
-
-const content = `export const environment = {
+const prodContent = `export const environment = {
   production: true,
-  supabaseUrl: '${supabaseUrl}',
-  supabaseKey: '${supabaseKey}',
   apiBase: '/api/v1',
 };
 `;
 
-fs.writeFileSync(path.join(dir, 'environment.production.ts'), content);
-fs.writeFileSync(path.join(dir, 'environment.ts'), content.replace('production: true', 'production: false'));
+const devContent = `export const environment = {
+  production: false,
+  apiBase: '/api/v1',
+};
+`;
+
+fs.writeFileSync(path.join(dir, 'environment.production.ts'), prodContent);
+fs.writeFileSync(path.join(dir, 'environment.ts'), devContent);
 
 console.log('✅ Environment files written');

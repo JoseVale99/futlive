@@ -2,8 +2,6 @@ import { InjectionToken } from '@angular/core';
 
 export interface Environment {
   production: boolean;
-  supabaseUrl: string;
-  supabaseKey: string;
   apiBase: string;
 }
 

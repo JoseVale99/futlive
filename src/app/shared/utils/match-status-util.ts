@@ -8,7 +8,7 @@ const MAX_LIVE_MINUTES = 130;
 
 /**
  * Calcula el status efectivo de un partido.
- * Si Supabase ya dice 'live' o 'finished', se respeta.
+ * Si la API ya dice 'live' o 'finished', se respeta.
  * Si dice 'scheduled' pero el kickoff ya pasó (y no hace más de MAX_LIVE_MINUTES),
  * lo trata como 'live' en el frontend.
  */

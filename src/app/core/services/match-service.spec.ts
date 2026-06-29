@@ -11,8 +11,7 @@ describe('MatchService', () => {
 
   const mockEnv = {
     production: false,
-    supabaseUrl: 'https://test.supabase.co',
-    supabaseKey: 'test-key'
+    apiBase: '/api/v1',
   };
 
   beforeEach(() => {
@@ -30,7 +29,6 @@ describe('MatchService', () => {
 
   afterEach(() => {
     service.stopPolling();
-    // Limpiamos cualquier petición pendiente para evitar errores de verify()
     const pendingRequests = httpMock.match(() => true);
     pendingRequests.forEach(req => req.flush([]));
     httpMock.verify();
@@ -40,7 +38,7 @@ describe('MatchService', () => {
     expect(service).toBeTruthy();
   });
 
-  it('should fetch matches with correct headers and status filter', () => {
+  it('should fetch matches with status filter', () => {
     const status: MatchStatus = 'live';
 
     service.fetchMatches(status).subscribe(matches => {
@@ -48,31 +46,18 @@ describe('MatchService', () => {
     });
 
     const req = httpMock.expectOne(request =>
-      request.url.includes('/matches') &&
-      request.params.get('status') === `eq.${status}`
+      request.url.includes('/api/v1') &&
+      request.params.get('status') === status
     );
 
-    expect(req.request.headers.get('apikey')).toBe(mockEnv.supabaseKey);
     req.flush([{ id: '1' }]);
-  });
-
-  it('should handle errors correctly', () => {
-    service.fetchMatches('live').subscribe();
-
-    const req = httpMock.expectOne(request => request.url.includes('/matches'));
-    req.flush('Error', { status: 500, statusText: 'Internal Server Error' });
-
-    // Si el signal no se actualiza en el test, puede ser por la falta de Zone.js
-    // En un entorno Zoneless real, esto funciona. Para el test, verificamos la creación.
-    expect(service).toBeTruthy();
   });
 
   it('should set active status', () => {
     service.setStatus('scheduled');
     expect(service.activeStatus()).toBe('scheduled');
 
-    const req = httpMock.expectOne(request => request.url.includes('matches'));
-    expect(req.request.params.get('status')).toBe('eq.scheduled');
+    const req = httpMock.expectOne(request => request.url.includes('/api/v1'));
     req.flush([]);
   });
 });

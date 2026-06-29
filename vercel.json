@@ -9,7 +9,6 @@
   },
   "rewrites": [
     { "source": "/api/v1", "destination": "/api/espn" },
-    { "source": "/api/supabase", "destination": "/api/supabase" },
     { "source": "/api/streams", "destination": "/api/streams" },
     { "source": "/api/embed", "destination": "/api/embed" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }

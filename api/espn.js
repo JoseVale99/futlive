@@ -74,15 +74,16 @@ function transformEvent(event) {
       const teamId = d.team?.id;
       const team = teamId === home.id ? 'home' : 'away';
       const athlete = d.athletesInvolved?.[0];
+      if (!athlete) return null;
       const clockVal = d.clock?.displayValue || '';
       const minute = parseInt(clockVal, 10) || 0;
 
       return {
-        id: `${event.id}-${clockVal}-${type}-${athlete?.id || 'unknown'}`,
+        id: `${event.id}-${clockVal}-${type}-${athlete.id || 'unknown'}`,
         match_id: event.id,
         team,
         type,
-        player: athlete?.displayName || 'Unknown',
+        player: athlete.displayName || 'Jugador desconocido',
         assist: null,
         minute,
         created_at: event.date,

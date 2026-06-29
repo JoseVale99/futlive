@@ -85,12 +85,13 @@ function transformEspnEvent(event) {
 
     const teamSide = d.team?.id === home.id ? 'home' : 'away';
     const athlete = d.athletesInvolved?.[0];
+    if (!athlete) return null; // Sin jugador identificado, no mostrar
     const clockVal = d.clock?.displayValue || '';
     const minute = parseInt(clockVal, 10) || 0;
     return {
-      id: `${event.id}-${clockVal}-${type}-${athlete?.id || 'x'}`,
+      id: `${event.id}-${clockVal}-${type}-${athlete.id || 'x'}`,
       match_id: event.id, team: teamSide, type,
-      player: athlete?.displayName || 'Unknown',
+      player: athlete.displayName || 'Jugador desconocido',
       assist: null, minute, created_at: event.date,
     };
   }).filter(Boolean);

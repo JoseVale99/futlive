@@ -1,8 +1,8 @@
 import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { inject, Injectable, signal, computed } from '@angular/core';
 import { ENVIRONMENT_TOKEN } from '../config/environment';
-import { Match, MatchStatus, Goal, MatchEvent, MatchStats } from '../models/match-model';
-import { catchError, finalize, forkJoin, map, Observable, of, retry, Subscription, switchMap, timeout, timer, shareReplay } from 'rxjs';
+import { Match, MatchStatus, MatchEvent, MatchStats } from '../models/match-model';
+import { catchError, finalize, map, Observable, of, retry, Subscription, switchMap, timeout, timer, shareReplay } from 'rxjs';
 import { sortMatchesByKickoff } from '../../shared/utils/match-sort-util';
 
 interface CacheEntry<T> {
@@ -64,9 +64,9 @@ export class MatchService {
   }
 
   private fetchMatchesFromApi(status?: MatchStatus, timeoutMs: number = 15000): Observable<Match[]> {
-    let params = new HttpParams().set('table', 'matches');
+    let params = new HttpParams();
     if (status) {
-      params = params.set('status', `eq.${status}`);
+      params = params.set('status', status);
     }
 
     return this.http.get<Match[]>(this.env.apiBase, { params }).pipe(
@@ -93,9 +93,7 @@ export class MatchService {
     const found = this._matches().find(m => m.id === matchId);
     if (found) return of(found);
 
-    const params = new HttpParams()
-      .set('table', 'matches')
-      .set('id', `eq.${matchId}`);
+    const params = new HttpParams().set('id', matchId);
 
     return this.http.get<Match[]>(this.env.apiBase, { params }).pipe(
       timeout(10000),
@@ -116,97 +114,51 @@ export class MatchService {
 
   /**
    * Obtiene los eventos de un partido específico.
+   * Con ESPN, los eventos ya vienen en la respuesta del match.
    */
   fetchMatchEvents(matchId: string): Observable<MatchEvent[]> {
-    const params = new HttpParams()
-      .set('table', 'match_events')
-      .set('match_id', `eq.${matchId}`)
-      .set('select', '*')
-      .set('order', 'minute.asc');
+    // Intentar desde el match ya cargado en memoria
+    const match = this._matches().find(m => m.id === matchId);
+    if (match?.events) return of(match.events);
 
-    return this.http.get<MatchEvent[]>(this.env.apiBase, { params }).pipe(
-      timeout(10000),
-      catchError(() => of([]))
+    // Fallback: pedir el match individual a ESPN
+    return this.fetchMatchById(matchId).pipe(
+      map(m => m?.events || [])
     );
   }
 
   /**
    * Obtiene datos en vivo (eventos + stats).
+   * Con ESPN, ambos ya vienen incluidos en la respuesta del match.
    */
   private fetchLiveData(matchId: string): Observable<{ events: MatchEvent[]; stats: MatchStats[] }> {
-    const eventsParams = new HttpParams()
-      .set('table', 'match_events')
-      .set('match_id', `eq.${matchId}`)
-      .set('select', '*')
-      .set('order', 'minute.asc');
-
-    const statsParams = new HttpParams()
-      .set('table', 'match_stats')
-      .set('match_id', `eq.${matchId}`)
-      .set('select', '*');
-
-    const events$ = this.http.get<MatchEvent[]>(this.env.apiBase, { params: eventsParams }).pipe(
-      timeout(10000), catchError(() => of([] as MatchEvent[]))
-    );
-    const stats$ = this.http.get<MatchStats[]>(this.env.apiBase, { params: statsParams }).pipe(
-      timeout(10000), catchError(() => of([] as MatchStats[]))
-    );
-
-    return forkJoin([events$, stats$]).pipe(
-      map(([events, stats]) => ({ events, stats }))
+    return this.fetchMatchById(matchId).pipe(
+      map(match => ({
+        events: match?.events || [],
+        stats: match?.stats || [],
+      }))
     );
   }
 
   /**
-   * Obtiene partidos y enriquece con eventos (goles, tarjetas, subs).
+   * Obtiene partidos ya enriquecidos con eventos y stats desde ESPN.
    */
   fetchMatchesWithEvents(status?: MatchStatus, timeoutMs: number = 15000): Observable<Match[]> {
     return this.fetchMatches(status, timeoutMs).pipe(
-      switchMap(matches => {
-        if (matches.length === 0) return of([]);
-
-        const matchesWithEvents$ = matches.map(match => {
-          if (match.status === 'live') {
-            return this.fetchLiveData(match.id).pipe(
-              map(({ events, stats }) => ({
-                ...match,
-                events,
-                stats,
-                goals: events
-                  .filter(e => e.type === 'goal' || e.type === 'own_goal' || e.type === 'penalty')
-                  .map(e => ({ team: e.team, scorer: e.player, minute: e.minute }))
-              }))
-            );
-          }
-
-          if (match.status === 'finished' && this.finishedEventsCache.has(match.id)) {
-            const cachedEvents = this.finishedEventsCache.get(match.id)!;
-            return of({
+      map(matches => {
+        // ESPN ya devuelve events, stats y goals en la respuesta.
+        // Solo aseguramos que goals esté derivado de events si no viene.
+        return matches.map(match => {
+          if (!match.goals && match.events) {
+            return {
               ...match,
-              events: cachedEvents,
-              goals: cachedEvents
+              goals: match.events
                 .filter(e => e.type === 'goal' || e.type === 'own_goal' || e.type === 'penalty')
                 .map(e => ({ team: e.team, scorer: e.player, minute: e.minute }))
-            });
+            };
           }
-
-          return this.fetchMatchEvents(match.id).pipe(
-            map(events => {
-              if (match.status === 'finished') {
-                this.finishedEventsCache.set(match.id, events);
-              }
-              return {
-                ...match,
-                events,
-                goals: events
-                  .filter(e => e.type === 'goal' || e.type === 'own_goal' || e.type === 'penalty')
-                  .map(e => ({ team: e.team, scorer: e.player, minute: e.minute }))
-              };
-            })
-          );
+          return match;
         });
-
-        return forkJoin(matchesWithEvents$);
       })
     );
   }

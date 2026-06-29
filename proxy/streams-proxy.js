@@ -326,6 +326,85 @@ function parseStreams(rscText, matchId) {
   }
 }
 
+// --- ESPN Transform ---
+function transformEspnEvent(event) {
+  const comp = event.competitions?.[0];
+  if (!comp) return null;
+
+  const stateMap = { pre: 'scheduled', in: 'live', post: 'finished' };
+  const status = stateMap[comp.status?.type?.state] || 'scheduled';
+  const home = comp.competitors?.find(c => c.homeAway === 'home');
+  const away = comp.competitors?.find(c => c.homeAway === 'away');
+  if (!home || !away) return null;
+
+  const stage = event.season?.slug?.replace(/-/g, ' ') || comp.altGameNote || '';
+  let time_elapsed = null;
+  if (status === 'live') {
+    const mins = parseInt(comp.status?.displayClock, 10);
+    if (!isNaN(mins)) time_elapsed = mins;
+  }
+
+  const getFlag = (team) => {
+    const m = team.logo?.match(/countries\/500\/(\w+)\.png/);
+    return m ? `https://a.espncdn.com/i/teamlogos/countries/500/${m[1]}.png` : (team.logo || '');
+  };
+
+  const events = (comp.details || []).map(d => {
+    let type = null;
+    if (d.redCard) type = 'red';
+    else if (d.yellowCard) type = 'yellow';
+    else if (d.ownGoal) type = 'own_goal';
+    else if (d.penaltyKick && d.scoringPlay) type = 'penalty';
+    else if (d.scoringPlay) type = 'goal';
+    if (!type) return null;
+
+    const teamSide = d.team?.id === home.id ? 'home' : 'away';
+    const athlete = d.athletesInvolved?.[0];
+    const clockVal = d.clock?.displayValue || '';
+    const minute = parseInt(clockVal, 10) || 0;
+    return {
+      id: `${event.id}-${clockVal}-${type}-${athlete?.id || 'x'}`,
+      match_id: event.id, team: teamSide, type,
+      player: athlete?.displayName || 'Unknown',
+      assist: null, minute, created_at: event.date,
+    };
+  }).filter(Boolean);
+
+  const stats = [];
+  for (const competitor of [home, away]) {
+    const side = competitor === home ? 'home' : 'away';
+    const sm = {};
+    (competitor.statistics || []).forEach(s => { sm[s.name] = parseFloat(s.displayValue) || 0; });
+    if (Object.keys(sm).length > 0) {
+      stats.push({
+        match_id: event.id, team: side,
+        possession: sm.possessionPct || 0, shots: sm.totalShots || 0,
+        shots_on_target: sm.shotsOnTarget || 0, corners: sm.wonCorners || 0,
+        fouls: sm.foulsCommitted || 0,
+      });
+    }
+  }
+
+  const goals = events
+    .filter(e => e.type === 'goal' || e.type === 'own_goal' || e.type === 'penalty')
+    .map(e => ({ team: e.team, scorer: e.player, minute: e.minute }));
+
+  return {
+    id: event.id, external_id: event.uid || event.id,
+    competition: 'FIFA World Cup 2026', stage, group_name: null,
+    home_team: home.team?.displayName || '', away_team: away.team?.displayName || '',
+    home_flag: getFlag(home.team), away_flag: getFlag(away.team),
+    kickoff_at: comp.startDate || event.date, status,
+    home_score: home.score !== undefined ? parseInt(home.score, 10) : null,
+    away_score: away.score !== undefined ? parseInt(away.score, 10) : null,
+    time_elapsed, updated_at: new Date().toISOString(),
+    venue_name: comp.venue?.fullName || '', venue_city: comp.venue?.address?.city || '',
+    goals: goals.length > 0 ? goals : undefined,
+    events: events.length > 0 ? events : undefined,
+    stats: stats.length > 0 ? stats : undefined,
+  };
+}
+
 const server = http.createServer(async (req, res) => {
   // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -585,39 +664,50 @@ const server = http.createServer(async (req, res) => {
       res.end(JSON.stringify(SAMPLE_SCORERS));
     }
   } else if (parsed.pathname === '/api/v1') {
-    const ALLOWED_TABLES = ['matches', 'match_events', 'match_stats', 'match_streams', 'match_lineups', 'group_standings', 'top_scorers'];
-    const table = parsed.query.table;
-
-    if (!table) {
-      res.writeHead(400);
-      res.end(JSON.stringify({ error: 'table query parameter required' }));
-      return;
-    }
-
-    if (!ALLOWED_TABLES.includes(table)) {
-      res.writeHead(403);
-      res.end(JSON.stringify({ error: `Table "${table}" not allowed` }));
-      return;
-    }
+    // Proxy a ESPN API (reemplaza Supabase)
+    const { status, id, dates } = parsed.query;
+    const ESPN_API_BASE = process.env.ESPN_API_BASE || 'https://site.api.espn.com';
+    const ESPN_SCOREBOARD = `${ESPN_API_BASE}/apis/site/v2/sports/soccer/fifa.world/scoreboard`;
 
     try {
-      // Build query params (exclude 'table')
       const params = new URLSearchParams();
-      for (const [key, value] of Object.entries(parsed.query)) {
-        if (key !== 'table' && value != null) params.set(key, String(value));
+      if (dates) {
+        params.set('dates', dates);
+      } else if (status === 'scheduled' || status === 'finished' || !status) {
+        params.set('dates', '20260611-20260720');
       }
-      const targetUrl = `${SUPABASE_URL}/${table}${params.toString() ? '?' + params.toString() : ''}`;
-      console.log(`[${new Date().toISOString()}] Proxy Supabase: ${table}`);
-      const data = await fetchSupabase(targetUrl);
-      res.writeHead(200);
-      res.end(JSON.stringify(data));
+
+      const targetUrl = params.toString() ? `${ESPN_SCOREBOARD}?${params.toString()}` : ESPN_SCOREBOARD;
+      console.log(`[${new Date().toISOString()}] Proxy ESPN: status=${status || 'all'}, id=${id || 'none'}`);
+
+      const espnData = await new Promise((resolve, reject) => {
+        https.get(targetUrl, {
+          headers: { 'User-Agent': 'NexaTV/1.0', 'Accept': 'application/json' }
+        }, (resp) => {
+          let body = '';
+          resp.on('data', chunk => body += chunk);
+          resp.on('end', () => {
+            try { resolve(JSON.parse(body)); }
+            catch (e) { reject(new Error('Invalid JSON from ESPN')); }
+          });
+        }).on('error', reject);
+      });
+
+      const allEvents = espnData.events || [];
+      let matches = allEvents.map(transformEspnEvent).filter(Boolean);
+
+      if (status) matches = matches.filter(m => m.status === status);
+      if (id) matches = matches.filter(m => m.id === id);
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(matches));
     } catch (err) {
       res.writeHead(500);
-      res.end(JSON.stringify({ error: `Failed to fetch ${table}: ${err.message}` }));
+      res.end(JSON.stringify({ error: `Failed to fetch from ESPN: ${err.message}` }));
     }
   } else {
     res.writeHead(404);
-    res.end(JSON.stringify({ error: 'Not found. Use /api/streams?matchId={id}, /api/live?matchId={id}, /api/standings, /api/scorers, or /api/v1?table={name}' }));
+    res.end(JSON.stringify({ error: 'Not found. Use /api/streams?matchId={id}, /api/live?matchId={id}, /api/standings, /api/scorers, or /api/v1?status={status}' }));
   }
 });
 
@@ -626,5 +716,5 @@ server.listen(PORT, () => {
   console.log(`   Usage: GET /api/streams?matchId={match-uuid}`);
   console.log(`          GET /api/standings`);
   console.log(`          GET /api/scorers`);
-  console.log(`          GET /api/v1?table={name}&param=value`);
+  console.log(`          GET /api/v1?status={live|scheduled|finished}`);
 });

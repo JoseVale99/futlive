@@ -515,66 +515,33 @@ export class HomeViewComponent implements OnInit, OnDestroy {
   private fetchAndEnrich() {
     this.loading.set(true);
     this.fetchAll$().pipe(
-      switchMap(matches => {
+      map(matches => {
         const enriched = matches.map(applyEffectiveStatus);
-        const needEvents = enriched.filter(m => m.status === 'live' || m.status === 'finished');
-
-        if (needEvents.length === 0) {
-          return of(enriched);
-        }
-
-        // UNA sola petición batch: match_id=in.(id1,id2,...)
-        const ids = needEvents.map(m => m.id).join(',');
-        return this.http.get<MatchEvent[]>(this.env.apiBase, {
-          params: new HttpParams()
-            .set('table', 'match_events')
-            .set('match_id', `in.(${ids})`)
-            .set('select', '*')
-            .set('order', 'minute.asc')
-        }).pipe(
-          timeout(10000),
-          catchError(() => of([] as MatchEvent[])),
-          map(allEvents => {
-            // Agrupar eventos por match_id
-            const byMatch = new Map<string, MatchEvent[]>();
-            for (const ev of allEvents) {
-              const list = byMatch.get(ev.match_id) ?? [];
-              list.push(ev);
-              byMatch.set(ev.match_id, list);
-            }
-            // Guardar en cache y enriquecer
-            for (const [matchId, events] of byMatch) {
-              this.eventsCache.set(matchId, events);
-            }
-            return enriched.map(m => this.enrichFromCache(m));
-          })
-        );
+        // ESPN ya devuelve events y stats, solo enriquecemos desde cache si hay datos previos
+        return enriched.map(m => this.enrichFromCache(m));
       })
     ).subscribe(matches => {
+      // Guardar eventos en cache para re-uso
+      for (const m of matches) {
+        if (m.events && m.events.length > 0) {
+          this.eventsCache.set(m.id, m.events);
+        }
+      }
       this.allMatches.set(matches);
       this.loading.set(false);
     });
   }
 
-  /** Re-fetch solo eventos de partidos live (ligero, para actualizar goles en poll) */
+  /** Re-fetch solo partidos live para actualizar goles en poll */
   private fetchEventsForLive(liveMatches: Match[]) {
     if (liveMatches.length === 0) return;
-    const ids = liveMatches.map(m => m.id).join(',');
-    this.http.get<MatchEvent[]>(this.env.apiBase, {
-      params: new HttpParams()
-        .set('table', 'match_events')
-        .set('match_id', `in.(${ids})`)
-        .set('select', '*')
-        .set('order', 'minute.asc')
-    }).pipe(timeout(8000), catchError(() => of([] as MatchEvent[]))).subscribe(events => {
-      const byMatch = new Map<string, MatchEvent[]>();
-      for (const ev of events) {
-        const list = byMatch.get(ev.match_id) ?? [];
-        list.push(ev);
-        byMatch.set(ev.match_id, list);
-      }
-      for (const [matchId, evts] of byMatch) {
-        this.eventsCache.set(matchId, evts);
+    this.http.get<Match[]>(this.env.apiBase, {
+      params: new HttpParams().set('status', 'live')
+    }).pipe(timeout(8000), catchError(() => of([] as Match[]))).subscribe(freshLive => {
+      for (const m of freshLive) {
+        if (m.events && m.events.length > 0) {
+          this.eventsCache.set(m.id, m.events);
+        }
       }
       // Actualizar señal con eventos frescos
       this.allMatches.update(current => current.map(m => this.enrichFromCache(m)));
@@ -596,19 +563,19 @@ export class HomeViewComponent implements OnInit, OnDestroy {
 
   private fetchAll$() {
     const live$ = this.http.get<Match[]>(this.env.apiBase, {
-      params: new HttpParams().set('table', 'matches').set('status', 'eq.live'),
+      params: new HttpParams().set('status', 'live'),
     }).pipe(timeout(10000), catchError(() => of([] as Match[])));
 
     const scheduled$ = this.http.get<Match[]>(this.env.apiBase, {
-      params: new HttpParams().set('table', 'matches').set('status', 'eq.scheduled').set('order', 'kickoff_at.asc'),
+      params: new HttpParams().set('status', 'scheduled'),
     }).pipe(timeout(10000), catchError(() => of([] as Match[])));
 
     const finished$ = this.http.get<Match[]>(this.env.apiBase, {
-      params: new HttpParams().set('table', 'matches').set('status', 'eq.finished').set('order', 'kickoff_at.desc').set('limit', '10'),
+      params: new HttpParams().set('status', 'finished'),
     }).pipe(timeout(10000), catchError(() => of([] as Match[])));
 
     return forkJoin([live$, scheduled$, finished$]).pipe(
-      map(([live, scheduled, finished]) => [...live, ...scheduled, ...finished])
+      map(([live, scheduled, finished]) => [...live, ...scheduled, ...finished.slice(0, 10)])
     );
   }
 }

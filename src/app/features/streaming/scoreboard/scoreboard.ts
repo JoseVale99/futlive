@@ -2,6 +2,7 @@ import { Component, computed, effect, input, signal } from '@angular/core';
 import { Match } from '../../../core/models/match-model';
 import { LiveScoreData } from '../../../core/models/live-data-model';
 import { formatScore } from '../../../shared/utils/match-format-util';
+import { translateTeamName } from '../../../shared/utils/team-name-util';
 
 @Component({
   selector: 'app-scoreboard',
@@ -12,11 +13,11 @@ import { formatScore } from '../../../shared/utils/match-format-util';
       <div class="flex items-center gap-2">
         <img
           [src]="match().home_flag"
-          [alt]="match().home_team"
+          [alt]="homeTeamEs()"
           class="w-8 h-8 object-contain"
         />
         <span class="text-sm font-medium text-gray-900 dark:text-gray-100 truncate max-w-[100px]">
-          {{ match().home_team }}
+          {{ homeTeamEs() }}
         </span>
       </div>
 
@@ -54,11 +55,11 @@ import { formatScore } from '../../../shared/utils/match-format-util';
       <!-- Away team -->
       <div class="flex items-center gap-2">
         <span class="text-sm font-medium text-gray-900 dark:text-gray-100 truncate max-w-[100px]">
-          {{ match().away_team }}
+          {{ awayTeamEs() }}
         </span>
         <img
           [src]="match().away_flag"
-          [alt]="match().away_team"
+          [alt]="awayTeamEs()"
           class="w-8 h-8 object-contain"
         />
       </div>
@@ -92,6 +93,8 @@ export class ScoreboardComponent {
 
   readonly showDisconnection = computed(() => this.consecutiveErrors() >= 3);
   readonly scoreChanged = signal(false);
+  readonly homeTeamEs = computed(() => translateTeamName(this.match().home_team));
+  readonly awayTeamEs = computed(() => translateTeamName(this.match().away_team));
 
   private scoreChangeTimer: ReturnType<typeof setTimeout> | null = null;
 

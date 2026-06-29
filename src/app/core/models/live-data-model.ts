@@ -40,8 +40,8 @@ export interface PollingConfig {
 }
 
 export const POLLING_CONFIG: PollingConfig = {
-  liveInterval: 60_000,
-  retryDelay: 10_000,
+  liveInterval: 90_000,
+  retryDelay: 15_000,
   maxRetries: 3,
   httpTimeout: 15_000,
 };

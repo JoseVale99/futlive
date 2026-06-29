@@ -513,21 +513,63 @@ const server = http.createServer(async (req, res) => {
       res.end(JSON.stringify({ error: `Failed to fetch bracket: ${err.message}` }));
     }
 
-  } else if (parsed.pathname === '/api/scorers') {
+  } else if (parsed.pathname === '/api/scorers' || parsed.pathname === '/api/scorers/board') {
     try {
-      console.log(`[${new Date().toISOString()}] Fetching scorers`);
-      const supabaseUrl = `${SUPABASE_URL}/top_scorers?order=goals.desc,assists.desc`;
-      const data = await fetchSupabase(supabaseUrl);
-      if (!Array.isArray(data) || data.length === 0) {
-        res.writeHead(200);
-        res.end(JSON.stringify(SAMPLE_SCORERS));
-      } else {
-        res.writeHead(200);
-        res.end(JSON.stringify(data));
+      console.log(`[${new Date().toISOString()}] Fetching scorers from ESPN statistics`);
+      const ESPN_API_BASE = process.env.ESPN_API_BASE || 'https://site.api.espn.com';
+      const espnStatsUrl = `${ESPN_API_BASE}/apis/site/v2/sports/soccer/fifa.world/statistics`;
+      const data = await fetchJson(espnStatsUrl, { 'User-Agent': 'NexaTV/1.0' });
+
+      const goalsCategory = (data.stats || []).find(s => s.name === 'goalsLeaders');
+      const assistsCategory = (data.stats || []).find(s => s.name === 'assistsLeaders');
+
+      const players = [];
+
+      if (goalsCategory && goalsCategory.leaders) {
+        goalsCategory.leaders.slice(0, 20).forEach((leader, idx) => {
+          players.push({
+            category: 'goals',
+            rank: idx + 1,
+            player_name: leader.athlete.displayName,
+            player_photo: leader.athlete.headshot ? leader.athlete.headshot.href : '',
+            team: leader.athlete.team.displayName,
+            team_code: leader.athlete.team.abbreviation || '',
+            value: leader.value,
+            updated_at: data.timestamp || new Date().toISOString(),
+            player_external_id: parseInt(leader.athlete.id, 10) || 0,
+          });
+        });
       }
-    } catch (err) {
+
+      if (assistsCategory && assistsCategory.leaders) {
+        assistsCategory.leaders.slice(0, 20).forEach((leader, idx) => {
+          players.push({
+            category: 'assists',
+            rank: idx + 1,
+            player_name: leader.athlete.displayName,
+            player_photo: leader.athlete.headshot ? leader.athlete.headshot.href : '',
+            team: leader.athlete.team.displayName,
+            team_code: leader.athlete.team.abbreviation || '',
+            value: leader.value,
+            updated_at: data.timestamp || new Date().toISOString(),
+            player_external_id: parseInt(leader.athlete.id, 10) || 0,
+          });
+        });
+      }
+
+      if (players.length === 0) {
+        res.writeHead(200);
+        res.end(JSON.stringify({ players: [] }));
+        return;
+      }
+
+      console.log(`[${new Date().toISOString()}] Got ${players.length} scorer entries from ESPN`);
       res.writeHead(200);
-      res.end(JSON.stringify(SAMPLE_SCORERS));
+      res.end(JSON.stringify({ players }));
+    } catch (err) {
+      console.log(`[${new Date().toISOString()}] ESPN scorers failed: ${err.message}`);
+      res.writeHead(200);
+      res.end(JSON.stringify({ players: [] }));
     }
 
   } else if (parsed.pathname === '/api/lineups') {

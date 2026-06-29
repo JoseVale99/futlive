@@ -7,7 +7,7 @@
  */
 
 const LACANCHA_URL = 'https://lacancha.tv/es/en-vivo';
-const RSC_VALUE = 'Jo6jRgXoLltzsDtw';
+const RSC_VALUE = 'c82pw5EwhOARkkko';
 
 async function fetchRSC() {
   const controller = new AbortController();
@@ -189,18 +189,20 @@ module.exports = async function handler(req, res) {
       }
     }
 
-    // Fallback: futbol-libres.su (si lacancha.tv falla completamente)
-    if (streams.length === 0) {
-      const fallbackChannels = [
-        { name: 'ESPN', slug: 'espn-1' },
-        { name: 'ESPN Premium', slug: 'espn-premium' },
-        { name: 'DSports', slug: 'directv-sports' },
-        { name: 'Fox Sports', slug: 'fox-sports' },
-        { name: 'TUDN', slug: 'tudn' },
-        { name: 'TNT Sports', slug: 'tnt-sports' },
-        { name: 'TyC Sports', slug: 'tyc-sports' },
-      ];
-      for (const ch of fallbackChannels) {
+    // Siempre agregar futbol-libres.su como canales extra al final
+    const fallbackChannels = [
+      { name: 'ESPN', slug: 'espn-1' },
+      { name: 'ESPN Premium', slug: 'espn-premium' },
+      { name: 'DSports', slug: 'directv-sports' },
+      { name: 'Fox Sports', slug: 'fox-sports' },
+      { name: 'TUDN', slug: 'tudn' },
+      { name: 'TNT Sports', slug: 'tnt-sports' },
+      { name: 'TyC Sports', slug: 'tyc-sports' },
+      { name: 'Telemundo (FL)', slug: 'telemundo' },
+    ];
+    const existingNamesFL = new Set(streams.map(s => s.embed_name.toLowerCase()));
+    for (const ch of fallbackChannels) {
+      if (!existingNamesFL.has(ch.name.toLowerCase())) {
         streams.push({
           id: `fb-${streams.length}`,
           match_id: matchId,

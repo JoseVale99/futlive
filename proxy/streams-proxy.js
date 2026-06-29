@@ -663,6 +663,95 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200);
       res.end(JSON.stringify(SAMPLE_SCORERS));
     }
+  } else if (parsed.pathname === '/api/bracket') {
+    // Bracket knockout desde ESPN
+    const ESPN_API_BASE = process.env.ESPN_API_BASE || 'https://site.api.espn.com';
+    const ESPN_SCOREBOARD = `${ESPN_API_BASE}/apis/site/v2/sports/soccer/fifa.world/scoreboard`;
+
+    const ROUNDS = [
+      { value: '2', label: 'Round of 32' },
+      { value: '3', label: 'Round of 16' },
+      { value: '4', label: 'Quarterfinals' },
+      { value: '5', label: 'Semifinals' },
+      { value: '6', label: '3rd-Place Match' },
+      { value: '7', label: 'Final' },
+    ];
+
+    const EVENT_ID_TO_MATCH_NUM = {
+      '760486': 73, '760489': 74, '760488': 75, '760487': 76,
+      '760492': 77, '760490': 78, '760491': 79, '760495': 80,
+      '760494': 81, '760493': 82, '760496': 83, '760497': 84,
+      '760498': 85, '760500': 86, '760501': 87, '760499': 88,
+      '760503': 89, '760502': 90, '760504': 91, '760505': 92,
+      '760506': 93, '760507': 94, '760509': 95, '760508': 96,
+      '760510': 97, '760511': 98, '760512': 99, '760513': 100,
+      '760514': 101, '760515': 102,
+      '760516': 103,
+      '760517': 104,
+    };
+
+    function transformBracketEvent(event) {
+      const comp = event.competitions?.[0];
+      if (!comp) return null;
+      const st = comp.status?.type;
+      const competitors = comp.competitors || [];
+      const homeC = competitors.find(c => c.homeAway === 'home');
+      const awayC = competitors.find(c => c.homeAway === 'away');
+      let winner = null;
+      if (st?.completed) {
+        if (homeC?.winner) winner = 'home';
+        else if (awayC?.winner) winner = 'away';
+      }
+      const matchNum = EVENT_ID_TO_MATCH_NUM[event.id] || null;
+      return {
+        id: event.id, matchNum, round: comp.altGameNote || '',
+        date: event.date, status: st?.name || 'STATUS_SCHEDULED',
+        statusDetail: st?.shortDetail || '',
+        home: homeC ? { name: homeC.team?.displayName || 'TBD', code: homeC.team?.abbreviation || '', logo: homeC.team?.logo || '', score: homeC.score != null ? parseInt(homeC.score, 10) : null } : null,
+        away: awayC ? { name: awayC.team?.displayName || 'TBD', code: awayC.team?.abbreviation || '', logo: awayC.team?.logo || '', score: awayC.score != null ? parseInt(awayC.score, 10) : null } : null,
+        winner,
+      };
+    }
+
+    try {
+      console.log(`[${new Date().toISOString()}] Fetching bracket from ESPN`);
+      const fetches = ROUNDS.map(round => {
+        const targetUrl = `${ESPN_SCOREBOARD}?dates=20260628-20260720&seasontype=${round.value}`;
+        return new Promise((resolve, reject) => {
+          https.get(targetUrl, { headers: { 'Accept': 'application/json' } }, (resp) => {
+            let body = '';
+            resp.on('data', chunk => body += chunk);
+            resp.on('end', () => {
+              try { const d = JSON.parse(body); resolve((d.events || []).map(transformBracketEvent).filter(Boolean)); }
+              catch (e) { resolve([]); }
+            });
+          }).on('error', () => resolve([]));
+        });
+      });
+
+      const results = await Promise.all(fetches);
+      let matches = results.flat();
+
+      if (matches.length === 0) {
+        const fallbackUrl = `${ESPN_SCOREBOARD}?dates=20260628-20260720`;
+        const fallbackData = await new Promise((resolve, reject) => {
+          https.get(fallbackUrl, { headers: { 'Accept': 'application/json' } }, (resp) => {
+            let body = '';
+            resp.on('data', chunk => body += chunk);
+            resp.on('end', () => { try { resolve(JSON.parse(body)); } catch (e) { resolve({ events: [] }); } });
+          }).on('error', () => resolve({ events: [] }));
+        });
+        matches = (fallbackData.events || []).map(transformBracketEvent).filter(Boolean);
+      }
+
+      console.log(`[${new Date().toISOString()}] Got ${matches.length} bracket matches`);
+      res.writeHead(200);
+      res.end(JSON.stringify({ matches }));
+    } catch (err) {
+      console.error('Bracket error:', err);
+      res.writeHead(500);
+      res.end(JSON.stringify({ error: `Failed to fetch bracket: ${err.message}` }));
+    }
   } else if (parsed.pathname === '/api/v1') {
     // Proxy a ESPN API (reemplaza Supabase)
     const { status, id, dates } = parsed.query;
@@ -715,6 +804,7 @@ server.listen(PORT, () => {
   console.log(`🎬 Streams proxy running on http://localhost:${PORT}`);
   console.log(`   Usage: GET /api/streams?matchId={match-uuid}`);
   console.log(`          GET /api/standings`);
+  console.log(`          GET /api/bracket`);
   console.log(`          GET /api/scorers`);
   console.log(`          GET /api/v1?status={live|scheduled|finished}`);
 });

@@ -109,10 +109,14 @@ interface BracketMatch {
           }
         } @else {
           <!-- BRACKET ÁRBOL SIMÉTRICO -->
-          <div class="bg-white dark:bg-[#0a0e17] rounded-2xl p-5 sm:p-8 border border-gray-200 dark:border-gray-800 shadow-lg">
+          <div [class]="bracketFullscreen() ? 'fixed inset-0 z-50 bg-white dark:bg-[#0a0e17] p-4 overflow-auto' : 'bg-white dark:bg-[#0a0e17] rounded-2xl p-5 sm:p-8 border border-gray-200 dark:border-gray-800 shadow-lg'">
             <div class="flex items-center justify-center gap-2 mb-8">
               <span class="material-symbols-outlined text-amber-500 dark:text-amber-400 text-xl">trophy</span>
               <span class="text-sm font-bold text-gray-600 dark:text-gray-400 uppercase tracking-widest">Bracket Fase Final — Proyección en vivo</span>
+              <!-- Botón fullscreen visible solo en pantallas pequeñas (<1024px) -->
+              <button (click)="bracketFullscreen.set(!bracketFullscreen())" class="lg:hidden ml-auto p-2 rounded-lg bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors" [attr.aria-label]="bracketFullscreen() ? 'Salir de pantalla completa' : 'Ver en pantalla completa'">
+                <span class="material-symbols-outlined text-lg text-gray-600 dark:text-gray-300">{{ bracketFullscreen() ? 'fullscreen_exit' : 'fullscreen' }}</span>
+              </button>
             </div>
 
             <div class="overflow-x-auto pb-3">
@@ -335,6 +339,7 @@ interface BracketMatch {
 export class StandingsViewComponent implements OnInit {
   readonly standingsService = inject(StandingsService);
   readonly activeTab = signal<TabId>('grupos');
+  readonly bracketFullscreen = signal(false);
 
   ngOnInit() {
     this.standingsService.fetchStandings();

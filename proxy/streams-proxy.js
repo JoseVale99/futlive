@@ -238,7 +238,8 @@ function parseMatchPageStreams(html, matchId) {
 
 function parseRSCStreams(rscText, matchId) {
   const streams = [];
-  const seen = new Set();
+  const seenUrls = new Set();
+  const nameCount = {};
 
   const embedRegex = /"embed_url":"(https?:\/\/[^"]+)"/g;
   const allEmbeds = [];
@@ -253,25 +254,34 @@ function parseRSCStreams(rscText, matchId) {
     allNames.push({ name: m[1], index: m.index });
   }
 
-  // Tomar todos los streams disponibles (sin filtrar por matchId)
+  // Tomar todos los streams disponibles, renombrando duplicados como "Opción N"
   for (let i = 0; i < Math.min(allNames.length, allEmbeds.length); i++) {
-    const name = allNames[i].name;
-    if (!seen.has(name)) {
-      seen.add(name);
-      streams.push({
-        id: `rsc-${i}`,
-        match_id: matchId,
-        channel_id: null,
-        embed_name: name,
-        embed_url: allEmbeds[i].url,
-        source: 'lacancha',
-        stream_param: null,
-        created_at: new Date().toISOString(),
-      });
-    }
+    const baseName = allNames[i].name;
+    const url = allEmbeds[i].url;
+
+    // Deduplicar por URL (misma URL = mismo stream real)
+    if (seenUrls.has(url)) continue;
+    seenUrls.add(url);
+
+    // Contar ocurrencias del nombre para generar "Opción N"
+    nameCount[baseName] = (nameCount[baseName] || 0) + 1;
+    const displayName = nameCount[baseName] === 1
+      ? baseName
+      : `${baseName} Opción ${nameCount[baseName]}`;
+
+    streams.push({
+      id: `rsc-${i}`,
+      match_id: matchId,
+      channel_id: null,
+      embed_name: displayName,
+      embed_url: url,
+      source: 'lacancha',
+      stream_param: null,
+      created_at: new Date().toISOString(),
+    });
   }
 
-  return streams.slice(0, 25);
+  return streams.slice(0, 40);
 }
 
 function fetchLaCanchaMatchPage(matchId) {

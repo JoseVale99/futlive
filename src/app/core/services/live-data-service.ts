@@ -64,8 +64,12 @@ export class LiveDataService implements OnDestroy {
 
     if (status === 'finished') {
       this.fetchMatchData(matchId);
+      this.fetchLineups(matchId);
       return;
     }
+
+    // Fetch lineups una vez al inicio
+    this.fetchLineups(matchId);
 
     const source$ = this.buildPollingSource(status);
 
@@ -183,6 +187,34 @@ export class LiveDataService implements OnDestroy {
           this._error.set('No se encontraron datos del partido');
         }
       });
+  }
+
+  /**
+   * Obtiene alineaciones desde ESPN summary API.
+   */
+  private fetchLineups(matchId: string): void {
+    const url = this.env.production
+      ? `/api/lineups?matchId=${matchId}`
+      : `http://localhost:3001/api/lineups?matchId=${matchId}`;
+
+    this.http.get<{ team: string; side: string; formation: string; players: { name: string; number: string; position: string; starter: boolean }[] }[]>(url).pipe(
+      timeout(15_000),
+      catchError(() => of([]))
+    ).subscribe(raw => {
+      if (raw && raw.length > 0) {
+        const lineups: MatchLineup[] = raw.map(r => ({
+          team: (r.side === 'home' ? 'home' : 'away') as 'home' | 'away',
+          team_name: r.team,
+          players: r.players.map(p => ({
+            name: p.name,
+            number: parseInt(p.number, 10) || 0,
+            position: p.position,
+            is_starter: p.starter,
+          })),
+        }));
+        this._lineups.set(lineups);
+      }
+    });
   }
 
   private handleStatusTransition(newStatus: MatchStatus): void {

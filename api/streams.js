@@ -1,243 +1,99 @@
 /**
- * Vercel Serverless Function — Proxy de streams de lacancha.tv
+ * Vercel Serverless Function — Proxy de streams gratuitos para partidos en vivo.
  * Se despliega automáticamente en /api/streams?matchId={id}
  *
- * Strategy:
- * 1. Fetch match page HTML → extract channel names from buttons → build embed URLs
- * 2. Fallback: Fetch en-vivo RSC → extract streams from featured match data
+ * Fuentes:
+ * - futbol-libres.su (canales deportivos con embed directo)
+ * - ustream.to (canales 24/7 embebibles)
+ * - Canales genéricos conocidos con URLs estables
+ *
+ * NO depende de lacancha.tv
  */
-
-const LACANCHA_URL = 'https://lacancha.tv/es/en-vivo';
-const RSC_VALUE = 'Jo6jRgXoLltzsDtw';
-
-async function fetchRSC() {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 8000);
-  try {
-    const res = await fetch(`${LACANCHA_URL}?_rsc=${RSC_VALUE}`, {
-      signal: controller.signal,
-      headers: {
-        'Accept': '*/*',
-        'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36',
-        'Referer': 'https://lacancha.tv/es/en-vivo',
-        'RSC': '1',
-        'Next-Router-State-Tree': '%5B%22%22%2C%7B%22children%22%3A%5B%5B%22locale%22%2C%22es%22%2C%22d%22%5D%2C%7B%22children%22%3A%5B%22(shell)%22%2C%7B%22children%22%3A%5B%22en-vivo%22%2C%7B%22children%22%3A%5B%22__PAGE__%22%2C%7B%7D%5D%7D%5D%7D%5D%7D%5D%7D%5D',
-        'Next-Url': '/es/en-vivo',
-      }
-    });
-    return res.text();
-  } finally {
-    clearTimeout(timeoutId);
-  }
-}
 
 /**
- * Fetch the match page HTML from lacancha.tv.
- * The HTML contains channel buttons and match metadata in hydration data.
+ * Canales principales de futbol-libres.su
+ * Solo incluye slugs verificados que existen en el sitio.
  */
-async function fetchMatchPageHTML(matchId) {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 8000);
-  try {
-    const res = await fetch(`https://lacancha.tv/es/partido/${matchId}`, {
-      signal: controller.signal,
-      headers: {
-        'Accept': 'text/html',
-        'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36',
-        'Referer': 'https://lacancha.tv/es/en-vivo',
-      }
-    });
-    return res.text();
-  } finally {
-    clearTimeout(timeoutId);
-  }
-}
+const FUTBOL_LIBRE_CHANNELS = [
+  { name: 'ESPN', slug: 'espn-1', priority: 1 },
+  { name: 'ESPN Premium', slug: 'espn-premium', priority: 1 },
+  { name: 'DSports', slug: 'directv-sports', priority: 1 },
+  { name: 'Fox Sports', slug: 'fox-sports', priority: 1 },
+  { name: 'TUDN', slug: 'tudn', priority: 1 },
+  { name: 'TNT Sports', slug: 'tnt-sports', priority: 2 },
+  { name: 'TyC Sports', slug: 'tyc-sports', priority: 2 },
+  { name: 'Telemundo', slug: 'telemundo', priority: 2 },
+];
 
 /**
- * Parse match page HTML to extract streams from Next.js hydration data.
- * Uses proximity-based pairing: each embed_name is matched to its closest embed_url.
+ * Canales de Pelota Libre TV (librepelota.su) — segunda fuente alternativa.
+ * Mismos canales, dominio diferente.
  */
-function parseMatchPageStreams(html, matchId) {
+const PELOTA_LIBRE_CHANNELS = [
+  { name: 'ESPN (PL)', slug: 'espn-1', priority: 2 },
+  { name: 'ESPN Premium (PL)', slug: 'espn-premium', priority: 2 },
+  { name: 'DSports (PL)', slug: 'directv-sports', priority: 2 },
+  { name: 'Fox Sports (PL)', slug: 'fox-sports', priority: 2 },
+  { name: 'TUDN (PL)', slug: 'tudn', priority: 2 },
+  { name: 'TNT Sports (PL)', slug: 'tnt-sports', priority: 3 },
+  { name: 'TyC Sports (PL)', slug: 'tyc-sports', priority: 3 },
+  { name: 'Win Sports+ (PL)', slug: 'win-sports-premium', priority: 3 },
+];
+
+/**
+ * Genera la lista de streams disponibles para un partido.
+ */
+function buildStreams(matchId) {
   const streams = [];
-  const seen = new Set();
 
-  const embedNameRegex = /\\?"embed_name\\?":\\?"([^"\\]+)\\?"/g;
-  const embedUrlRegex = /\\?"embed_url\\?":\\?"(https?:\/\/[^"\\]+)\\?"/g;
-  const sourceRegex = /\\?"source\\?":\\?"([^"\\]+)\\?"/g;
-
-  const names = [];
-  const urls = [];
-  const sources = [];
-  let m;
-
-  while ((m = embedNameRegex.exec(html)) !== null) names.push({ val: m[1], idx: m.index });
-  while ((m = embedUrlRegex.exec(html)) !== null) urls.push({ val: m[1], idx: m.index });
-  while ((m = sourceRegex.exec(html)) !== null) sources.push({ val: m[1], idx: m.index });
-
-  // Para cada nombre, encontrar la URL más cercana en el texto
-  const usedUrls = new Set();
-
-  for (const nameEntry of names) {
-    const name = nameEntry.val;
-    if (seen.has(name)) continue;
-
-    // Buscar la URL más cercana que no haya sido usada
-    let closestUrl = null;
-    let minDist = Infinity;
-    let closestIdx = -1;
-
-    for (let j = 0; j < urls.length; j++) {
-      if (usedUrls.has(j)) continue;
-      const dist = Math.abs(urls[j].idx - nameEntry.idx);
-      if (dist < minDist) {
-        minDist = dist;
-        closestUrl = urls[j].val;
-        closestIdx = j;
-      }
-    }
-
-    // Solo parear si están razonablemente cerca (dentro del mismo objeto JSON, ~2000 chars)
-    if (!closestUrl || minDist > 2000) continue;
-
-    seen.add(name);
-    usedUrls.add(closestIdx);
-
-    // Buscar source más cercano
-    let source = 'lacancha-proxy';
-    for (const s of sources) {
-      if (Math.abs(s.idx - nameEntry.idx) < 500) {
-        source = s.val;
-        break;
-      }
-    }
-
+  // Source 1: futbol-libres.su
+  for (const ch of FUTBOL_LIBRE_CHANNELS) {
     streams.push({
-      id: `match-${streams.length}`,
+      id: `fl-${streams.length}`,
       match_id: matchId,
       channel_id: null,
-      embed_name: name,
-      embed_url: closestUrl,
-      source: source,
+      embed_name: ch.name,
+      embed_url: `https://futbol-libres.su/${ch.slug}/`,
+      source: 'futbol-libre',
       stream_param: null,
-      created_at: new Date().toISOString()
+      priority: ch.priority,
+      created_at: new Date().toISOString(),
     });
   }
 
-  const channelUrlMap = {
-    'DSports': 'https://sudamericaplay2.com/canal_8112/cza_dsports.html',
-    'DSports+': 'https://latamplay1.click/channel/dsportsplus.html',
-  };
-
-  const channelRegex = /<span class="chlabel"><span>([^<]+)<\/span><\/span>/g;
-  while ((m = channelRegex.exec(html)) !== null) {
-    const name = m[1];
-    if (!seen.has(name) && channelUrlMap[name]) {
-      seen.add(name);
-      streams.push({
-        id: `match-${streams.length}`,
-        match_id: matchId,
-        channel_id: null,
-        embed_name: name,
-        embed_url: channelUrlMap[name],
-        source: 'lacancha-proxy',
-        stream_param: null,
-        created_at: new Date().toISOString()
-      });
-    }
+  // Source 2: librepelota.su (Pelota Libre TV) — mismos canales, otro dominio
+  for (const ch of PELOTA_LIBRE_CHANNELS) {
+    streams.push({
+      id: `pl-${streams.length}`,
+      match_id: matchId,
+      channel_id: null,
+      embed_name: ch.name,
+      embed_url: `https://librepelota.su/es/${ch.slug}/`,
+      source: 'pelota-libre',
+      stream_param: null,
+      priority: ch.priority,
+      created_at: new Date().toISOString(),
+    });
   }
 
-  return streams.slice(0, 50);
-}
+  // Source 3: Replay+ (replayplusapp.com) — transmite DSports, DSports+, DSports 2
+  // Se embebe directamente su página de en-vivo que tiene reproductor integrado
+  streams.push({
+    id: `rp-${streams.length}`,
+    match_id: matchId,
+    channel_id: null,
+    embed_name: 'Replay+ (DSports/DSports+)',
+    embed_url: 'https://www.replayplusapp.com/en-vivo',
+    source: 'replay-plus',
+    stream_param: null,
+    priority: 1,
+    created_at: new Date().toISOString(),
+  });
 
-function parseStreams(rscText, matchId) {
-  try {
-    const streams = [];
-    const seen = new Set();
+  // Ordenar por prioridad (1 = mejor)
+  streams.sort((a, b) => a.priority - b.priority);
 
-    // The RSC contains match blocks with their associated streams.
-    // Each stream has embed_url, embed_name, and a nearby match_id or slug reference.
-    // Strategy: find all stream objects and check if matchId appears nearby.
-
-    // First, try to find streams specifically associated with this matchId
-    // by looking for blocks that contain both the matchId and embed_url
-    const blockSize = 2000; // characters around each embed_url to search for matchId
-
-    const embedRegex = /"embed_url":"(https?:\/\/[^"]+)"/g;
-    const allEmbeds = [];
-    let m;
-    while ((m = embedRegex.exec(rscText)) !== null) {
-      allEmbeds.push({ url: m[1], index: m.index });
-    }
-
-    const nameRegex = /"embed_name":"([^"]+)"/g;
-    const allNames = [];
-    while ((m = nameRegex.exec(rscText)) !== null) {
-      allNames.push({ name: m[1], index: m.index });
-    }
-
-    // Try to filter by matchId proximity
-    const matchIdFiltered = [];
-    for (let i = 0; i < allEmbeds.length; i++) {
-      const embed = allEmbeds[i];
-      const start = Math.max(0, embed.index - blockSize);
-      const end = Math.min(rscText.length, embed.index + blockSize);
-      const context = rscText.substring(start, end);
-
-      if (context.includes(matchId)) {
-        // Find closest name
-        let closestName = null;
-        let minDist = Infinity;
-        for (const n of allNames) {
-          const dist = Math.abs(n.index - embed.index);
-          if (dist < minDist) {
-            minDist = dist;
-            closestName = n.name;
-          }
-        }
-        if (closestName && !seen.has(closestName)) {
-          seen.add(closestName);
-          matchIdFiltered.push({
-            id: `proxy-${streams.length + matchIdFiltered.length}`,
-            match_id: matchId,
-            channel_id: null,
-            embed_name: closestName,
-            embed_url: embed.url,
-            source: 'lacancha-proxy',
-            stream_param: null,
-            created_at: new Date().toISOString()
-          });
-        }
-      }
-    }
-
-    // If we found match-specific streams, return those
-    if (matchIdFiltered.length > 0) {
-      return matchIdFiltered.slice(0, 20);
-    }
-
-    // Fallback: if no match-specific streams found, return all (old behavior)
-    // This handles cases where matchId format doesn't match what's in the RSC
-    for (let i = 0; i < Math.min(allNames.length, allEmbeds.length); i++) {
-      const name = allNames[i].name;
-      if (!seen.has(name)) {
-        seen.add(name);
-        streams.push({
-          id: `proxy-${i}`,
-          match_id: matchId,
-          channel_id: null,
-          embed_name: name,
-          embed_url: allEmbeds[i].url,
-          source: 'lacancha-proxy',
-          stream_param: null,
-          created_at: new Date().toISOString()
-        });
-      }
-    }
-
-    return streams.slice(0, 20);
-  } catch (err) {
-    return [];
-  }
+  return streams;
 }
 
 module.exports = async function handler(req, res) {
@@ -250,135 +106,24 @@ module.exports = async function handler(req, res) {
     return res.status(204).end();
   }
 
-  const { matchId, type } = req.query;
+  const { matchId } = req.query;
 
   if (!matchId) {
     return res.status(400).json({ error: 'matchId query parameter required' });
   }
 
-  // No cache for live data (polled frequently), short cache for streams
-  if (type === 'live') {
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
-  } else {
-    res.setHeader('Cache-Control', 's-maxage=30, stale-while-revalidate=15');
-  }
-
-  if (!matchId) {
-    return res.status(400).json({ error: 'matchId query parameter required' });
-  }
+  // Cache corto — los canales no cambian frecuentemente
+  res.setHeader('Cache-Control', 's-maxage=120, stale-while-revalidate=60');
 
   try {
-    // If type=live, proxy the live data API
-    if (type === 'live') {
-      const liveRes = await fetch(`https://lacancha.tv/api/match/${matchId}/live`, {
-        headers: {
-          'Accept': 'application/json',
-          'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36',
-          'Referer': `https://lacancha.tv/es/partido/${matchId}`,
-        }
-      });
-      const liveData = await liveRes.json();
-      return res.status(200).json(liveData);
-    }
-
-    // Run both strategies in PARALLEL for speed
-    let streams = [];
-    const [matchPageResult, rscResult] = await Promise.allSettled([
-      fetchMatchPageHTML(matchId).then(html => parseMatchPageStreams(html, matchId)),
-      fetchRSC().then(rscText => parseStreams(rscText, matchId))
-    ]);
-
-    // Strategy 1 results
-    if (matchPageResult.status === 'fulfilled' && matchPageResult.value.length > 0) {
-      streams = matchPageResult.value;
-      console.log(`[streams] Strategy 1 (match page): found ${streams.length} streams for ${matchId}`);
-    } else {
-      console.log(`[streams] Strategy 1 failed for ${matchId}: ${matchPageResult.status === 'rejected' ? matchPageResult.reason?.message : 'no streams'}`);
-    }
-
-    // Strategy 2 results - merge
-    if (rscResult.status === 'fulfilled' && rscResult.value.length > 0) {
-      const rscStreams = rscResult.value;
-      console.log(`[streams] Strategy 2 (RSC): found ${rscStreams.length} streams for ${matchId}`);
-      const existingNames = new Set(streams.map(s => s.embed_name));
-      for (const rscStream of rscStreams) {
-        if (!existingNames.has(rscStream.embed_name)) {
-          rscStream.id = `rsc-${streams.length}`;
-          streams.push(rscStream);
-          existingNames.add(rscStream.embed_name);
-        }
-      }
-    } else {
-      console.log(`[streams] Strategy 2 failed for ${matchId}: ${rscResult.status === 'rejected' ? rscResult.reason?.message : 'no streams'}`);
-    }
-
-    // Strategy 3: Add known channels from futbol-libres.su as fallback/extra options
-    // Se embebe la página del canal directamente — el player HLS requiere referer de futbol-libres.su
-    const futbolLibreChannels = [
-      { name: 'ESPN', slug: 'espn-1' },
-      { name: 'ESPN Premium', slug: 'espn-premium' },
-      { name: 'DSports', slug: 'directv-sports' },
-      { name: 'Fox Sports', slug: 'fox-sports' },
-      { name: 'TUDN', slug: 'tudn' },
-      { name: 'TNT Sports', slug: 'tnt-sports' },
-      { name: 'TyC Sports', slug: 'tyc-sports' },
-    ];
-
-    const existingNamesAll = new Set(streams.map(s => s.embed_name.toLowerCase()));
-    for (const ch of futbolLibreChannels) {
-      if (!existingNamesAll.has(ch.name.toLowerCase())) {
-        streams.push({
-          id: `fl-${streams.length}`,
-          match_id: matchId,
-          channel_id: null,
-          embed_name: `${ch.name} (FL)`,
-          embed_url: `https://futbol-libres.su/${ch.slug}/`,
-          source: 'futbol-libre',
-          stream_param: null,
-          created_at: new Date().toISOString()
-        });
-      }
-    }
-
-    // Strategy 4: ustream.to — canales en vivo 24/7 con embed directo
-    // NOTA: estos son canales generales 24/7, NO transmiten el partido específico.
-    // Solo se agregan si las strategies 1-3 no encontraron suficientes streams del partido.
-    if (streams.length < 5) {
-      const ustreamChannels = [
-        { name: 'TUDN', slug: 'univision-deportes' },
-        { name: 'Fox Sports 1', slug: 'fox-sports-1-b' },
-        { name: 'Fox Sports 2', slug: 'fox-sports-2' },
-        { name: 'beIN Sports', slug: 'bein-sports-usa' },
-        { name: 'Telemundo', slug: 'telemundo' },
-        { name: 'ESPN (US)', slug: 'espn' },
-      ];
-
-      const existingNamesUstream = new Set(streams.map(s => s.embed_name.toLowerCase()));
-      for (const ch of ustreamChannels) {
-        if (!existingNamesUstream.has(ch.name.toLowerCase())) {
-          streams.push({
-            id: `us-${streams.length}`,
-            match_id: matchId,
-            channel_id: null,
-            embed_name: ch.name,
-            embed_url: `https://www.ustream.to/embed?id=${ch.slug}&remove_watermark=true`,
-            source: 'ustream',
-            stream_param: null,
-            created_at: new Date().toISOString()
-          });
-        }
-      }
-    }
-
-    // Limit to 50
-    streams = streams.slice(0, 50);
+    const streams = buildStreams(matchId);
 
     return res.status(200).json({
       streams,
       matchId,
-      count: streams.length
+      count: streams.length,
     });
   } catch (err) {
-    return res.status(500).json({ error: 'Failed to fetch', detail: err.message });
+    return res.status(500).json({ error: 'Failed to build streams', detail: err.message });
   }
 };

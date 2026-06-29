@@ -1,10 +1,17 @@
 /**
- * Proxy de streams — Parsea el RSC de lacancha.tv y devuelve streams embebibles.
+ * Servidor proxy local para desarrollo — NexaTV.
  *
- * Uso local: node proxy/streams-proxy.js
- * Escucha en http://localhost:3001/api/streams?matchId={id}
+ * Uso: node proxy/streams-proxy.js
+ * Escucha en http://localhost:3001
  *
- * Deploy: Cloudflare Worker, Vercel Edge Function, o cualquier serverless.
+ * Endpoints:
+ * - /api/streams?matchId={id}  → canales de streaming gratuitos
+ * - /api/standings             → posiciones desde ESPN
+ * - /api/bracket               → bracket knockout desde ESPN
+ * - /api/scorers               → goleadores desde Supabase
+ * - /api/v1?status={status}    → partidos desde ESPN
+ *
+ * NO depende de lacancha.tv — usa futbol-libres.su y ustream.to.
  */
 
 const http = require('http');
@@ -35,6 +42,8 @@ if (!SUPABASE_URL || !SUPABASE_KEY) {
   process.exit(1);
 }
 
+const PORT = 3001;
+
 const SAMPLE_SCORERS = [
   { rank: 1, player_name: "Cristiano Ronaldo", team: "Portugal", team_flag: "https://flagcdn.com/w40/pt.png", goals: 5, assists: 1, matches_played: 3 },
   { rank: 2, player_name: "Kylian Mbappé", team: "Francia", team_flag: "https://flagcdn.com/w40/fr.png", goals: 4, assists: 2, matches_played: 3 },
@@ -48,151 +57,8 @@ const SAMPLE_SCORERS = [
   { rank: 10, player_name: "Christian Pulisic", team: "EE.UU.", team_flag: "https://flagcdn.com/w40/us.png", goals: 2, assists: 1, matches_played: 2 }
 ];
 
-const LACANCHA_URL = 'https://lacancha.tv/es/en-vivo';
-const RSC_PARAM = '_rsc';
-const RSC_VALUE = 'Jo6jRgXoLltzsDtw';
-const PORT = 3001;
+// --- Utilidades ---
 
-function fetchRSC() {
-  return new Promise((resolve, reject) => {
-    const reqUrl = `${LACANCHA_URL}?${RSC_PARAM}=${RSC_VALUE}`;
-    https.get(reqUrl, {
-      headers: {
-        'Accept': '*/*',
-        'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36',
-        'Referer': 'https://lacancha.tv/es/en-vivo',
-        'RSC': '1',
-        'Next-Router-State-Tree': '%5B%22%22%2C%7B%22children%22%3A%5B%5B%22locale%22%2C%22es%22%2C%22d%22%5D%2C%7B%22children%22%3A%5B%22(shell)%22%2C%7B%22children%22%3A%5B%22en-vivo%22%2C%7B%22children%22%3A%5B%22__PAGE__%22%2C%7B%7D%5D%7D%5D%7D%5D%7D%5D%7D%5D',
-        'Next-Url': '/es/en-vivo',
-      }
-    }, (res) => {
-      let data = '';
-      res.on('data', chunk => data += chunk);
-      res.on('end', () => resolve(data));
-    }).on('error', reject);
-  });
-}
-
-/**
- * Fetch the match page HTML from lacancha.tv and extract channel names + build embed URLs.
- * The match page has channel buttons in HTML but embed URLs are resolved client-side.
- * We extract channel names and construct embedindia.st URLs using the pattern:
- * https://embedindia.st/embed/wc/{date}/{team1}-{team2}/{channel-slug}
- */
-function fetchMatchPageHTML(matchId) {
-  return new Promise((resolve, reject) => {
-    const reqUrl = `https://lacancha.tv/es/partido/${matchId}`;
-    https.get(reqUrl, {
-      headers: {
-        'Accept': 'text/html',
-        'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36',
-        'Referer': 'https://lacancha.tv/es/en-vivo',
-      }
-    }, (res) => {
-      let data = '';
-      res.on('data', chunk => data += chunk);
-      res.on('end', () => resolve(data));
-    }).on('error', reject);
-  });
-}
-
-/**
- * Parse match page HTML to extract streams from Next.js hydration data.
- * Uses proximity-based pairing: each embed_name is matched to its closest embed_url.
- */
-function parseMatchPageStreams(html, matchId) {
-  const streams = [];
-  const seen = new Set();
-
-  const embedNameRegex = /\\?"embed_name\\?":\\?"([^"\\]+)\\?"/g;
-  const embedUrlRegex = /\\?"embed_url\\?":\\?"(https?:\/\/[^"\\]+)\\?"/g;
-  const sourceRegex = /\\?"source\\?":\\?"([^"\\]+)\\?"/g;
-
-  const names = [];
-  const urls = [];
-  const sources = [];
-  let m;
-
-  while ((m = embedNameRegex.exec(html)) !== null) names.push({ val: m[1], idx: m.index });
-  while ((m = embedUrlRegex.exec(html)) !== null) urls.push({ val: m[1], idx: m.index });
-  while ((m = sourceRegex.exec(html)) !== null) sources.push({ val: m[1], idx: m.index });
-
-  // Para cada nombre, encontrar la URL más cercana en el texto
-  const usedUrls = new Set();
-
-  for (const nameEntry of names) {
-    const name = nameEntry.val;
-    if (seen.has(name)) continue;
-
-    let closestUrl = null;
-    let minDist = Infinity;
-    let closestIdx = -1;
-
-    for (let j = 0; j < urls.length; j++) {
-      if (usedUrls.has(j)) continue;
-      const dist = Math.abs(urls[j].idx - nameEntry.idx);
-      if (dist < minDist) {
-        minDist = dist;
-        closestUrl = urls[j].val;
-        closestIdx = j;
-      }
-    }
-
-    if (!closestUrl || minDist > 2000) continue;
-
-    seen.add(name);
-    usedUrls.add(closestIdx);
-
-    let source = 'lacancha-proxy';
-    for (const s of sources) {
-      if (Math.abs(s.idx - nameEntry.idx) < 500) {
-        source = s.val;
-        break;
-      }
-    }
-
-    streams.push({
-      id: `match-${streams.length}`,
-      match_id: matchId,
-      channel_id: null,
-      embed_name: name,
-      embed_url: closestUrl,
-      source: source,
-      stream_param: null,
-      created_at: new Date().toISOString()
-    });
-  }
-
-  // Strategy 2: Known channel URLs (DSports, DSports+ that we confirmed manually)
-  const channelUrlMap = {
-    'DSports': 'https://sudamericaplay2.com/canal_8112/cza_dsports.html',
-    'DSports+': 'https://latamplay1.click/channel/dsportsplus.html',
-  };
-
-  const channelRegex = /<span class="chlabel"><span>([^<]+)<\/span><\/span>/g;
-  while ((m = channelRegex.exec(html)) !== null) {
-    const name = m[1];
-    if (!seen.has(name) && channelUrlMap[name]) {
-      seen.add(name);
-      streams.push({
-        id: `match-${streams.length}`,
-        match_id: matchId,
-        channel_id: null,
-        embed_name: name,
-        embed_url: channelUrlMap[name],
-        source: 'lacancha-proxy',
-        stream_param: null,
-        created_at: new Date().toISOString()
-      });
-    }
-  }
-
-  return streams.slice(0, 30);
-}
-
-/**
- * Fetch JSON desde Supabase REST API usando https.
- */
 function fetchSupabase(targetUrl) {
   return new Promise((resolve, reject) => {
     const parsedUrl = new URL(targetUrl);
@@ -209,121 +75,24 @@ function fetchSupabase(targetUrl) {
       let data = '';
       res.on('data', chunk => data += chunk);
       res.on('end', () => {
-        try {
-          resolve(JSON.parse(data));
-        } catch (e) {
-          reject(new Error('Invalid JSON from Supabase'));
-        }
+        try { resolve(JSON.parse(data)); }
+        catch (e) { reject(new Error('Invalid JSON from Supabase')); }
       });
     }).on('error', reject);
   });
 }
 
-function fetchLiveData(matchId) {
+function fetchJson(targetUrl, headers = {}) {
   return new Promise((resolve, reject) => {
-    const reqUrl = `https://lacancha.tv/api/match/${matchId}/live`;
-    https.get(reqUrl, {
-      headers: {
-        'Accept': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36',
-        'Referer': `https://lacancha.tv/es/partido/${matchId}`,
-      }
-    }, (res) => {
-      let data = '';
-      res.on('data', chunk => data += chunk);
-      res.on('end', () => {
-        try {
-          resolve(JSON.parse(data));
-        } catch (e) {
-          reject(new Error('Invalid JSON response'));
-        }
+    https.get(targetUrl, { headers: { 'Accept': 'application/json', ...headers } }, (resp) => {
+      let body = '';
+      resp.on('data', chunk => body += chunk);
+      resp.on('end', () => {
+        try { resolve(JSON.parse(body)); }
+        catch (e) { reject(new Error('Invalid JSON')); }
       });
     }).on('error', reject);
   });
-}
-
-function parseStreams(rscText, matchId) {
-  try {
-    const streams = [];
-    const seen = new Set();
-
-    const embedRegex = /"embed_url":"(https?:\/\/[^"]+)"/g;
-    const allEmbeds = [];
-    let m;
-    while ((m = embedRegex.exec(rscText)) !== null) {
-      allEmbeds.push({ url: m[1], index: m.index });
-    }
-
-    const nameRegex = /"embed_name":"([^"]+)"/g;
-    const allNames = [];
-    while ((m = nameRegex.exec(rscText)) !== null) {
-      allNames.push({ name: m[1], index: m.index });
-    }
-
-    // Try to filter streams by matchId proximity in the RSC text
-    const blockSize = 2000;
-    const matchIdFiltered = [];
-    for (let i = 0; i < allEmbeds.length; i++) {
-      const embed = allEmbeds[i];
-      const start = Math.max(0, embed.index - blockSize);
-      const end = Math.min(rscText.length, embed.index + blockSize);
-      const context = rscText.substring(start, end);
-
-      if (context.includes(matchId)) {
-        let closestName = null;
-        let minDist = Infinity;
-        for (const n of allNames) {
-          const dist = Math.abs(n.index - embed.index);
-          if (dist < minDist) {
-            minDist = dist;
-            closestName = n.name;
-          }
-        }
-        if (closestName && !seen.has(closestName)) {
-          seen.add(closestName);
-          matchIdFiltered.push({
-            id: `proxy-${matchIdFiltered.length}`,
-            match_id: matchId,
-            channel_id: null,
-            embed_name: closestName,
-            embed_url: embed.url,
-            source: 'lacancha-proxy',
-            stream_param: null,
-            created_at: new Date().toISOString()
-          });
-        }
-      }
-    }
-
-    if (matchIdFiltered.length > 0) {
-      console.log(`[parseStreams] Found ${matchIdFiltered.length} match-specific streams for ${matchId}`);
-      return matchIdFiltered.slice(0, 20);
-    }
-
-    // Fallback: return all streams (old behavior for when matchId isn't in RSC)
-    console.log(`[parseStreams] No match-specific streams found, returning all ${allNames.length} streams`);
-    for (let i = 0; i < Math.min(allNames.length, allEmbeds.length); i++) {
-      const name = allNames[i].name;
-      if (!seen.has(name)) {
-        seen.add(name);
-        streams.push({
-          id: `proxy-${i}`,
-          match_id: matchId,
-          channel_id: null,
-          embed_name: name,
-          embed_url: allEmbeds[i].url,
-          source: 'lacancha-proxy',
-          stream_param: null,
-          created_at: new Date().toISOString()
-        });
-      }
-    }
-
-    return streams.slice(0, 20);
-  } catch (err) {
-    console.error('Error parsing RSC:', err.message);
-    return [];
-  }
 }
 
 // --- ESPN Transform ---
@@ -405,207 +174,139 @@ function transformEspnEvent(event) {
   };
 }
 
+// --- Streams (sin lacancha.tv) ---
+function buildStreams(matchId) {
+  const streams = [];
+
+  // Source 1: futbol-libres.su — canales verificados
+  const futbolLibreChannels = [
+    { name: 'ESPN', slug: 'espn-1', priority: 1 },
+    { name: 'ESPN Premium', slug: 'espn-premium', priority: 1 },
+    { name: 'DSports', slug: 'directv-sports', priority: 1 },
+    { name: 'Fox Sports', slug: 'fox-sports', priority: 1 },
+    { name: 'TUDN', slug: 'tudn', priority: 1 },
+    { name: 'TNT Sports', slug: 'tnt-sports', priority: 2 },
+    { name: 'TyC Sports', slug: 'tyc-sports', priority: 2 },
+    { name: 'Telemundo', slug: 'telemundo', priority: 2 },
+  ];
+
+  for (const ch of futbolLibreChannels) {
+    streams.push({
+      id: `fl-${streams.length}`,
+      match_id: matchId,
+      channel_id: null,
+      embed_name: ch.name,
+      embed_url: `https://futbol-libres.su/${ch.slug}/`,
+      source: 'futbol-libre',
+      stream_param: null,
+      priority: ch.priority,
+      created_at: new Date().toISOString(),
+    });
+  }
+
+  // Source 2: librepelota.su (Pelota Libre TV) — mismos canales, otro dominio
+  const pelotaLibreChannels = [
+    { name: 'ESPN (PL)', slug: 'espn-1', priority: 2 },
+    { name: 'ESPN Premium (PL)', slug: 'espn-premium', priority: 2 },
+    { name: 'DSports (PL)', slug: 'directv-sports', priority: 2 },
+    { name: 'Fox Sports (PL)', slug: 'fox-sports', priority: 2 },
+    { name: 'TUDN (PL)', slug: 'tudn', priority: 2 },
+    { name: 'TNT Sports (PL)', slug: 'tnt-sports', priority: 3 },
+    { name: 'TyC Sports (PL)', slug: 'tyc-sports', priority: 3 },
+    { name: 'Win Sports+ (PL)', slug: 'win-sports-premium', priority: 3 },
+  ];
+
+  for (const ch of pelotaLibreChannels) {
+    streams.push({
+      id: `pl-${streams.length}`,
+      match_id: matchId,
+      channel_id: null,
+      embed_name: ch.name,
+      embed_url: `https://librepelota.su/es/${ch.slug}/`,
+      source: 'pelota-libre',
+      stream_param: null,
+      priority: ch.priority,
+      created_at: new Date().toISOString(),
+    });
+  }
+
+  // Source 3: Replay+ (replayplusapp.com) — DSports, DSports+, DSports 2
+  streams.push({
+    id: `rp-${streams.length}`,
+    match_id: matchId,
+    channel_id: null,
+    embed_name: 'Replay+ (DSports/DSports+)',
+    embed_url: 'https://www.replayplusapp.com/en-vivo',
+    source: 'replay-plus',
+    stream_param: null,
+    priority: 1,
+    created_at: new Date().toISOString(),
+  });
+
+  streams.sort((a, b) => a.priority - b.priority);
+  return streams;
+}
+
+// --- Bracket ---
+const EVENT_ID_TO_MATCH_NUM = {
+  '760486': 73, '760489': 74, '760488': 75, '760487': 76,
+  '760492': 77, '760490': 78, '760491': 79, '760495': 80,
+  '760494': 81, '760493': 82, '760496': 83, '760497': 84,
+  '760498': 85, '760500': 86, '760501': 87, '760499': 88,
+  '760503': 89, '760502': 90, '760504': 91, '760505': 92,
+  '760506': 93, '760507': 94, '760509': 95, '760508': 96,
+  '760510': 97, '760511': 98, '760512': 99, '760513': 100,
+  '760514': 101, '760515': 102, '760516': 103, '760517': 104,
+};
+
+function transformBracketEvent(event) {
+  const comp = event.competitions?.[0];
+  if (!comp) return null;
+  const st = comp.status?.type;
+  const competitors = comp.competitors || [];
+  const homeC = competitors.find(c => c.homeAway === 'home');
+  const awayC = competitors.find(c => c.homeAway === 'away');
+  let winner = null;
+  if (st?.completed) {
+    if (homeC?.winner) winner = 'home';
+    else if (awayC?.winner) winner = 'away';
+  }
+  const matchNum = EVENT_ID_TO_MATCH_NUM[event.id] || null;
+  return {
+    id: event.id, matchNum, round: comp.altGameNote || '',
+    date: event.date, status: st?.name || 'STATUS_SCHEDULED',
+    statusDetail: st?.shortDetail || '',
+    home: homeC ? { name: homeC.team?.displayName || 'TBD', code: homeC.team?.abbreviation || '', logo: homeC.team?.logo || '', score: homeC.score != null ? parseInt(homeC.score, 10) : null } : null,
+    away: awayC ? { name: awayC.team?.displayName || 'TBD', code: awayC.team?.abbreviation || '', logo: awayC.team?.logo || '', score: awayC.score != null ? parseInt(awayC.score, 10) : null } : null,
+    winner,
+  };
+}
+
+// --- Server ---
 const server = http.createServer(async (req, res) => {
-  // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   res.setHeader('Content-Type', 'application/json');
 
-  if (req.method === 'OPTIONS') {
-    res.writeHead(204);
-    res.end();
-    return;
-  }
+  if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
 
   const parsed = url.parse(req.url, true);
 
   if (parsed.pathname === '/api/streams') {
     const matchId = parsed.query.matchId;
+    if (!matchId) { res.writeHead(400); res.end(JSON.stringify({ error: 'matchId parameter required' })); return; }
 
-    if (!matchId) {
-      res.writeHead(400);
-      res.end(JSON.stringify({ error: 'matchId parameter required' }));
-      return;
-    }
+    console.log(`[${new Date().toISOString()}] Building streams for: ${matchId}`);
+    const streams = buildStreams(matchId);
+    res.writeHead(200);
+    res.end(JSON.stringify({ streams, matchId, count: streams.length }));
 
-    try {
-      console.log(`[${new Date().toISOString()}] Fetching streams for match: ${matchId}`);
-
-      let streams = [];
-
-      // Strategy 1: Fetch match page HTML and extract channels (DSports, DSports+ from sudamericaplay2)
-      try {
-        const html = await fetchMatchPageHTML(matchId);
-        console.log(`[${new Date().toISOString()}] Got match page HTML (${html.length} bytes)`);
-        streams = parseMatchPageStreams(html, matchId);
-        console.log(`[${new Date().toISOString()}] Got ${streams.length} streams from match page`);
-      } catch (e) {
-        console.log(`[${new Date().toISOString()}] Match page HTML failed: ${e.message}`);
-      }
-
-      // Strategy 2: Also fetch en-vivo RSC for additional channels (FOX, DAZN, Telemundo, etc.)
-      try {
-        console.log(`[${new Date().toISOString()}] Fetching en-vivo RSC for additional channels`);
-        const rscText = await fetchRSC();
-        const rscStreams = parseStreams(rscText, matchId);
-        console.log(`[${new Date().toISOString()}] Got ${rscStreams.length} streams from en-vivo RSC`);
-
-        // Merge: add RSC streams that aren't already in the match page streams
-        const existingNames = new Set(streams.map(s => s.embed_name));
-        for (const rscStream of rscStreams) {
-          if (!existingNames.has(rscStream.embed_name)) {
-            rscStream.id = `rsc-${streams.length}`;
-            streams.push(rscStream);
-            existingNames.add(rscStream.embed_name);
-          }
-        }
-      } catch (e) {
-        console.log(`[${new Date().toISOString()}] en-vivo RSC failed: ${e.message}`);
-      }
-
-      // Strategy 3: Add known channels from futbol-libres.su
-      // Se embebe la página del canal directamente — el player HLS requiere referer de futbol-libres.su
-      const futbolLibreChannels = [
-        { name: 'ESPN', slug: 'espn-1' },
-        { name: 'ESPN Premium', slug: 'espn-premium' },
-        { name: 'DSports', slug: 'directv-sports' },
-        { name: 'Fox Sports', slug: 'fox-sports' },
-        { name: 'TUDN', slug: 'tudn' },
-        { name: 'TNT Sports', slug: 'tnt-sports' },
-        { name: 'TyC Sports', slug: 'tyc-sports' },
-      ];
-
-      const existingNamesAll = new Set(streams.map(s => s.embed_name.toLowerCase()));
-      for (const ch of futbolLibreChannels) {
-        if (!existingNamesAll.has(ch.name.toLowerCase())) {
-          streams.push({
-            id: `fl-${streams.length}`,
-            match_id: matchId,
-            channel_id: null,
-            embed_name: `${ch.name} (FL)`,
-            embed_url: `https://futbol-libres.su/${ch.slug}/`,
-            source: 'futbol-libre',
-            stream_param: null,
-            created_at: new Date().toISOString()
-          });
-        }
-      }
-
-      // Strategy 4: ustream.to — canales en vivo 24/7 con embed directo
-      // Solo se agregan como fallback si las strategies 1-3 no encontraron suficientes streams
-      if (streams.length < 5) {
-        const ustreamChannels = [
-          { name: 'TUDN', slug: 'univision-deportes' },
-          { name: 'Fox Sports 1', slug: 'fox-sports-1-b' },
-          { name: 'Fox Sports 2', slug: 'fox-sports-2' },
-          { name: 'beIN Sports', slug: 'bein-sports-usa' },
-          { name: 'Telemundo', slug: 'telemundo' },
-          { name: 'ESPN (US)', slug: 'espn' },
-        ];
-
-        const existingNamesUstream = new Set(streams.map(s => s.embed_name.toLowerCase()));
-        for (const ch of ustreamChannels) {
-          if (!existingNamesUstream.has(ch.name.toLowerCase())) {
-            streams.push({
-              id: `us-${streams.length}`,
-              match_id: matchId,
-              channel_id: null,
-              embed_name: ch.name,
-              embed_url: `https://www.ustream.to/embed?id=${ch.slug}&remove_watermark=true`,
-              source: 'ustream',
-              stream_param: null,
-              created_at: new Date().toISOString()
-            });
-          }
-        }
-      }
-
-      // Limit to 35 streams max
-      streams = streams.slice(0, 35);
-
-      console.log(`[${new Date().toISOString()}] Total streams: ${streams.length}`);
-      res.writeHead(200);
-      res.end(JSON.stringify({ streams, matchId, count: streams.length }));
-    } catch (err) {
-      console.error('Proxy error:', err);
-      res.writeHead(500);
-      res.end(JSON.stringify({ error: 'Failed to fetch streams', detail: err.message }));
-    }
-  } else if (parsed.pathname === '/api/embed') {
-    const embedUrl = parsed.query.url;
-
-    if (!embedUrl) {
-      res.writeHead(400);
-      res.end(JSON.stringify({ error: 'url parameter required' }));
-      return;
-    }
-
-    try {
-      // Fetch the embed page and rewrite URLs to proxy through localhost
-      const embedContent = await new Promise((resolve, reject) => {
-        https.get(embedUrl, {
-          headers: {
-            'Accept': 'text/html',
-            'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36',
-            'Referer': 'https://lacancha.tv/',
-          }
-        }, (response) => {
-          let data = '';
-          response.on('data', chunk => data += chunk);
-          response.on('end', () => resolve(data));
-        }).on('error', reject);
-      });
-
-      // Inject a <base> tag so relative URLs resolve to the embed origin
-      const embedOrigin = new URL(embedUrl).origin;
-      const modifiedContent = embedContent.replace(
-        '<head>',
-        `<head><base href="${embedOrigin}/">`
-      );
-
-      res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      res.setHeader('Access-Control-Allow-Origin', '*');
-      res.writeHead(200);
-      res.end(modifiedContent);
-    } catch (err) {
-      res.writeHead(500);
-      res.end(JSON.stringify({ error: 'Failed to fetch embed', detail: err.message }));
-    }
-  } else if (parsed.pathname === '/api/live') {
-    const matchId = parsed.query.matchId;
-
-    if (!matchId) {
-      res.writeHead(400);
-      res.end(JSON.stringify({ error: 'matchId parameter required' }));
-      return;
-    }
-
-    try {
-      console.log(`[${new Date().toISOString()}] Fetching live data for match: ${matchId}`);
-      const liveData = await fetchLiveData(matchId);
-      res.writeHead(200);
-      res.end(JSON.stringify(liveData));
-    } catch (err) {
-      console.error('Live data error:', err);
-      res.writeHead(500);
-      res.end(JSON.stringify({ error: 'Failed to fetch live data', detail: err.message }));
-    }
   } else if (parsed.pathname === '/api/standings') {
     try {
       console.log(`[${new Date().toISOString()}] Fetching standings from ESPN`);
       const espnUrl = `${process.env.ESPN_API_BASE}/apis/v2/sports/soccer/fifa.world/standings`;
-      const espnRes = await new Promise((resolve, reject) => {
-        https.get(espnUrl, {
-          headers: { 'Accept': 'application/json' }
-        }, (response) => {
-          let data = '';
-          response.on('data', chunk => data += chunk);
-          response.on('end', () => {
-            try { resolve(JSON.parse(data)); } catch (e) { reject(e); }
-          });
-        }).on('error', reject);
-      });
+      const espnRes = await fetchJson(espnUrl);
 
       const standings = [];
       for (const group of espnRes.children || []) {
@@ -636,111 +337,34 @@ const server = http.createServer(async (req, res) => {
         }
       }
       standings.sort((a, b) => a.group_name.localeCompare(b.group_name) || a.rank - b.rank);
-      console.log(`[${new Date().toISOString()}] Got ${standings.length} standings from ESPN`);
+      console.log(`[${new Date().toISOString()}] Got ${standings.length} standings`);
       res.writeHead(200);
       res.end(JSON.stringify(standings));
     } catch (err) {
-      console.error('Standings ESPN error:', err);
       res.writeHead(500);
       res.end(JSON.stringify({ error: `Failed to fetch standings: ${err.message}` }));
     }
-  } else if (parsed.pathname === '/api/scorers') {
-    try {
-      console.log(`[${new Date().toISOString()}] Fetching scorers from Supabase`);
-      const supabaseUrl = `${SUPABASE_URL}/top_scorers?order=goals.desc,assists.desc`;
-      const data = await fetchSupabase(supabaseUrl);
-      if (!Array.isArray(data) || data.length === 0) {
-        console.log(`[${new Date().toISOString()}] No scorers from Supabase, returning sample data`);
-        res.writeHead(200);
-        res.end(JSON.stringify(SAMPLE_SCORERS));
-      } else {
-        console.log(`[${new Date().toISOString()}] Got ${data.length} scorers entries`);
-        res.writeHead(200);
-        res.end(JSON.stringify(data));
-      }
-    } catch (err) {
-      console.log(`[${new Date().toISOString()}] Scorers fetch failed, returning sample data`);
-      res.writeHead(200);
-      res.end(JSON.stringify(SAMPLE_SCORERS));
-    }
+
   } else if (parsed.pathname === '/api/bracket') {
-    // Bracket knockout desde ESPN
     const ESPN_API_BASE = process.env.ESPN_API_BASE || 'https://site.api.espn.com';
     const ESPN_SCOREBOARD = `${ESPN_API_BASE}/apis/site/v2/sports/soccer/fifa.world/scoreboard`;
-
     const ROUNDS = [
-      { value: '2', label: 'Round of 32' },
-      { value: '3', label: 'Round of 16' },
-      { value: '4', label: 'Quarterfinals' },
-      { value: '5', label: 'Semifinals' },
-      { value: '6', label: '3rd-Place Match' },
-      { value: '7', label: 'Final' },
+      { value: '2' }, { value: '3' }, { value: '4' },
+      { value: '5' }, { value: '6' }, { value: '7' },
     ];
-
-    const EVENT_ID_TO_MATCH_NUM = {
-      '760486': 73, '760489': 74, '760488': 75, '760487': 76,
-      '760492': 77, '760490': 78, '760491': 79, '760495': 80,
-      '760494': 81, '760493': 82, '760496': 83, '760497': 84,
-      '760498': 85, '760500': 86, '760501': 87, '760499': 88,
-      '760503': 89, '760502': 90, '760504': 91, '760505': 92,
-      '760506': 93, '760507': 94, '760509': 95, '760508': 96,
-      '760510': 97, '760511': 98, '760512': 99, '760513': 100,
-      '760514': 101, '760515': 102,
-      '760516': 103,
-      '760517': 104,
-    };
-
-    function transformBracketEvent(event) {
-      const comp = event.competitions?.[0];
-      if (!comp) return null;
-      const st = comp.status?.type;
-      const competitors = comp.competitors || [];
-      const homeC = competitors.find(c => c.homeAway === 'home');
-      const awayC = competitors.find(c => c.homeAway === 'away');
-      let winner = null;
-      if (st?.completed) {
-        if (homeC?.winner) winner = 'home';
-        else if (awayC?.winner) winner = 'away';
-      }
-      const matchNum = EVENT_ID_TO_MATCH_NUM[event.id] || null;
-      return {
-        id: event.id, matchNum, round: comp.altGameNote || '',
-        date: event.date, status: st?.name || 'STATUS_SCHEDULED',
-        statusDetail: st?.shortDetail || '',
-        home: homeC ? { name: homeC.team?.displayName || 'TBD', code: homeC.team?.abbreviation || '', logo: homeC.team?.logo || '', score: homeC.score != null ? parseInt(homeC.score, 10) : null } : null,
-        away: awayC ? { name: awayC.team?.displayName || 'TBD', code: awayC.team?.abbreviation || '', logo: awayC.team?.logo || '', score: awayC.score != null ? parseInt(awayC.score, 10) : null } : null,
-        winner,
-      };
-    }
 
     try {
       console.log(`[${new Date().toISOString()}] Fetching bracket from ESPN`);
       const fetches = ROUNDS.map(round => {
         const targetUrl = `${ESPN_SCOREBOARD}?dates=20260628-20260720&seasontype=${round.value}`;
-        return new Promise((resolve, reject) => {
-          https.get(targetUrl, { headers: { 'Accept': 'application/json' } }, (resp) => {
-            let body = '';
-            resp.on('data', chunk => body += chunk);
-            resp.on('end', () => {
-              try { const d = JSON.parse(body); resolve((d.events || []).map(transformBracketEvent).filter(Boolean)); }
-              catch (e) { resolve([]); }
-            });
-          }).on('error', () => resolve([]));
-        });
+        return fetchJson(targetUrl).then(d => (d.events || []).map(transformBracketEvent).filter(Boolean)).catch(() => []);
       });
 
       const results = await Promise.all(fetches);
       let matches = results.flat();
 
       if (matches.length === 0) {
-        const fallbackUrl = `${ESPN_SCOREBOARD}?dates=20260628-20260720`;
-        const fallbackData = await new Promise((resolve, reject) => {
-          https.get(fallbackUrl, { headers: { 'Accept': 'application/json' } }, (resp) => {
-            let body = '';
-            resp.on('data', chunk => body += chunk);
-            resp.on('end', () => { try { resolve(JSON.parse(body)); } catch (e) { resolve({ events: [] }); } });
-          }).on('error', () => resolve({ events: [] }));
-        });
+        const fallbackData = await fetchJson(`${ESPN_SCOREBOARD}?dates=20260628-20260720`).catch(() => ({ events: [] }));
         matches = (fallbackData.events || []).map(transformBracketEvent).filter(Boolean);
       }
 
@@ -748,63 +372,93 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200);
       res.end(JSON.stringify({ matches }));
     } catch (err) {
-      console.error('Bracket error:', err);
       res.writeHead(500);
       res.end(JSON.stringify({ error: `Failed to fetch bracket: ${err.message}` }));
     }
+
+  } else if (parsed.pathname === '/api/scorers') {
+    try {
+      console.log(`[${new Date().toISOString()}] Fetching scorers`);
+      const supabaseUrl = `${SUPABASE_URL}/top_scorers?order=goals.desc,assists.desc`;
+      const data = await fetchSupabase(supabaseUrl);
+      if (!Array.isArray(data) || data.length === 0) {
+        res.writeHead(200);
+        res.end(JSON.stringify(SAMPLE_SCORERS));
+      } else {
+        res.writeHead(200);
+        res.end(JSON.stringify(data));
+      }
+    } catch (err) {
+      res.writeHead(200);
+      res.end(JSON.stringify(SAMPLE_SCORERS));
+    }
+
+  } else if (parsed.pathname === '/api/lineups') {
+    const matchId = parsed.query.matchId;
+    if (!matchId) { res.writeHead(400); res.end(JSON.stringify({ error: 'matchId required' })); return; }
+
+    const ESPN_API_BASE = process.env.ESPN_API_BASE || 'https://site.api.espn.com';
+    const summaryUrl = `${ESPN_API_BASE}/apis/site/v2/sports/soccer/fifa.world/summary?event=${matchId}`;
+
+    try {
+      const data = await fetchJson(summaryUrl);
+      const rosters = data.rosters || [];
+      const lineups = rosters.map(roster => ({
+        team: roster.team?.displayName || '',
+        team_flag: roster.team?.logo || '',
+        side: roster.homeAway || '',
+        formation: roster.formation || '',
+        players: (roster.roster || []).map(p => ({
+          name: p.athlete?.displayName || '',
+          number: p.jersey || '',
+          position: p.position?.abbreviation || '',
+          starter: p.starter || false,
+        })),
+      }));
+      res.writeHead(200);
+      res.end(JSON.stringify(lineups));
+    } catch (err) {
+      res.writeHead(200);
+      res.end(JSON.stringify([]));
+    }
+
   } else if (parsed.pathname === '/api/v1') {
-    // Proxy a ESPN API (reemplaza Supabase)
     const { status, id, dates } = parsed.query;
     const ESPN_API_BASE = process.env.ESPN_API_BASE || 'https://site.api.espn.com';
     const ESPN_SCOREBOARD = `${ESPN_API_BASE}/apis/site/v2/sports/soccer/fifa.world/scoreboard`;
 
     try {
       const params = new URLSearchParams();
-      if (dates) {
-        params.set('dates', dates);
-      } else if (status === 'scheduled' || status === 'finished' || !status) {
-        params.set('dates', '20260611-20260720');
-      }
+      if (dates) params.set('dates', dates);
+      else if (status === 'scheduled' || status === 'finished' || !status) params.set('dates', '20260611-20260720');
 
       const targetUrl = params.toString() ? `${ESPN_SCOREBOARD}?${params.toString()}` : ESPN_SCOREBOARD;
-      console.log(`[${new Date().toISOString()}] Proxy ESPN: status=${status || 'all'}, id=${id || 'none'}`);
+      console.log(`[${new Date().toISOString()}] ESPN: status=${status || 'all'}, id=${id || 'none'}`);
 
-      const espnData = await new Promise((resolve, reject) => {
-        https.get(targetUrl, {
-          headers: { 'User-Agent': 'NexaTV/1.0', 'Accept': 'application/json' }
-        }, (resp) => {
-          let body = '';
-          resp.on('data', chunk => body += chunk);
-          resp.on('end', () => {
-            try { resolve(JSON.parse(body)); }
-            catch (e) { reject(new Error('Invalid JSON from ESPN')); }
-          });
-        }).on('error', reject);
-      });
-
-      const allEvents = espnData.events || [];
-      let matches = allEvents.map(transformEspnEvent).filter(Boolean);
+      const espnData = await fetchJson(targetUrl, { 'User-Agent': 'NexaTV/1.0' });
+      let matches = (espnData.events || []).map(transformEspnEvent).filter(Boolean);
 
       if (status) matches = matches.filter(m => m.status === status);
       if (id) matches = matches.filter(m => m.id === id);
 
-      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.writeHead(200);
       res.end(JSON.stringify(matches));
     } catch (err) {
       res.writeHead(500);
       res.end(JSON.stringify({ error: `Failed to fetch from ESPN: ${err.message}` }));
     }
+
   } else {
     res.writeHead(404);
-    res.end(JSON.stringify({ error: 'Not found. Use /api/streams?matchId={id}, /api/live?matchId={id}, /api/standings, /api/scorers, or /api/v1?status={status}' }));
+    res.end(JSON.stringify({ error: 'Not found. Use /api/streams?matchId={id}, /api/standings, /api/bracket, /api/scorers, or /api/v1?status={status}' }));
   }
 });
 
 server.listen(PORT, () => {
-  console.log(`🎬 Streams proxy running on http://localhost:${PORT}`);
-  console.log(`   Usage: GET /api/streams?matchId={match-uuid}`);
-  console.log(`          GET /api/standings`);
-  console.log(`          GET /api/bracket`);
-  console.log(`          GET /api/scorers`);
-  console.log(`          GET /api/v1?status={live|scheduled|finished}`);
+  console.log(`🎬 NexaTV proxy running on http://localhost:${PORT}`);
+  console.log(`   GET /api/streams?matchId={id}`);
+  console.log(`   GET /api/standings`);
+  console.log(`   GET /api/bracket`);
+  console.log(`   GET /api/scorers`);
+  console.log(`   GET /api/v1?status={live|scheduled|finished}`);
 });

@@ -1,8 +1,8 @@
 import { Injectable, inject, signal } from '@angular/core';
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { ENVIRONMENT_TOKEN } from '../config/environment';
 import { MatchStream } from '../models/stream-model';
-import { Observable, map, catchError, of, timeout } from 'rxjs';
+import { Observable, catchError, of, timeout } from 'rxjs';
 
 @Injectable({ providedIn: 'root' })
 export class StreamService {
@@ -23,30 +23,6 @@ export class StreamService {
     this._loading.set(true);
     this._error.set(null);
 
-    // Primero intentar match_streams via proxy
-    const params = new HttpParams()
-      .set('table', 'match_streams')
-      .set('match_id', `eq.${matchId}`)
-      .set('select', '*');
-
-    this.http.get<MatchStream[]>(this.env.apiBase, { params }).pipe(
-      timeout(15000),
-      catchError(() => of([]))
-    ).subscribe(streams => {
-      if (streams.length > 0) {
-        this._streams.set(streams);
-        this._activeStream.set(streams[0]);
-        this._loading.set(false);
-      } else {
-        this.fetchFromLaCancha(matchId);
-      }
-    });
-  }
-
-  /**
-   * Obtiene streams de lacancha.tv via el proxy (local o Vercel serverless).
-   */
-  private fetchFromLaCancha(matchId: string): void {
     const proxyUrl = this.env.production
       ? '/api/streams'
       : 'http://localhost:3001/api/streams';

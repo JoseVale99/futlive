@@ -9,12 +9,12 @@
     "secure": false,
     "changeOrigin": true
   },
-  "/api/v1": {
+  "/api/lineups": {
     "target": "http://localhost:3001",
     "secure": false,
     "changeOrigin": true
   },
-  "/api/embed": {
+  "/api/v1": {
     "target": "http://localhost:3001",
     "secure": false,
     "changeOrigin": true

@@ -2,7 +2,7 @@ import { Component, computed, input, signal } from '@angular/core';
 import { MatchLineup, LineupPlayer } from '../../../core/models/live-data-model';
 import { filterStarters, filterSubstitutes, sortByPosition, translatePosition } from '../../../shared/utils/player-util';
 
-type LineupTab = 'cancha' | 'suplentes';
+type LineupTab = 'cancha' | 'titulares' | 'suplentes';
 
 interface PositionRow {
   players: LineupPlayer[];
@@ -13,7 +13,7 @@ interface PositionRow {
   standalone: true,
   template: `
     @if (lineups().length > 0) {
-      <!-- Sub-tabs: Cancha / Suplentes -->
+      <!-- Sub-tabs -->
       <div class="flex gap-1 mb-4 border-b border-gray-200 dark:border-gray-700">
         <button
           (click)="activeTab.set('cancha')"
@@ -22,6 +22,14 @@ interface PositionRow {
             : 'px-4 py-2 text-xs font-medium text-gray-500 dark:text-gray-400 border-b-2 border-transparent hover:text-gray-700'"
         >
           Cancha
+        </button>
+        <button
+          (click)="activeTab.set('titulares')"
+          [class]="activeTab() === 'titulares'
+            ? 'px-4 py-2 text-xs font-bold text-blue-600 dark:text-blue-400 border-b-2 border-blue-500'
+            : 'px-4 py-2 text-xs font-medium text-gray-500 dark:text-gray-400 border-b-2 border-transparent hover:text-gray-700'"
+        >
+          Titulares
         </button>
         <button
           (click)="activeTab.set('suplentes')"
@@ -34,7 +42,7 @@ interface PositionRow {
       </div>
 
       @if (activeTab() === 'cancha') {
-        <!-- Vista de cancha con suplentes a los lados -->
+        <!-- Formaciones header -->
         <div class="grid grid-cols-2 gap-2 mb-3">
           @for (lineup of lineups(); track lineup.team) {
             <div class="flex flex-col items-center">
@@ -48,153 +56,94 @@ interface PositionRow {
           }
         </div>
 
-        <!-- Mobile: solo cancha centrada -->
-        <div class="block md:hidden">
-          <div class="mx-auto w-full max-w-xs">
-            <div class="relative w-full rounded-lg overflow-hidden" style="aspect-ratio: 3/4; background: linear-gradient(180deg, #1a6b35 0%, #1f7a3e 10%, #1a6b35 10%, #1a6b35 20%, #1f7a3e 20%, #1f7a3e 30%, #1a6b35 30%, #1a6b35 40%, #1f7a3e 40%, #1f7a3e 50%, #1a6b35 50%, #1a6b35 60%, #1f7a3e 60%, #1f7a3e 70%, #1a6b35 70%, #1a6b35 80%, #1f7a3e 80%, #1f7a3e 90%, #1a6b35 90%);">
-              <div class="absolute inset-1 border border-white/40 rounded-sm"></div>
-              <div class="absolute left-1 right-1 top-1/2 h-px bg-white/40"></div>
-              <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 border border-white/40 rounded-full"></div>
-              <div class="absolute top-1 left-1/2 -translate-x-1/2 w-[50%] h-[12%] border border-white/30 border-t-0"></div>
-              <div class="absolute top-1 left-1/2 -translate-x-1/2 w-[22%] h-[5%] border border-white/30 border-t-0"></div>
-              <div class="absolute bottom-1 left-1/2 -translate-x-1/2 w-[50%] h-[12%] border border-white/30 border-b-0"></div>
-              <div class="absolute bottom-1 left-1/2 -translate-x-1/2 w-[22%] h-[5%] border border-white/30 border-b-0"></div>
+        <!-- Cancha centrada -->
+        <div class="mx-auto w-full max-w-lg">
+          <div class="relative w-full rounded-lg overflow-hidden" style="aspect-ratio: 5/6; background: linear-gradient(180deg, #1a6b35 0%, #1f7a3e 10%, #1a6b35 10%, #1a6b35 20%, #1f7a3e 20%, #1f7a3e 30%, #1a6b35 30%, #1a6b35 40%, #1f7a3e 40%, #1f7a3e 50%, #1a6b35 50%, #1a6b35 60%, #1f7a3e 60%, #1f7a3e 70%, #1a6b35 70%, #1a6b35 80%, #1f7a3e 80%, #1f7a3e 90%, #1a6b35 90%);">
+            <div class="absolute inset-1.5 border border-white/40 rounded-sm"></div>
+            <div class="absolute left-1.5 right-1.5 top-1/2 h-px bg-white/40"></div>
+            <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 border border-white/40 rounded-full"></div>
+            <div class="absolute top-1.5 left-1/2 -translate-x-1/2 w-[45%] h-[11%] border border-white/30 border-t-0"></div>
+            <div class="absolute top-1.5 left-1/2 -translate-x-1/2 w-[20%] h-[4.5%] border border-white/30 border-t-0"></div>
+            <div class="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-[45%] h-[11%] border border-white/30 border-b-0"></div>
+            <div class="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-[20%] h-[4.5%] border border-white/30 border-b-0"></div>
 
-              @if (homeRows().length > 0) {
-                <div class="absolute top-[3%] left-0 right-0 bottom-[51%] flex flex-col justify-around px-1">
-                  @for (row of homeRows(); track $index) {
-                    <div class="flex justify-center gap-0.5">
-                      @for (player of row.players; track player.number) {
-                        <div class="flex flex-col items-center w-7">
-                          <div class="rounded-full bg-white/90 flex items-center justify-center text-[7px] font-bold text-gray-800 shadow-sm" style="width:18px;height:18px;">
-                            {{ player.number }}
-                          </div>
-                          <span class="text-[6px] text-white font-medium text-center leading-none truncate w-full drop-shadow-sm mt-px">
-                            {{ shortName(player.name) }}
-                          </span>
+            @if (homeRows().length > 0) {
+              <div class="absolute top-[3%] left-0 right-0 bottom-[51%] flex flex-col justify-around px-4">
+                @for (row of homeRows(); track $index) {
+                  <div class="flex justify-center" [style.gap.px]="getRowGap(row.players.length)">
+                    @for (player of row.players; track player.number) {
+                      <div class="flex flex-col items-center" style="width: 52px;">
+                        <div class="w-6 h-6 rounded-full bg-white/95 flex items-center justify-center text-[9px] font-bold text-gray-800 shadow">
+                          {{ player.number }}
                         </div>
-                      }
-                    </div>
-                  }
-                </div>
-              }
+                        <span class="text-[10px] text-white font-semibold text-center leading-tight truncate w-full drop-shadow mt-0.5">
+                          {{ shortName(player.name) }}
+                        </span>
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
+            }
 
-              @if (awayRows().length > 0) {
-                <div class="absolute top-[51%] left-0 right-0 bottom-[3%] flex flex-col justify-around px-1">
-                  @for (row of awayRows(); track $index) {
-                    <div class="flex justify-center gap-0.5">
-                      @for (player of row.players; track player.number) {
-                        <div class="flex flex-col items-center w-7">
-                          <div class="rounded-full bg-yellow-300/90 flex items-center justify-center text-[7px] font-bold text-gray-800 shadow-sm" style="width:18px;height:18px;">
-                            {{ player.number }}
-                          </div>
-                          <span class="text-[6px] text-white font-medium text-center leading-none truncate w-full drop-shadow-sm mt-px">
-                            {{ shortName(player.name) }}
-                          </span>
+            @if (awayRows().length > 0) {
+              <div class="absolute top-[51%] left-0 right-0 bottom-[3%] flex flex-col justify-around px-4">
+                @for (row of awayRows(); track $index) {
+                  <div class="flex justify-center" [style.gap.px]="getRowGap(row.players.length)">
+                    @for (player of row.players; track player.number) {
+                      <div class="flex flex-col items-center" style="width: 52px;">
+                        <div class="w-6 h-6 rounded-full bg-yellow-300/95 flex items-center justify-center text-[9px] font-bold text-gray-800 shadow">
+                          {{ player.number }}
                         </div>
-                      }
-                    </div>
-                  }
-                </div>
-              }
-            </div>
+                        <span class="text-[10px] text-white font-semibold text-center leading-tight truncate w-full drop-shadow mt-0.5">
+                          {{ shortName(player.name) }}
+                        </span>
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
+            }
           </div>
         </div>
-
-        <!-- Desktop: cancha con suplentes a los lados -->
-        <div class="hidden md:flex gap-3 items-start">
-          <!-- Suplentes Local (izquierda) -->
-          <div class="flex-1 min-w-0">
-            @if (homeSubstitutes().length > 0) {
-              <h5 class="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-2 text-center">Suplentes</h5>
-              <ul class="space-y-0.5">
-                @for (player of homeSubstitutes(); track player.number) {
-                  <li class="flex items-center gap-1.5 text-xs text-gray-700 dark:text-gray-300">
-                    <span class="w-5 h-5 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-[9px] font-bold shrink-0">
-                      {{ player.number }}
-                    </span>
-                    <span class="truncate text-[11px]">{{ player.name }}</span>
-                  </li>
-                }
-              </ul>
-            }
-          </div>
-
-          <!-- Cancha (centro) -->
-          <div class="w-64 shrink-0">
-            <div class="relative w-full rounded-lg overflow-hidden" style="aspect-ratio: 3/4; background: linear-gradient(180deg, #1a6b35 0%, #1f7a3e 10%, #1a6b35 10%, #1a6b35 20%, #1f7a3e 20%, #1f7a3e 30%, #1a6b35 30%, #1a6b35 40%, #1f7a3e 40%, #1f7a3e 50%, #1a6b35 50%, #1a6b35 60%, #1f7a3e 60%, #1f7a3e 70%, #1a6b35 70%, #1a6b35 80%, #1f7a3e 80%, #1f7a3e 90%, #1a6b35 90%);">
-              <div class="absolute inset-1 border border-white/40 rounded-sm"></div>
-              <div class="absolute left-1 right-1 top-1/2 h-px bg-white/40"></div>
-              <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 border border-white/40 rounded-full"></div>
-              <div class="absolute top-1 left-1/2 -translate-x-1/2 w-[50%] h-[12%] border border-white/30 border-t-0"></div>
-              <div class="absolute top-1 left-1/2 -translate-x-1/2 w-[22%] h-[5%] border border-white/30 border-t-0"></div>
-              <div class="absolute bottom-1 left-1/2 -translate-x-1/2 w-[50%] h-[12%] border border-white/30 border-b-0"></div>
-              <div class="absolute bottom-1 left-1/2 -translate-x-1/2 w-[22%] h-[5%] border border-white/30 border-b-0"></div>
-
-              @if (homeRows().length > 0) {
-                <div class="absolute top-[3%] left-0 right-0 bottom-[51%] flex flex-col justify-around px-1">
-                  @for (row of homeRows(); track $index) {
-                    <div class="flex justify-center gap-0.5">
-                      @for (player of row.players; track player.number) {
-                        <div class="flex flex-col items-center w-6">
-                          <div class="rounded-full bg-white/90 flex items-center justify-center text-[7px] font-bold text-gray-800 shadow-sm" style="width:18px;height:18px;">
-                            {{ player.number }}
-                          </div>
-                          <span class="text-[6px] text-white font-medium text-center leading-none truncate w-full drop-shadow-sm mt-px">
-                            {{ shortName(player.name) }}
-                          </span>
-                        </div>
+      } @else if (activeTab() === 'titulares') {
+        <!-- Titulares en lista -->
+        <div class="grid grid-cols-2 gap-6">
+          @for (lineup of startersLineups(); track lineup.team) {
+            <div>
+              <h4 class="text-sm font-bold text-gray-900 dark:text-white mb-3 pb-2 border-b border-gray-200 dark:border-gray-700">
+                {{ lineup.team === 'home' ? 'Local' : 'Visitante' }}
+              </h4>
+              @if (lineup.players.length > 0) {
+                <ul class="space-y-1">
+                  @for (player of lineup.players; track player.number) {
+                    <li class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 py-0.5">
+                      <span class="w-6 h-6 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-[10px] font-bold shrink-0">
+                        {{ player.number }}
+                      </span>
+                      <span class="font-medium truncate flex-1">{{ player.name }}</span>
+                      @if (player.position) {
+                        <span class="text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0"
+                          [class]="getPositionClass(player.position)">
+                          {{ translatePosition(player.position) }}
+                        </span>
                       }
-                    </div>
+                    </li>
                   }
-                </div>
-              }
-
-              @if (awayRows().length > 0) {
-                <div class="absolute top-[51%] left-0 right-0 bottom-[3%] flex flex-col justify-around px-1">
-                  @for (row of awayRows(); track $index) {
-                    <div class="flex justify-center gap-0.5">
-                      @for (player of row.players; track player.number) {
-                        <div class="flex flex-col items-center w-6">
-                          <div class="rounded-full bg-yellow-300/90 flex items-center justify-center text-[7px] font-bold text-gray-800 shadow-sm" style="width:18px;height:18px;">
-                            {{ player.number }}
-                          </div>
-                          <span class="text-[6px] text-white font-medium text-center leading-none truncate w-full drop-shadow-sm mt-px">
-                            {{ shortName(player.name) }}
-                          </span>
-                        </div>
-                      }
-                    </div>
-                  }
-                </div>
+                </ul>
+              } @else {
+                <p class="text-xs text-gray-400 py-4 text-center">No disponible</p>
               }
             </div>
-          </div>
-
-          <!-- Suplentes Visitante (derecha) -->
-          <div class="flex-1 min-w-0">
-            @if (awaySubstitutes().length > 0) {
-              <h5 class="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-2 text-center">Suplentes</h5>
-              <ul class="space-y-0.5">
-                @for (player of awaySubstitutes(); track player.number) {
-                  <li class="flex items-center gap-1.5 text-xs text-gray-700 dark:text-gray-300">
-                    <span class="w-5 h-5 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-[9px] font-bold shrink-0">
-                      {{ player.number }}
-                    </span>
-                    <span class="truncate text-[11px]">{{ player.name }}</span>
-                  </li>
-                }
-              </ul>
-            }
-          </div>
+          }
         </div>
       } @else {
-        <!-- Suplentes -->
+        <!-- Suplentes en lista -->
         <div class="grid grid-cols-2 gap-6">
           @for (lineup of substitutesLineups(); track lineup.team) {
             <div>
               <h4 class="text-sm font-bold text-gray-900 dark:text-white mb-3 pb-2 border-b border-gray-200 dark:border-gray-700">
-                {{ lineup.team_name }}
+                {{ lineup.team === 'home' ? 'Local' : 'Visitante' }}
               </h4>
               @if (lineup.players.length > 0) {
                 <ul class="space-y-1">
@@ -240,20 +189,14 @@ export class AlineacionesTabComponent {
   readonly awayRows = computed(() => {
     const away = this.lineups().find(l => l.team === 'away');
     if (!away) return [];
-    // Away se invierte para que el equipo mire hacia arriba
     return this.buildFormationRows(away).reverse();
   });
 
-  readonly homeSubstitutes = computed(() => {
-    const home = this.lineups().find(l => l.team === 'home');
-    if (!home) return [];
-    return sortByPosition(filterSubstitutes(home.players));
-  });
-
-  readonly awaySubstitutes = computed(() => {
-    const away = this.lineups().find(l => l.team === 'away');
-    if (!away) return [];
-    return sortByPosition(filterSubstitutes(away.players));
+  readonly startersLineups = computed(() => {
+    return this.lineups().map(lineup => ({
+      ...lineup,
+      players: sortByPosition(filterStarters(lineup.players)),
+    }));
   });
 
   readonly substitutesLineups = computed(() => {
@@ -268,8 +211,15 @@ export class AlineacionesTabComponent {
   shortName(fullName: string): string {
     const parts = fullName.split(' ');
     if (parts.length <= 1) return fullName;
-    // Apellido o último nombre
     return parts[parts.length - 1];
+  }
+
+  /** Más jugadores en fila = menos gap para que se distribuyan bien */
+  getRowGap(playerCount: number): number {
+    if (playerCount <= 2) return 24;
+    if (playerCount <= 3) return 16;
+    if (playerCount <= 4) return 10;
+    return 6;
   }
 
   getPositionClass(position: string): string {
@@ -283,49 +233,31 @@ export class AlineacionesTabComponent {
     }
   }
 
-  /**
-   * Convierte la formación (ej: "4-3-3") y los titulares en filas para la cancha.
-   * Cada fila es un grupo de jugadores en esa línea.
-   */
   private buildFormationRows(lineup: MatchLineup): PositionRow[] {
     const starters = filterStarters(lineup.players);
     const formation = lineup.formation;
 
     if (!formation || starters.length === 0) {
-      // Fallback: agrupar por posición
       return this.buildRowsByPosition(starters);
     }
 
-    // Parsear formación: "4-3-3" → [4, 3, 3]
     const lines = formation.split('-').map(n => parseInt(n, 10)).filter(n => !isNaN(n) && n > 0);
     if (lines.length === 0) return this.buildRowsByPosition(starters);
 
-    // Separar portero
     const gk = starters.filter(p => this.isGoalkeeper(p));
     const outfield = starters.filter(p => !this.isGoalkeeper(p));
 
     const rows: PositionRow[] = [];
+    if (gk.length > 0) rows.push({ players: gk });
 
-    // Portero siempre primera fila
-    if (gk.length > 0) {
-      rows.push({ players: gk });
-    }
-
-    // Distribuir jugadores de campo según la formación
     let idx = 0;
     for (const count of lines) {
       const rowPlayers = outfield.slice(idx, idx + count);
-      if (rowPlayers.length > 0) {
-        rows.push({ players: rowPlayers });
-      }
+      if (rowPlayers.length > 0) rows.push({ players: rowPlayers });
       idx += count;
     }
 
-    // Si sobran jugadores (formación no cuadra), agregar al final
-    if (idx < outfield.length) {
-      rows.push({ players: outfield.slice(idx) });
-    }
-
+    if (idx < outfield.length) rows.push({ players: outfield.slice(idx) });
     return rows;
   }
 

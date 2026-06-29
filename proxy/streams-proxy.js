@@ -292,7 +292,7 @@ function fetchLaCanchaMatchPage(matchId) {
 
 function fetchLaCanchaRSC() {
   return new Promise((resolve, reject) => {
-    https.get(`https://lacancha.tv/es/en-vivo?_rsc=Jo6jRgXoLltzsDtw`, {
+    https.get('https://lacancha.tv/es/en-vivo?_rsc=c82pw5EwhOARkkko', {
       headers: {
         'Accept': '*/*',
         'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36',
@@ -305,7 +305,7 @@ function fetchLaCanchaRSC() {
       let data = '';
       res.on('data', chunk => data += chunk);
       res.on('end', () => resolve(data));
-    }).on('error', reject);
+    }).on('error', () => resolve(''));
   });
 }
 

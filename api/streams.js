@@ -7,13 +7,17 @@
  */
 
 const LACANCHA_URL = 'https://lacancha.tv/es/en-vivo';
-const RSC_VALUE = 'c82pw5EwhOARkkko';
 
+/**
+ * Fetch RSC data from lacancha.tv.
+ * El _rsc token cambia con deploys de lacancha.tv.
+ * Si falla, el fallback a futbol-libre cubre.
+ */
 async function fetchRSC() {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 8000);
   try {
-    const res = await fetch(`${LACANCHA_URL}?_rsc=${RSC_VALUE}`, {
+    const res = await fetch(`${LACANCHA_URL}?_rsc=c82pw5EwhOARkkko`, {
       signal: controller.signal,
       headers: {
         'Accept': '*/*',

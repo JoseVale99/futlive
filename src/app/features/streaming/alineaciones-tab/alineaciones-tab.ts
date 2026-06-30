@@ -1,6 +1,6 @@
 import { Component, computed, input, signal } from '@angular/core';
 import { MatchLineup, LineupPlayer } from '../../../core/models/live-data-model';
-import { filterStarters, filterSubstitutes, sortByPosition, translatePosition } from '../../../shared/utils/player-util';
+import { filterStarters, filterSubstitutes, sortByPosition, translatePosition, getPositionCategory, getLateralOrder } from '../../../shared/utils/player-util';
 
 type LineupTab = 'cancha' | 'titulares' | 'suplentes';
 
@@ -244,11 +244,11 @@ export class AlineacionesTabComponent {
     const lines = formation.split('-').map(n => parseInt(n, 10)).filter(n => !isNaN(n) && n > 0);
     if (lines.length === 0) return this.buildRowsByPosition(starters);
 
-    const gk = starters.filter(p => this.isGoalkeeper(p));
-    const def = this.sortLateral(starters.filter(p => this.isDefender(p)));
-    const mid = this.sortLateral(starters.filter(p => this.isMidfielder(p)));
-    const fwd = this.sortLateral(starters.filter(p => this.isForward(p)));
-    const unknown = starters.filter(p => !this.isGoalkeeper(p) && !this.isDefender(p) && !this.isMidfielder(p) && !this.isForward(p));
+    const gk = starters.filter(p => getPositionCategory(p.position) === 0);
+    const def = this.sortLateral(starters.filter(p => getPositionCategory(p.position) === 1));
+    const mid = this.sortLateral(starters.filter(p => getPositionCategory(p.position) === 2));
+    const fwd = this.sortLateral(starters.filter(p => getPositionCategory(p.position) === 3));
+    const unknown = starters.filter(p => getPositionCategory(p.position) === 4);
     const outfield = [...def, ...mid, ...fwd, ...unknown];
 
     const rows: PositionRow[] = [];
@@ -265,36 +265,15 @@ export class AlineacionesTabComponent {
     return rows;
   }
 
-  /**
-   * Ordena jugadores lateralmente: izquierda → centro → derecha.
-   * Basado en el prefijo de posición ESPN (L=izquierda, R=derecha, C/otro=centro).
-   */
   private sortLateral(players: LineupPlayer[]): LineupPlayer[] {
-    return [...players].sort((a, b) => this.getLateralOrder(a.position) - this.getLateralOrder(b.position));
-  }
-
-  private getLateralOrder(position: string): number {
-    const pos = position.toLowerCase().split('-')[0];
-    // Izquierda
-    if (pos === 'lb' || pos === 'lwb' || pos === 'lm' || pos === 'lw' || pos === 'lf') return 0;
-    // Centro-izquierda (no hay abreviatura ESPN específica, pero por si acaso)
-    if (pos === 'lcb' || pos === 'lcm') return 1;
-    // Centro (CB, CM, CDM, CAM, CF, ST, DM, AM, etc.)
-    if (pos === 'cb' || pos === 'cm' || pos === 'cdm' || pos === 'cam' || pos === 'cf' || pos === 'st' ||
-        pos === 'dm' || pos === 'am' || pos === 'cd' || pos === 'sw' || pos === 'f' || pos === 'd' || pos === 'm' ||
-        pos === 'ss') return 2;
-    // Centro-derecha
-    if (pos === 'rcb' || pos === 'rcm') return 3;
-    // Derecha
-    if (pos === 'rb' || pos === 'rwb' || pos === 'rm' || pos === 'rw' || pos === 'rf') return 4;
-    return 2; // default: centro
+    return [...players].sort((a, b) => getLateralOrder(a.position) - getLateralOrder(b.position));
   }
 
   private buildRowsByPosition(starters: LineupPlayer[]): PositionRow[] {
-    const gk = starters.filter(p => this.isGoalkeeper(p));
-    const def = starters.filter(p => this.isDefender(p));
-    const mid = starters.filter(p => this.isMidfielder(p));
-    const fwd = starters.filter(p => this.isForward(p));
+    const gk = starters.filter(p => getPositionCategory(p.position) === 0);
+    const def = this.sortLateral(starters.filter(p => getPositionCategory(p.position) === 1));
+    const mid = this.sortLateral(starters.filter(p => getPositionCategory(p.position) === 2));
+    const fwd = this.sortLateral(starters.filter(p => getPositionCategory(p.position) === 3));
 
     const rows: PositionRow[] = [];
     if (gk.length > 0) rows.push({ players: gk });
@@ -302,28 +281,5 @@ export class AlineacionesTabComponent {
     if (mid.length > 0) rows.push({ players: mid });
     if (fwd.length > 0) rows.push({ players: fwd });
     return rows;
-  }
-
-  private isGoalkeeper(p: LineupPlayer): boolean {
-    const pos = p.position.toLowerCase().split('-')[0];
-    return pos === 'goalkeeper' || pos === 'gk' || pos === 'g' || pos === 'portero';
-  }
-
-  private isDefender(p: LineupPlayer): boolean {
-    const pos = p.position.toLowerCase().split('-')[0];
-    return pos === 'defender' || pos === 'def' || pos === 'd' || pos === 'defensa' ||
-           pos === 'cb' || pos === 'rb' || pos === 'lb' || pos === 'rwb' || pos === 'lwb' || pos === 'sw' || pos === 'cd';
-  }
-
-  private isMidfielder(p: LineupPlayer): boolean {
-    const pos = p.position.toLowerCase().split('-')[0];
-    return pos === 'midfielder' || pos === 'mid' || pos === 'm' || pos === 'medio' || pos === 'centrocampista' ||
-           pos === 'cm' || pos === 'cdm' || pos === 'cam' || pos === 'rm' || pos === 'lm' || pos === 'dm' || pos === 'am';
-  }
-
-  private isForward(p: LineupPlayer): boolean {
-    const pos = p.position.toLowerCase().split('-')[0];
-    return pos === 'forward' || pos === 'fwd' || pos === 'f' || pos === 'delantero' || pos === 'attacker' || pos === 'att' ||
-           pos === 'rw' || pos === 'lw' || pos === 'cf' || pos === 'st' || pos === 'ss' || pos === 'lf' || pos === 'rf';
   }
 }

@@ -33,24 +33,67 @@ export function sortByJerseyNumber(players: LineupPlayer[]): LineupPlayer[] {
   return [...players].sort((a, b) => a.number - b.number);
 }
 
-/** Orden de posiciones: Portero → Defensa → Medio → Delantero */
-const POSITION_ORDER: Record<string, number> = {
-  // Portero
-  goalkeeper: 0, gk: 0, portero: 0, g: 0,
-  // Defensas (centrales y laterales)
-  defender: 1, def: 1, defensa: 1, d: 1,
-  cb: 1, rb: 1, lb: 1, rwb: 1, lwb: 1, sw: 1, cd: 1,
-  // Mediocampistas (centrales, ofensivos, defensivos, laterales)
-  midfielder: 2, mid: 2, medio: 2, m: 2, centrocampista: 2,
-  cm: 2, cdm: 2, cam: 2, rm: 2, lm: 2, dm: 2, am: 2,
-  // Delanteros (extremos, centrodelanteros, mediapunta ofensivo)
-  forward: 3, fwd: 3, delantero: 3, f: 3, attacker: 3, att: 3,
-  rw: 3, lw: 3, cf: 3, st: 3, ss: 3, lf: 3, rf: 3,
-};
+// ─── Clasificación de posiciones ESPN ────────────────────────────────────────
+// ESPN puede devolver abreviaturas como: G, GK, D, CB, RB, LB, RCB, LCB, RWB, LWB,
+// M, CM, CDM, CAM, RM, LM, DM, AM, RCM, LCM, RAM, LAM, RDM, LDM,
+// F, FW, CF, ST, RW, LW, RF, LF, SS, ATT, etc.
+// También con sufijos como "-A", "-D", "-R", "-L" (e.g. "CM-A", "CD-R").
+
+/**
+ * Normaliza la posición: lowercase, quita sufijos con guión.
+ */
+function normalizePosition(position: string): string {
+  return position.toLowerCase().split('-')[0].trim();
+}
+
+/** Categorías: 0=Portero, 1=Defensa, 2=Mediocampista, 3=Delantero */
+export type PositionCategory = 0 | 1 | 2 | 3 | 4;
+
+/**
+ * Determina la categoría posicional de un jugador.
+ * Usa lógica de patrones para cubrir cualquier abreviatura ESPN presente o futura.
+ */
+export function getPositionCategory(position: string): PositionCategory {
+  const pos = normalizePosition(position);
+
+  // Portero: G, GK, goalkeeper, portero
+  if (pos === 'g' || pos === 'gk' || pos === 'goalkeeper' || pos === 'portero') return 0;
+
+  // Defensa: cualquier cosa con B (back) o que sea D/CB/SW/defender/defensa
+  // Patrón: contiene 'b' al final (rb, lb, cb, rwb, lwb, rcb, lcb) o es 'd', 'def', 'sw', 'cd'
+  if (pos === 'd' || pos === 'def' || pos === 'defender' || pos === 'defensa' || pos === 'sw' || pos === 'cd') return 1;
+  if (/(?:^[lr]?c?[rl]?(?:w?b)$)/.test(pos)) return 1; // rb, lb, cb, rwb, lwb, rcb, lcb, wb
+
+  // Delantero: cualquier cosa con W (wing), F (forward), ST, SS, ATT
+  // Debe ir ANTES de mediocampista porque LW/RW contienen letras que podrían confundirse
+  if (pos === 'f' || pos === 'fw' || pos === 'fwd' || pos === 'forward' || pos === 'delantero' ||
+      pos === 'att' || pos === 'attacker' || pos === 'st' || pos === 'ss' || pos === 'cf') return 3;
+  if (/(?:^[lr]?[crl]?(?:w|f|st|ss)$)/.test(pos)) return 3; // rw, lw, rf, lf, rcf, lcf
+
+  // Mediocampista: cualquier cosa con M (midfielder), DM, AM, CAM, CDM
+  if (pos === 'm' || pos === 'mid' || pos === 'midfielder' || pos === 'medio' || pos === 'centrocampista') return 2;
+  if (/m/.test(pos)) return 2; // cm, cdm, cam, rm, lm, dm, am, rcm, lcm, ram, lam, rdm, ldm
+
+  return 4; // desconocido
+}
+
+/**
+ * Determina el orden lateral de un jugador (izquierda → centro → derecha).
+ * 0=izquierda, 1=centro-izquierda, 2=centro, 3=centro-derecha, 4=derecha.
+ */
+export function getLateralOrder(position: string): number {
+  const pos = normalizePosition(position);
+
+  // Comienza con L → izquierda
+  if (pos.startsWith('l')) return 0;
+  // Comienza con R → derecha
+  if (pos.startsWith('r')) return 4;
+  // Todo lo demás → centro
+  return 2;
+}
 
 function getPositionOrder(position: string): number {
-  const key = position.toLowerCase().split('-')[0].trim();
-  return POSITION_ORDER[key] ?? 4;
+  return getPositionCategory(position);
 }
 
 /**
@@ -70,17 +113,12 @@ export function sortByPosition(players: LineupPlayer[]): LineupPlayer[] {
  * Traduce la posición a español abreviado.
  */
 export function translatePosition(position: string): string {
-  const key = position.toLowerCase().split('-')[0].trim();
-  // Portero
-  if (key === 'goalkeeper' || key === 'gk' || key === 'g' || key === 'portero') return 'POR';
-  // Defensas (centrales y laterales)
-  if (key === 'defender' || key === 'def' || key === 'd' || key === 'defensa' ||
-      key === 'cb' || key === 'rb' || key === 'lb' || key === 'rwb' || key === 'lwb' || key === 'sw' || key === 'cd') return 'DEF';
-  // Mediocampistas
-  if (key === 'midfielder' || key === 'mid' || key === 'm' || key === 'medio' || key === 'centrocampista' ||
-      key === 'cm' || key === 'cdm' || key === 'cam' || key === 'rm' || key === 'lm' || key === 'dm' || key === 'am') return 'MED';
-  // Delanteros
-  if (key === 'forward' || key === 'fwd' || key === 'f' || key === 'delantero' || key === 'attacker' || key === 'att' ||
-      key === 'rw' || key === 'lw' || key === 'cf' || key === 'st' || key === 'ss' || key === 'lf' || key === 'rf') return 'DEL';
-  return position.split('-')[0].trim().slice(0, 3).toUpperCase();
+  const cat = getPositionCategory(position);
+  switch (cat) {
+    case 0: return 'POR';
+    case 1: return 'DEF';
+    case 2: return 'MED';
+    case 3: return 'DEL';
+    default: return normalizePosition(position).slice(0, 3).toUpperCase();
+  }
 }

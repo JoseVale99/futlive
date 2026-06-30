@@ -39,7 +39,7 @@ const POSITION_ORDER: Record<string, number> = {
   goalkeeper: 0, gk: 0, portero: 0, g: 0,
   // Defensas (centrales y laterales)
   defender: 1, def: 1, defensa: 1, d: 1,
-  cb: 1, rb: 1, lb: 1, rwb: 1, lwb: 1, sw: 1,
+  cb: 1, rb: 1, lb: 1, rwb: 1, lwb: 1, sw: 1, cd: 1,
   // Mediocampistas (centrales, ofensivos, defensivos, laterales)
   midfielder: 2, mid: 2, medio: 2, m: 2, centrocampista: 2,
   cm: 2, cdm: 2, cam: 2, rm: 2, lm: 2, dm: 2, am: 2,
@@ -49,7 +49,8 @@ const POSITION_ORDER: Record<string, number> = {
 };
 
 function getPositionOrder(position: string): number {
-  return POSITION_ORDER[position.toLowerCase()] ?? 4;
+  const key = position.toLowerCase().split('-')[0].trim();
+  return POSITION_ORDER[key] ?? 4;
 }
 
 /**
@@ -69,17 +70,17 @@ export function sortByPosition(players: LineupPlayer[]): LineupPlayer[] {
  * Traduce la posición a español abreviado.
  */
 export function translatePosition(position: string): string {
-  const key = position.toLowerCase();
+  const key = position.toLowerCase().split('-')[0].trim();
   // Portero
   if (key === 'goalkeeper' || key === 'gk' || key === 'g' || key === 'portero') return 'POR';
   // Defensas (centrales y laterales)
   if (key === 'defender' || key === 'def' || key === 'd' || key === 'defensa' ||
-      key === 'cb' || key === 'rb' || key === 'lb' || key === 'rwb' || key === 'lwb' || key === 'sw') return 'DEF';
+      key === 'cb' || key === 'rb' || key === 'lb' || key === 'rwb' || key === 'lwb' || key === 'sw' || key === 'cd') return 'DEF';
   // Mediocampistas
   if (key === 'midfielder' || key === 'mid' || key === 'm' || key === 'medio' || key === 'centrocampista' ||
       key === 'cm' || key === 'cdm' || key === 'cam' || key === 'rm' || key === 'lm' || key === 'dm' || key === 'am') return 'MED';
   // Delanteros
   if (key === 'forward' || key === 'fwd' || key === 'f' || key === 'delantero' || key === 'attacker' || key === 'att' ||
       key === 'rw' || key === 'lw' || key === 'cf' || key === 'st' || key === 'ss' || key === 'lf' || key === 'rf') return 'DEL';
-  return position.slice(0, 3).toUpperCase();
+  return position.split('-')[0].trim().slice(0, 3).toUpperCase();
 }

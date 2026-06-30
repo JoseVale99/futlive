@@ -276,24 +276,24 @@ export class AlineacionesTabComponent {
   }
 
   private isGoalkeeper(p: LineupPlayer): boolean {
-    const pos = p.position.toLowerCase();
+    const pos = p.position.toLowerCase().split('-')[0];
     return pos === 'goalkeeper' || pos === 'gk' || pos === 'g' || pos === 'portero';
   }
 
   private isDefender(p: LineupPlayer): boolean {
-    const pos = p.position.toLowerCase();
+    const pos = p.position.toLowerCase().split('-')[0];
     return pos === 'defender' || pos === 'def' || pos === 'd' || pos === 'defensa' ||
-           pos === 'cb' || pos === 'rb' || pos === 'lb' || pos === 'rwb' || pos === 'lwb' || pos === 'sw';
+           pos === 'cb' || pos === 'rb' || pos === 'lb' || pos === 'rwb' || pos === 'lwb' || pos === 'sw' || pos === 'cd';
   }
 
   private isMidfielder(p: LineupPlayer): boolean {
-    const pos = p.position.toLowerCase();
+    const pos = p.position.toLowerCase().split('-')[0];
     return pos === 'midfielder' || pos === 'mid' || pos === 'm' || pos === 'medio' || pos === 'centrocampista' ||
            pos === 'cm' || pos === 'cdm' || pos === 'cam' || pos === 'rm' || pos === 'lm' || pos === 'dm' || pos === 'am';
   }
 
   private isForward(p: LineupPlayer): boolean {
-    const pos = p.position.toLowerCase();
+    const pos = p.position.toLowerCase().split('-')[0];
     return pos === 'forward' || pos === 'fwd' || pos === 'f' || pos === 'delantero' || pos === 'attacker' || pos === 'att' ||
            pos === 'rw' || pos === 'lw' || pos === 'cf' || pos === 'st' || pos === 'ss' || pos === 'lf' || pos === 'rf';
   }

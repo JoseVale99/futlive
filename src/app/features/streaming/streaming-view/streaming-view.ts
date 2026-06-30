@@ -174,8 +174,7 @@ export class StreamingViewComponent implements OnInit, OnDestroy {
       if (match) {
         this.liveDataService.startPolling(id, match.status);
       } else {
-        this.matchError.set('No se pudo cargar la información del partido');
-        this.liveDataService.startPolling(id, 'scheduled');
+        this.router.navigate(['/404'], { skipLocationChange: true });
       }
     });
   }
@@ -193,7 +192,7 @@ export class StreamingViewComponent implements OnInit, OnDestroy {
       if (match) {
         this.liveDataService.startPolling(id, match.status);
       } else {
-        this.matchError.set('No se pudo cargar la información del partido');
+        this.router.navigate(['/404'], { skipLocationChange: true });
       }
     });
   }

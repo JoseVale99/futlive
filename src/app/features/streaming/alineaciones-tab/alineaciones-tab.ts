@@ -245,10 +245,9 @@ export class AlineacionesTabComponent {
     if (lines.length === 0) return this.buildRowsByPosition(starters);
 
     const gk = starters.filter(p => this.isGoalkeeper(p));
-    const def = starters.filter(p => this.isDefender(p));
-    const mid = starters.filter(p => this.isMidfielder(p));
-    const fwd = starters.filter(p => this.isForward(p));
-    // Jugadores que no caen en ninguna categoría conocida
+    const def = this.sortLateral(starters.filter(p => this.isDefender(p)));
+    const mid = this.sortLateral(starters.filter(p => this.isMidfielder(p)));
+    const fwd = this.sortLateral(starters.filter(p => this.isForward(p)));
     const unknown = starters.filter(p => !this.isGoalkeeper(p) && !this.isDefender(p) && !this.isMidfielder(p) && !this.isForward(p));
     const outfield = [...def, ...mid, ...fwd, ...unknown];
 
@@ -264,6 +263,31 @@ export class AlineacionesTabComponent {
 
     if (idx < outfield.length) rows.push({ players: outfield.slice(idx) });
     return rows;
+  }
+
+  /**
+   * Ordena jugadores lateralmente: izquierda → centro → derecha.
+   * Basado en el prefijo de posición ESPN (L=izquierda, R=derecha, C/otro=centro).
+   */
+  private sortLateral(players: LineupPlayer[]): LineupPlayer[] {
+    return [...players].sort((a, b) => this.getLateralOrder(a.position) - this.getLateralOrder(b.position));
+  }
+
+  private getLateralOrder(position: string): number {
+    const pos = position.toLowerCase().split('-')[0];
+    // Izquierda
+    if (pos === 'lb' || pos === 'lwb' || pos === 'lm' || pos === 'lw' || pos === 'lf') return 0;
+    // Centro-izquierda (no hay abreviatura ESPN específica, pero por si acaso)
+    if (pos === 'lcb' || pos === 'lcm') return 1;
+    // Centro (CB, CM, CDM, CAM, CF, ST, DM, AM, etc.)
+    if (pos === 'cb' || pos === 'cm' || pos === 'cdm' || pos === 'cam' || pos === 'cf' || pos === 'st' ||
+        pos === 'dm' || pos === 'am' || pos === 'cd' || pos === 'sw' || pos === 'f' || pos === 'd' || pos === 'm' ||
+        pos === 'ss') return 2;
+    // Centro-derecha
+    if (pos === 'rcb' || pos === 'rcm') return 3;
+    // Derecha
+    if (pos === 'rb' || pos === 'rwb' || pos === 'rm' || pos === 'rw' || pos === 'rf') return 4;
+    return 2; // default: centro
   }
 
   private buildRowsByPosition(starters: LineupPlayer[]): PositionRow[] {

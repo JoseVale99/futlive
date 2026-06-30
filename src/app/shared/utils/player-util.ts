@@ -71,13 +71,11 @@ export function getLateralOrder(position: string): number {
   const base = raw.split('-')[0];
   const suffix = raw.split('-')[1] ?? '';
 
-  // Lateralidad por prefijo (LB, LM, RW, etc.)
-  if (base.startsWith('l')) return 0;
-  if (base.startsWith('r')) return 4;
-
-  // Lateralidad por sufijo (AM-L, CD-R, CM-L, CF-R, etc.)
-  if (suffix === 'l') return 0;
-  if (suffix === 'r') return 4;
+  // Perspectiva visual: R (right) se muestra a la izquierda, L (left) a la derecha
+  if (base.startsWith('r')) return 0;
+  if (base.startsWith('l')) return 4;
+  if (suffix === 'r') return 0;
+  if (suffix === 'l') return 4;
 
   return 2;
 }

@@ -34,7 +34,7 @@ const DEPTH: Record<string, number> = {
   // Defense depth
   cb: 0, cd: 0, sw: 0, d: 0, b: 1, wb: 1,
   // Midfield depth
-  dm: 0, cdm: 0, cm: 1, m: 1, cam: 2, am: 2,
+  dm: 0, cdm: 0, cm: 1, m: 1, cam: 2, am: 2, lm: 2, rm: 2,
   // Forward depth
   cf: 0, st: 0, ss: 0, w: 1, f: 1, fw: 1,
 };
@@ -62,7 +62,8 @@ export function getPositionCategory(position: string): PositionCategory {
 export function getDepthOrder(position: string): number {
   const pos = normalize(position);
   const core = extractCore(pos);
-  return DEPTH[core] ?? DEPTH[pos] ?? 1;
+  // Buscar primero por posición completa (lm, rm), luego por core (dm, cm)
+  return DEPTH[pos] ?? DEPTH[core] ?? 1;
 }
 
 export function getLateralOrder(position: string): number {

@@ -10,17 +10,17 @@ import { RouterLink } from '@angular/router';
       <div class="text-center max-w-md motion-safe:animate-fade-in">
         <!-- Cancha visual -->
         <div class="relative w-56 h-56 mx-auto mb-10">
-          <div class="absolute inset-0 rounded-2xl bg-gradient-to-b from-green-900/20 to-green-800/5 border border-green-500/20 backdrop-blur-sm"></div>
-          <div class="absolute inset-5 rounded-xl border border-green-500/25"></div>
-          <div class="absolute left-5 right-5 top-1/2 h-px bg-green-500/25"></div>
-          <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 rounded-full border border-green-500/25"></div>
-          <div class="absolute top-5 left-1/2 -translate-x-1/2 w-20 h-8 border border-green-500/20 border-t-0 rounded-b-lg"></div>
-          <div class="absolute bottom-5 left-1/2 -translate-x-1/2 w-20 h-8 border border-green-500/20 border-b-0 rounded-t-lg"></div>
+          <div class="absolute inset-0 rounded-2xl bg-gradient-to-b from-green-100 to-green-50 dark:from-green-900/20 dark:to-green-800/5 border border-green-300 dark:border-green-500/20"></div>
+          <div class="absolute inset-5 rounded-xl border border-green-400/60 dark:border-green-500/25"></div>
+          <div class="absolute left-5 right-5 top-1/2 h-px bg-green-400/60 dark:bg-green-500/25"></div>
+          <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 rounded-full border border-green-400/60 dark:border-green-500/25"></div>
+          <div class="absolute top-5 left-1/2 -translate-x-1/2 w-20 h-8 border border-green-400/50 dark:border-green-500/20 border-t-0 rounded-b-lg"></div>
+          <div class="absolute bottom-5 left-1/2 -translate-x-1/2 w-20 h-8 border border-green-400/50 dark:border-green-500/20 border-b-0 rounded-t-lg"></div>
 
           <!-- 404 grande -->
           <div class="absolute inset-0 flex items-center justify-center">
-            <span class="text-7xl font-black text-gray-200/80 dark:text-gray-700/80 select-none tracking-tight">
-              4<span class="inline-block motion-safe:animate-bounce">⚽</span>4
+            <span class="text-7xl font-black text-green-900/20 dark:text-gray-700/80 select-none tracking-tight">
+              4<span class="inline-block motion-safe:animate-bounce text-6xl">⚽</span>4
             </span>
           </div>
         </div>

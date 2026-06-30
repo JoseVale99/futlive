@@ -305,16 +305,16 @@ async function buildStreams(matchId) {
     console.log(`[streams] lacancha.tv scrape failed: ${e.message}`);
   }
 
-  // Agregar balondeportes.com como canales extra (mejor calidad)
+  // Agregar balondeportes.com — solo canales que permiten iframe (spaceyou globalm/global)
   const balonChannels = [
-    { name: 'ESPN (BD)', slug: 'espn-1', script: 'global.php' },
-    { name: 'ESPN Premium (BD)', slug: 'espnpremium', script: 'v41.php' },
-    { name: 'DSports (BD)', slug: 'dsports', script: 'globalm.php' },
-    { name: 'DSports 2 (BD)', slug: 'dsports2', script: 'globalm.php' },
-    { name: 'DSports+ (BD)', slug: 'dsportsplus', script: 'globalm.php' },
-    { name: 'Fox Sports (BD)', slug: 'foxsports', script: 'global.php' },
-    { name: 'TNT Sports (BD)', slug: 'tntsports', script: 'global.php' },
-    { name: 'TyC Sports (BD)', slug: 'tycsports', script: 'global.php' },
+    { name: 'DSports (BD)', url: 'https://spaceyou.store/globalm.php?channel=dsports' },
+    { name: 'DSports 2 (BD)', url: 'https://spaceyou.store/globalm.php?channel=dsports2' },
+    { name: 'DSports+ (BD)', url: 'https://spaceyou.store/globalm.php?channel=dsportsplus' },
+    { name: 'ESPN (BD)', url: 'https://spaceyou.store/global.php?channel=espn-1' },
+    { name: 'ESPN Premium (BD)', url: 'https://spaceyou.store/v41.php?channel=espnpremium' },
+    { name: 'Fox Sports (BD)', url: 'https://spaceyou.store/global.php?channel=foxsports' },
+    { name: 'TNT Sports (BD)', url: 'https://spaceyou.store/global.php?channel=tntsports' },
+    { name: 'TyC Sports (BD)', url: 'https://spaceyou.store/global.php?channel=tycsports' },
   ];
   const existingNamesBD = new Set(streams.map(s => s.embed_name.toLowerCase()));
   for (const ch of balonChannels) {
@@ -324,7 +324,7 @@ async function buildStreams(matchId) {
         match_id: matchId,
         channel_id: null,
         embed_name: ch.name,
-        embed_url: `https://spaceyou.store/${ch.script}?channel=${ch.slug}`,
+        embed_url: ch.url,
         source: 'balondeportes',
         stream_param: null,
         created_at: new Date().toISOString(),

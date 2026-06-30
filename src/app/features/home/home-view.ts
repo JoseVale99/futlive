@@ -618,7 +618,7 @@ export class HomeViewComponent implements OnInit, OnDestroy {
     }).pipe(timeout(10000), catchError(() => of([] as Match[])));
 
     return forkJoin([live$, scheduled$, finished$]).pipe(
-      map(([live, scheduled, finished]) => [...live, ...scheduled, ...finished.slice(0, 10)])
+      map(([live, scheduled, finished]) => [...live, ...scheduled, ...finished])
     );
   }
 }

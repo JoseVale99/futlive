@@ -112,7 +112,7 @@ interface BracketMatch {
           <div [class]="bracketFullscreen() ? 'fixed inset-0 z-50 bg-white dark:bg-[#0a0e17] p-4 overflow-auto' : 'bg-white dark:bg-[#0a0e17] rounded-2xl p-5 sm:p-8 border border-gray-200 dark:border-gray-800 shadow-lg'">
             <div class="flex items-center justify-center gap-2 mb-8">
               <span class="material-symbols-outlined text-amber-500 dark:text-amber-400 text-xl">trophy</span>
-              <span class="text-sm font-bold text-gray-600 dark:text-gray-400 uppercase tracking-widest">Bracket Fase Final — Proyección en vivo</span>
+              <span class="text-sm font-bold text-gray-600 dark:text-gray-400 uppercase tracking-widest">Bracket Fase Final — Datos en vivo ESPN</span>
               <!-- Botón fullscreen visible solo en pantallas pequeñas (<1024px) -->
               <button (click)="bracketFullscreen.set(!bracketFullscreen())" class="lg:hidden ml-auto p-2 rounded-lg bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors" [attr.aria-label]="bracketFullscreen() ? 'Salir de pantalla completa' : 'Ver en pantalla completa'">
                 <span class="material-symbols-outlined text-lg text-gray-600 dark:text-gray-300">{{ bracketFullscreen() ? 'fullscreen_exit' : 'fullscreen' }}</span>
@@ -135,14 +135,14 @@ interface BracketMatch {
                   @for (m of leftBracket(); track m.matchNum) {
                     <div class="bg-gray-50 dark:bg-gray-800/80 rounded-xl border border-gray-200 dark:border-gray-700/60 overflow-hidden hover:border-blue-500/40 transition-colors">
                       <div class="flex items-center gap-2 px-3 py-2 border-b border-gray-100 dark:border-gray-700/40">
-                        @if (m.team1Flag) { <img [src]="m.team1Flag" class="w-5 h-5 rounded object-cover shrink-0"> } @else { <div class="w-5 h-5 rounded bg-gray-200 dark:bg-gray-700 shrink-0"></div> }
-                        <span class="text-xs font-bold text-gray-900 dark:text-white truncate flex-1">{{ m.team1Name }}</span>
-                        <span class="text-[9px] text-gray-400 shrink-0">{{ m.team1Label }}</span>
+                        @if (m.home && m.home.logo) { <img [src]="m.home.logo" class="w-5 h-5 rounded object-cover shrink-0"> } @else { <div class="w-5 h-5 rounded bg-gray-200 dark:bg-gray-700 shrink-0"></div> }
+                        <span class="text-xs font-bold text-gray-900 dark:text-white truncate flex-1" [class.opacity-50]="m.winner === 'away'">{{ m.home?.name || 'TBD' }}</span>
+                        @if (m.home?.score != null) { <span class="text-xs font-bold text-gray-600 dark:text-gray-300">{{ m.home.score }}</span> }
                       </div>
                       <div class="flex items-center gap-2 px-3 py-2">
-                        @if (m.team2Flag) { <img [src]="m.team2Flag" class="w-5 h-5 rounded object-cover shrink-0"> } @else { <div class="w-5 h-5 rounded bg-gray-200 dark:bg-gray-700 shrink-0"></div> }
-                        <span class="text-xs font-bold text-gray-900 dark:text-white truncate flex-1">{{ m.team2Name }}</span>
-                        <span class="text-[9px] text-gray-400 shrink-0">{{ m.team2Label }}</span>
+                        @if (m.away && m.away.logo) { <img [src]="m.away.logo" class="w-5 h-5 rounded object-cover shrink-0"> } @else { <div class="w-5 h-5 rounded bg-gray-200 dark:bg-gray-700 shrink-0"></div> }
+                        <span class="text-xs font-bold text-gray-900 dark:text-white truncate flex-1" [class.opacity-50]="m.winner === 'home'">{{ m.away?.name || 'TBD' }}</span>
+                        @if (m.away?.score != null) { <span class="text-xs font-bold text-gray-600 dark:text-gray-300">{{ m.away.score }}</span> }
                       </div>
                     </div>
                   }
@@ -311,14 +311,14 @@ interface BracketMatch {
                   @for (m of rightBracket(); track m.matchNum) {
                     <div class="bg-gray-50 dark:bg-gray-800/80 rounded-xl border border-gray-200 dark:border-gray-700/60 overflow-hidden hover:border-blue-500/40 transition-colors">
                       <div class="flex items-center gap-2 px-3 py-2 border-b border-gray-100 dark:border-gray-700/40">
-                        @if (m.team1Flag) { <img [src]="m.team1Flag" class="w-5 h-5 rounded object-cover shrink-0"> } @else { <div class="w-5 h-5 rounded bg-gray-200 dark:bg-gray-700 shrink-0"></div> }
-                        <span class="text-xs font-bold text-gray-900 dark:text-white truncate flex-1">{{ m.team1Name }}</span>
-                        <span class="text-[9px] text-gray-400 shrink-0">{{ m.team1Label }}</span>
+                        @if (m.home && m.home.logo) { <img [src]="m.home.logo" class="w-5 h-5 rounded object-cover shrink-0"> } @else { <div class="w-5 h-5 rounded bg-gray-200 dark:bg-gray-700 shrink-0"></div> }
+                        <span class="text-xs font-bold text-gray-900 dark:text-white truncate flex-1" [class.opacity-50]="m.winner === 'away'">{{ m.home?.name || 'TBD' }}</span>
+                        @if (m.home?.score != null) { <span class="text-xs font-bold text-gray-600 dark:text-gray-300">{{ m.home.score }}</span> }
                       </div>
                       <div class="flex items-center gap-2 px-3 py-2">
-                        @if (m.team2Flag) { <img [src]="m.team2Flag" class="w-5 h-5 rounded object-cover shrink-0"> } @else { <div class="w-5 h-5 rounded bg-gray-200 dark:bg-gray-700 shrink-0"></div> }
-                        <span class="text-xs font-bold text-gray-900 dark:text-white truncate flex-1">{{ m.team2Name }}</span>
-                        <span class="text-[9px] text-gray-400 shrink-0">{{ m.team2Label }}</span>
+                        @if (m.away && m.away.logo) { <img [src]="m.away.logo" class="w-5 h-5 rounded object-cover shrink-0"> } @else { <div class="w-5 h-5 rounded bg-gray-200 dark:bg-gray-700 shrink-0"></div> }
+                        <span class="text-xs font-bold text-gray-900 dark:text-white truncate flex-1" [class.opacity-50]="m.winner === 'home'">{{ m.away?.name || 'TBD' }}</span>
+                        @if (m.away?.score != null) { <span class="text-xs font-bold text-gray-600 dark:text-gray-300">{{ m.away.score }}</span> }
                       </div>
                     </div>
                   }
@@ -328,7 +328,7 @@ interface BracketMatch {
 
             <div class="mt-6 flex items-start gap-2 px-1 border-t border-gray-200 dark:border-gray-800 pt-4">
               <span class="material-symbols-outlined text-gray-600 text-sm shrink-0">info</span>
-              <p class="text-[10px] text-gray-500">Los cruces se basan en el formato del torneo: 1° de grupo vs 2° de grupo según el cuadro oficial. Los 8 mejores terceros se distribuyen según tabla de combinaciones FIFA.</p>
+              <p class="text-[10px] text-gray-500">Datos del bracket directamente de ESPN. Los cruces se actualizan conforme avanzan los partidos.</p>
             </div>
           </div>
         }
@@ -388,8 +388,43 @@ export class StandingsViewComponent implements OnInit {
     }));
   });
 
-  readonly leftBracket = computed(() => this.bracketMatches().slice(0, 8));
-  readonly rightBracket = computed(() => this.bracketMatches().slice(8, 16));
+  readonly leftBracket = computed((): KnockoutSlot[] => {
+    const koMap = this.standingsService.knockoutByMatchNum();
+    // Left side R32: matches 73-82 (feed into left R16)
+    const matchNums = [74, 77, 73, 75, 83, 84, 81, 82];
+    return matchNums.map(num => {
+      const match = koMap.get(num);
+      return {
+        matchNum: num,
+        date: match?.date ? this.formatMatchDate(match.date) : '',
+        from1: 0,
+        from2: 0,
+        home: match?.home ? { name: translateTeamName(match.home.name), logo: match.home.logo, score: match.home.score } : null,
+        away: match?.away ? { name: translateTeamName(match.away.name), logo: match.away.logo, score: match.away.score } : null,
+        winner: match?.winner ?? null,
+        status: match?.status ?? 'STATUS_SCHEDULED',
+      };
+    });
+  });
+
+  readonly rightBracket = computed((): KnockoutSlot[] => {
+    const koMap = this.standingsService.knockoutByMatchNum();
+    // Right side R32: matches 76,78,79,80,86,88,85,87
+    const matchNums = [76, 78, 79, 80, 86, 88, 85, 87];
+    return matchNums.map(num => {
+      const match = koMap.get(num);
+      return {
+        matchNum: num,
+        date: match?.date ? this.formatMatchDate(match.date) : '',
+        from1: 0,
+        from2: 0,
+        home: match?.home ? { name: translateTeamName(match.home.name), logo: match.home.logo, score: match.home.score } : null,
+        away: match?.away ? { name: translateTeamName(match.away.name), logo: match.away.logo, score: match.away.score } : null,
+        winner: match?.winner ?? null,
+        status: match?.status ?? 'STATUS_SCHEDULED',
+      };
+    });
+  });
 
   readonly leftR16 = computed((): KnockoutSlot[] => this.resolveKnockoutSlots([
     { matchNum: 89, date: '4 Jul', from1: 74, from2: 77 },

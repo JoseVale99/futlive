@@ -183,13 +183,13 @@ export class AlineacionesTabComponent {
   readonly homeRows = computed(() => {
     const home = this.lineups().find(l => l.team === 'home');
     if (!home) return [];
-    return this.buildFormationRows(home);
+    return this.buildFormationRows(home).reverse();
   });
 
   readonly awayRows = computed(() => {
     const away = this.lineups().find(l => l.team === 'away');
     if (!away) return [];
-    return this.buildFormationRows(away).reverse();
+    return this.buildFormationRows(away);
   });
 
   readonly startersLineups = computed(() => {

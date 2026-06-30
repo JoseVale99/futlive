@@ -58,25 +58,25 @@ interface PositionRow {
 
         <!-- Cancha centrada -->
         <div class="mx-auto w-full max-w-lg">
-          <div class="relative w-full rounded-lg overflow-hidden" style="aspect-ratio: 5/6; background: linear-gradient(180deg, #1a6b35 0%, #1f7a3e 10%, #1a6b35 10%, #1a6b35 20%, #1f7a3e 20%, #1f7a3e 30%, #1a6b35 30%, #1a6b35 40%, #1f7a3e 40%, #1f7a3e 50%, #1a6b35 50%, #1a6b35 60%, #1f7a3e 60%, #1f7a3e 70%, #1a6b35 70%, #1a6b35 80%, #1f7a3e 80%, #1f7a3e 90%, #1a6b35 90%);">
+          <div class="relative w-full rounded-lg overflow-hidden" style="aspect-ratio: 5/7; background: linear-gradient(180deg, #1a6b35 0%, #1f7a3e 10%, #1a6b35 10%, #1a6b35 20%, #1f7a3e 20%, #1f7a3e 30%, #1a6b35 30%, #1a6b35 40%, #1f7a3e 40%, #1f7a3e 50%, #1a6b35 50%, #1a6b35 60%, #1f7a3e 60%, #1f7a3e 70%, #1a6b35 70%, #1a6b35 80%, #1f7a3e 80%, #1f7a3e 90%, #1a6b35 90%);">
             <div class="absolute inset-1.5 border border-white/40 rounded-sm"></div>
             <div class="absolute left-1.5 right-1.5 top-1/2 h-px bg-white/40"></div>
             <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 border border-white/40 rounded-full"></div>
-            <div class="absolute top-1.5 left-1/2 -translate-x-1/2 w-[45%] h-[11%] border border-white/30 border-t-0"></div>
-            <div class="absolute top-1.5 left-1/2 -translate-x-1/2 w-[20%] h-[4.5%] border border-white/30 border-t-0"></div>
-            <div class="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-[45%] h-[11%] border border-white/30 border-b-0"></div>
-            <div class="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-[20%] h-[4.5%] border border-white/30 border-b-0"></div>
+            <div class="absolute top-1.5 left-1/2 -translate-x-1/2 w-[45%] h-[9%] border border-white/30 border-t-0"></div>
+            <div class="absolute top-1.5 left-1/2 -translate-x-1/2 w-[20%] h-[3.5%] border border-white/30 border-t-0"></div>
+            <div class="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-[45%] h-[9%] border border-white/30 border-b-0"></div>
+            <div class="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-[20%] h-[3.5%] border border-white/30 border-b-0"></div>
 
             @if (homeRows().length > 0) {
-              <div class="absolute top-[3%] left-0 right-0 bottom-[51%] flex flex-col justify-around px-4">
+              <div class="absolute top-[3%] left-0 right-0 bottom-[51%] flex flex-col justify-around px-2 sm:px-4">
                 @for (row of homeRows(); track $index) {
                   <div class="flex justify-center" [style.gap.px]="getRowGap(row.players.length)">
                     @for (player of row.players; track player.number) {
-                      <div class="flex flex-col items-center" style="width: 52px;">
-                        <div class="w-6 h-6 rounded-full bg-white/95 flex items-center justify-center text-[9px] font-bold text-gray-800 shadow">
+                      <div class="flex flex-col items-center w-14 sm:w-16">
+                        <div class="w-7 h-7 rounded-full bg-white/95 flex items-center justify-center text-[10px] font-bold text-gray-800 shadow-md">
                           {{ player.number }}
                         </div>
-                        <span class="text-[10px] text-white font-semibold text-center leading-tight truncate w-full drop-shadow mt-0.5">
+                        <span class="text-[11px] sm:text-xs text-white font-semibold text-center leading-tight truncate w-full drop-shadow-md mt-0.5">
                           {{ shortName(player.name) }}
                         </span>
                       </div>
@@ -87,15 +87,15 @@ interface PositionRow {
             }
 
             @if (awayRows().length > 0) {
-              <div class="absolute top-[51%] left-0 right-0 bottom-[3%] flex flex-col justify-around px-4">
+              <div class="absolute top-[51%] left-0 right-0 bottom-[3%] flex flex-col justify-around px-2 sm:px-4">
                 @for (row of awayRows(); track $index) {
                   <div class="flex justify-center" [style.gap.px]="getRowGap(row.players.length)">
                     @for (player of row.players; track player.number) {
-                      <div class="flex flex-col items-center" style="width: 52px;">
-                        <div class="w-6 h-6 rounded-full bg-yellow-300/95 flex items-center justify-center text-[9px] font-bold text-gray-800 shadow">
+                      <div class="flex flex-col items-center w-14 sm:w-16">
+                        <div class="w-7 h-7 rounded-full bg-yellow-300/95 flex items-center justify-center text-[10px] font-bold text-gray-800 shadow-md">
                           {{ player.number }}
                         </div>
-                        <span class="text-[10px] text-white font-semibold text-center leading-tight truncate w-full drop-shadow mt-0.5">
+                        <span class="text-[11px] sm:text-xs text-white font-semibold text-center leading-tight truncate w-full drop-shadow-md mt-0.5">
                           {{ shortName(player.name) }}
                         </span>
                       </div>

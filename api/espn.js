@@ -155,55 +155,72 @@ module.exports = async function handler(req, res) {
 
   try {
     // Construir URL de ESPN
-    let url = ESPN_BASE;
-    const params = new URLSearchParams();
+    const baseUrl = ESPN_BASE;
+
+    // Si piden por ID específico, una sola request
+    if (id) {
+      const params = new URLSearchParams();
+      params.set('dates', '20260611-20260720');
+      const response = await fetch(`${baseUrl}?${params}`, {
+        headers: { 'User-Agent': 'NexaTV/1.0', 'Accept': 'application/json' },
+      });
+      if (!response.ok) {
+        return res.status(response.status).json({ error: `ESPN API error: ${response.status}` });
+      }
+      const data = await response.json();
+      const matches = (data.events || []).map(transformEvent).filter(Boolean).filter(m => m.id === id);
+      res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=30');
+      return res.status(200).json(matches);
+    }
 
     // Si piden por fecha específica
     if (dates) {
+      const params = new URLSearchParams();
       params.set('dates', dates);
-    }
-
-    // ESPN no filtra por status, devuelve todo del día.
-    // Para obtener todos los partidos (scheduled futuros) necesitamos pedir varias fechas.
-    // Para el mundial completo usamos el rango del calendario.
-    if (status === 'scheduled' || status === 'finished' || !status) {
-      // Pedir todos los partidos del torneo
-      params.set('dates', '20260611-20260720');
-    }
-
-    const queryString = params.toString();
-    if (queryString) {
-      url += '?' + queryString;
-    }
-
-    const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'NexaTV/1.0',
-        'Accept': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      return res.status(response.status).json({
-        error: `ESPN API error: ${response.status}`,
-        detail: await response.text(),
+      const response = await fetch(`${baseUrl}?${params}`, {
+        headers: { 'User-Agent': 'NexaTV/1.0', 'Accept': 'application/json' },
       });
+      if (!response.ok) {
+        return res.status(response.status).json({ error: `ESPN API error: ${response.status}` });
+      }
+      const data = await response.json();
+      let matches = (data.events || []).map(transformEvent).filter(Boolean);
+      if (status) matches = matches.filter(m => m.status === status);
+      res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=30');
+      return res.status(200).json(matches);
     }
 
-    const data = await response.json();
-    const allEvents = data.events || [];
+    // Para obtener TODOS los partidos: hacer requests por semanas para evitar límite ESPN
+    const ranges = [
+      '20260611-20260620', // Jornada 1-2
+      '20260621-20260630', // Jornada 3 + inicio octavos
+      '20260701-20260710', // Octavos + Cuartos
+      '20260711-20260720', // Semis + Final
+    ];
 
-    // Transformar todos los eventos
-    let matches = allEvents.map(transformEvent).filter(Boolean);
+    const allMatches = [];
+    const fetchPromises = ranges.map(range =>
+      fetch(`${baseUrl}?dates=${range}`, {
+        headers: { 'User-Agent': 'NexaTV/1.0', 'Accept': 'application/json' },
+      }).then(r => r.ok ? r.json() : { events: [] }).catch(() => ({ events: [] }))
+    );
+
+    const results = await Promise.all(fetchPromises);
+    const seenIds = new Set();
+    for (const data of results) {
+      for (const event of (data.events || [])) {
+        const match = transformEvent(event);
+        if (match && !seenIds.has(match.id)) {
+          seenIds.add(match.id);
+          allMatches.push(match);
+        }
+      }
+    }
 
     // Filtrar por status si se especifica
+    let matches = allMatches;
     if (status) {
       matches = matches.filter(m => m.status === status);
-    }
-
-    // Filtrar por ID si se especifica
-    if (id) {
-      matches = matches.filter(m => m.id === id);
     }
 
     // Cache headers

@@ -212,7 +212,11 @@ module.exports = async function handler(req, res) {
       { name: 'ESPN Premium (BD)', url: 'https://spaceyou.store/v41.php?channel=espnpremium' },
       { name: 'Fox Sports (BD)', url: 'https://spaceyou.store/global.php?channel=foxsports' },
       { name: 'TNT Sports (BD)', url: 'https://spaceyou.store/global.php?channel=tntsports' },
-      { name: 'TyC Sports (BD)', url: 'https://spaceyou.store/global.php?channel=tycsports' },
+    { name: 'TyC Sports (BD)', url: 'https://spaceyou.store/global.php?channel=tycsports' },
+      { name: 'TUDN (BD)', url: 'https://www.balondeportes.com/globalp.php?channel=tudnmx1' },
+      { name: 'TUDN Op2 (BD)', url: 'https://www.balondeportes.com/globalp.php?channel=tudnmx' },
+      { name: 'Azteca 7 (BD)', url: 'https://www.balondeportes.com/globalm.php?channel=azteca7' },
+      { name: 'Canal 5 (BD)', url: 'https://www.balondeportes.com/globalp.php?channel=canal5' },
     ];
     const existingNamesBD = new Set(streams.map(s => s.embed_name.toLowerCase()));
     for (const ch of balonChannels) {

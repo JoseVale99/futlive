@@ -68,15 +68,15 @@ interface PositionRow {
             <div class="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-[20%] h-[3.5%] border border-white/30 border-b-0"></div>
 
             @if (homeRows().length > 0) {
-              <div class="absolute top-[3%] left-0 right-0 bottom-[51%] flex flex-col justify-around px-2 sm:px-4">
+              <div class="absolute top-[3%] left-0 right-0 bottom-[51%] flex flex-col justify-around px-1 sm:px-4">
                 @for (row of homeRows(); track $index) {
-                  <div class="flex justify-center" [style.gap.px]="getRowGap(row.players.length)">
+                  <div class="flex justify-around items-start">
                     @for (player of row.players; track player.number) {
-                      <div class="flex flex-col items-center w-14 sm:w-16">
-                        <div class="w-7 h-7 rounded-full bg-white/95 flex items-center justify-center text-[10px] font-bold text-gray-800 shadow-md">
+                      <div class="flex flex-col items-center min-w-0 flex-1 max-w-[70px]">
+                        <div class="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-white/95 flex items-center justify-center text-[9px] sm:text-[10px] font-bold text-gray-800 shadow-md">
                           {{ player.number }}
                         </div>
-                        <span class="text-[11px] sm:text-xs text-white font-semibold text-center leading-tight truncate w-full drop-shadow-md mt-0.5">
+                        <span class="text-[10px] sm:text-[11px] text-white font-semibold text-center leading-tight truncate w-full drop-shadow-md mt-0.5">
                           {{ shortName(player.name) }}
                         </span>
                       </div>
@@ -87,15 +87,15 @@ interface PositionRow {
             }
 
             @if (awayRows().length > 0) {
-              <div class="absolute top-[51%] left-0 right-0 bottom-[3%] flex flex-col justify-around px-2 sm:px-4">
+              <div class="absolute top-[51%] left-0 right-0 bottom-[3%] flex flex-col justify-around px-1 sm:px-4">
                 @for (row of awayRows(); track $index) {
-                  <div class="flex justify-center" [style.gap.px]="getRowGap(row.players.length)">
+                  <div class="flex justify-around items-start">
                     @for (player of row.players; track player.number) {
-                      <div class="flex flex-col items-center w-14 sm:w-16">
-                        <div class="w-7 h-7 rounded-full bg-yellow-300/95 flex items-center justify-center text-[10px] font-bold text-gray-800 shadow-md">
+                      <div class="flex flex-col items-center min-w-0 flex-1 max-w-[70px]">
+                        <div class="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-yellow-300/95 flex items-center justify-center text-[9px] sm:text-[10px] font-bold text-gray-800 shadow-md">
                           {{ player.number }}
                         </div>
-                        <span class="text-[11px] sm:text-xs text-white font-semibold text-center leading-tight truncate w-full drop-shadow-md mt-0.5">
+                        <span class="text-[10px] sm:text-[11px] text-white font-semibold text-center leading-tight truncate w-full drop-shadow-md mt-0.5">
                           {{ shortName(player.name) }}
                         </span>
                       </div>

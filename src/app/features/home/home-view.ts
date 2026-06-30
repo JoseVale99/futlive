@@ -292,6 +292,14 @@ interface MatchGroup {
                 }
               </section>
             }
+
+            @if (activeTab() === 'finished' && hasMoreFinished) {
+              <div class="flex justify-center pt-4">
+                <button (click)="showMoreFinished()" class="px-6 py-2.5 text-sm font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors">
+                  Ver más resultados
+                </button>
+              </div>
+            }
           </div>
         }
       </div>
@@ -318,6 +326,7 @@ export class HomeViewComponent implements OnInit, OnDestroy {
   readonly allMatches = signal<Match[]>([]);
   readonly loading = signal(true);
   readonly expandedMatchId = signal<string | null>(null);
+  readonly finishedVisibleCount = signal(10);
 
   readonly activeGroups = computed(() => {
     const matches = this.allMatches();
@@ -515,9 +524,21 @@ export class HomeViewComponent implements OnInit, OnDestroy {
   }
 
   private buildFinishedGroups(matches: Match[]): MatchGroup[] {
-    const finished = matches.filter(m => m.status === 'finished');
+    const finished = matches
+      .filter(m => m.status === 'finished')
+      .sort((a, b) => new Date(b.kickoff_at).getTime() - new Date(a.kickoff_at).getTime());
     if (finished.length === 0) return [];
-    return [{ label: 'Resultados', matches: finished, isLive: false }];
+    const visible = finished.slice(0, this.finishedVisibleCount());
+    return [{ label: 'Resultados', matches: visible, isLive: false }];
+  }
+
+  showMoreFinished(): void {
+    this.finishedVisibleCount.update(n => n + 10);
+  }
+
+  get hasMoreFinished(): boolean {
+    const total = this.allMatches().filter(m => m.status === 'finished').length;
+    return this.finishedVisibleCount() < total;
   }
 
   private fetchAndEnrich() {

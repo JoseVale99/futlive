@@ -305,15 +305,42 @@ async function buildStreams(matchId) {
     console.log(`[streams] lacancha.tv scrape failed: ${e.message}`);
   }
 
-  // Siempre agregar futbol-libres.su como canales extra al final
+  // Agregar balondeportes.com como canales extra (mejor calidad)
+  const balonChannels = [
+    { name: 'ESPN (BD)', slug: 'espn-1', script: 'global.php' },
+    { name: 'ESPN Premium (BD)', slug: 'espnpremium', script: 'v41.php' },
+    { name: 'DSports (BD)', slug: 'dsports', script: 'globalm.php' },
+    { name: 'DSports 2 (BD)', slug: 'dsports2', script: 'globalm.php' },
+    { name: 'DSports+ (BD)', slug: 'dsportsplus', script: 'globalm.php' },
+    { name: 'Fox Sports (BD)', slug: 'foxsports', script: 'global.php' },
+    { name: 'TNT Sports (BD)', slug: 'tntsports', script: 'global.php' },
+    { name: 'TyC Sports (BD)', slug: 'tycsports', script: 'global.php' },
+  ];
+  const existingNamesBD = new Set(streams.map(s => s.embed_name.toLowerCase()));
+  for (const ch of balonChannels) {
+    if (!existingNamesBD.has(ch.name.toLowerCase())) {
+      streams.push({
+        id: `bd-${streams.length}`,
+        match_id: matchId,
+        channel_id: null,
+        embed_name: ch.name,
+        embed_url: `https://spaceyou.store/${ch.script}?channel=${ch.slug}`,
+        source: 'balondeportes',
+        stream_param: null,
+        created_at: new Date().toISOString(),
+      });
+    }
+  }
+
+  // Agregar futbol-libres.su como canales extra al final
   const fallbackChannels = [
-    { name: 'ESPN', slug: 'espn-1' },
-    { name: 'ESPN Premium', slug: 'espn-premium' },
-    { name: 'DSports', slug: 'directv-sports' },
-    { name: 'Fox Sports', slug: 'fox-sports' },
-    { name: 'TUDN', slug: 'tudn' },
-    { name: 'TNT Sports', slug: 'tnt-sports' },
-    { name: 'TyC Sports', slug: 'tyc-sports' },
+    { name: 'ESPN (FL)', slug: 'espn-1' },
+    { name: 'ESPN Premium (FL)', slug: 'espn-premium' },
+    { name: 'DSports (FL)', slug: 'directv-sports' },
+    { name: 'Fox Sports (FL)', slug: 'fox-sports' },
+    { name: 'TUDN (FL)', slug: 'tudn' },
+    { name: 'TNT Sports (FL)', slug: 'tnt-sports' },
+    { name: 'TyC Sports (FL)', slug: 'tyc-sports' },
     { name: 'Telemundo (FL)', slug: 'telemundo' },
   ];
   const existingNamesFL = new Set(streams.map(s => s.embed_name.toLowerCase()));

@@ -183,16 +183,14 @@ export class AlineacionesTabComponent {
   readonly homeRows = computed(() => {
     const home = this.lineups().find(l => l.team === 'home');
     if (!home) return [];
-    return this.buildFormationRows(home).reverse();
+    return this.buildFormationRows(home);
   });
 
   readonly awayRows = computed(() => {
     const away = this.lineups().find(l => l.team === 'away');
     if (!away) return [];
-    // Invertir filas (portero abajo, delanteros arriba) y espejar lateralmente
-    return this.buildFormationRows(away).reverse().map(row => ({
-      players: [...row.players].reverse()
-    }));
+    // Invertir filas (portero abajo, delanteros arriba), lateral se mantiene igual
+    return this.buildFormationRows(away).reverse();
   });
 
   readonly startersLineups = computed(() => {

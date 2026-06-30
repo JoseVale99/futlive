@@ -34,7 +34,7 @@ const DEPTH: Record<string, number> = {
   // Defense depth
   cb: 0, cd: 0, sw: 0, d: 0, b: 1, wb: 1,
   // Midfield depth
-  dm: 0, cdm: 0, cm: 1, m: 1, cam: 2, am: 2, lm: 2, rm: 2,
+  dm: 0, cdm: 0, cm: 1, m: 1, lm: 1, rm: 1, cam: 2, am: 2,
   // Forward depth
   cf: 0, st: 0, ss: 0, w: 1, f: 1, fw: 1,
 };
@@ -67,9 +67,18 @@ export function getDepthOrder(position: string): number {
 }
 
 export function getLateralOrder(position: string): number {
-  const pos = normalize(position);
-  if (pos.startsWith('l')) return 0;
-  if (pos.startsWith('r')) return 4;
+  const raw = position.toLowerCase().trim();
+  const base = raw.split('-')[0];
+  const suffix = raw.split('-')[1] ?? '';
+
+  // Lateralidad por prefijo (LB, LM, RW, etc.)
+  if (base.startsWith('l')) return 0;
+  if (base.startsWith('r')) return 4;
+
+  // Lateralidad por sufijo (AM-L, CD-R, CM-L, CF-R, etc.)
+  if (suffix === 'l') return 0;
+  if (suffix === 'r') return 4;
+
   return 2;
 }
 

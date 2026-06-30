@@ -2,7 +2,7 @@ import { Component, inject, OnInit, signal, computed, linkedSignal } from '@angu
 import { ScorersService } from '../../core/services/scorers-service';
 import { APP_CONSTANTS } from '../../shared/constants/app-constants';
 
-type StatsTab = 'goles' | 'asistencias' | 'tarjetas';
+type StatsTab = 'goles' | 'asistencias';
 
 const PAGE_SIZE = 10;
 
@@ -85,7 +85,6 @@ const PAGE_SIZE = 10;
                       : 'w-7 text-center text-sm font-medium text-gray-500 dark:text-gray-400'">
                     {{ scorer.rank }}
                   </span>
-                  <img [src]="scorer.player_photo" [alt]="scorer.player_name" class="w-8 h-8 rounded-full object-cover" (error)="handleImgError($event)">
                   <img [src]="scorer.team_flag" [alt]="scorer.team" class="w-5 h-4 rounded-sm object-cover" (error)="handleImgError($event)">
                   <div class="flex-1 min-w-0">
                     <span class="text-sm font-medium text-gray-900 dark:text-gray-100 truncate block">{{ scorer.player_name }}</span>
@@ -115,46 +114,12 @@ const PAGE_SIZE = 10;
                       : 'w-7 text-center text-sm font-medium text-gray-500 dark:text-gray-400'">
                     {{ assister.rank }}
                   </span>
-                  <img [src]="assister.player_photo" [alt]="assister.player_name" class="w-8 h-8 rounded-full object-cover" (error)="handleImgError($event)">
                   <img [src]="assister.team_flag" [alt]="assister.team" class="w-5 h-4 rounded-sm object-cover" (error)="handleImgError($event)">
                   <div class="flex-1 min-w-0">
                     <span class="text-sm font-medium text-gray-900 dark:text-gray-100 truncate block">{{ assister.player_name }}</span>
                     <span class="text-xs text-gray-500 dark:text-gray-400">{{ assister.team }}</span>
                   </div>
                   <span class="text-lg font-bold text-gray-900 dark:text-white">{{ assister.assists }}</span>
-                </div>
-              } @empty {
-                <div class="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">Sin resultados</div>
-              }
-            </div>
-          }
-
-          <!-- Tarjetas Tab -->
-          @if (activeTab() === 'tarjetas') {
-            <div class="bg-white dark:bg-[#111827] rounded-lg border border-gray-200 dark:border-white/5 overflow-hidden divide-y divide-gray-100 dark:divide-white/5">
-              @for (card of paginatedCards(); track card.rank) {
-                <div [class]="card.rank <= 2
-                  ? 'flex items-center gap-3 px-4 py-3 bg-gray-50 dark:bg-white/2'
-                  : 'flex items-center gap-3 px-4 py-3'">
-                  <span class="w-7 text-center text-sm font-medium text-gray-500 dark:text-gray-400">
-                    {{ card.rank }}
-                  </span>
-                  <img [src]="card.player_photo" [alt]="card.player_name" class="w-8 h-8 rounded-full object-cover" (error)="handleImgError($event)">
-                  <img [src]="card.team_flag" [alt]="card.team" class="w-5 h-4 rounded-sm object-cover" (error)="handleImgError($event)">
-                  <div class="flex-1 min-w-0">
-                    <span class="text-sm font-medium text-gray-900 dark:text-gray-100 truncate block">{{ card.player_name }}</span>
-                    <span class="text-xs text-gray-500 dark:text-gray-400">{{ card.team }}</span>
-                  </div>
-                  <div class="flex items-center gap-2">
-                    @if (card.card_type === 'red') {
-                      <span class="inline-block w-3 h-4 rounded-sm bg-red-500"></span>
-                      <span class="text-xs text-gray-500 dark:text-gray-400">roja</span>
-                    } @else {
-                      <span class="inline-block w-3 h-4 rounded-sm bg-yellow-400"></span>
-                      <span class="text-xs text-gray-500 dark:text-gray-400">amarilla</span>
-                    }
-                    <span class="text-lg font-bold text-gray-900 dark:text-white">{{ card.value }}</span>
-                  </div>
                 </div>
               } @empty {
                 <div class="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">Sin resultados</div>
@@ -213,7 +178,6 @@ export class ScorersViewComponent implements OnInit {
   readonly tabs: { id: StatsTab; label: string }[] = [
     { id: 'goles', label: 'Goles' },
     { id: 'asistencias', label: 'Asistencias' },
-    { id: 'tarjetas', label: 'Tarjetas' },
   ];
 
   readonly activeTab = signal<StatsTab>('goles');
@@ -235,19 +199,11 @@ export class ScorersViewComponent implements OnInit {
     return data.filter(s => s.player_name.toLowerCase().includes(q) || s.team.toLowerCase().includes(q));
   });
 
-  readonly filteredCards = computed(() => {
-    const q = this.searchQuery().toLowerCase().trim();
-    const data = this.scorersService.cards();
-    if (!q) return data;
-    return data.filter(s => s.player_name.toLowerCase().includes(q) || s.team.toLowerCase().includes(q));
-  });
-
   // Total items for active tab
   readonly totalItems = computed(() => {
     switch (this.activeTab()) {
       case 'goles': return this.filteredScorers().length;
       case 'asistencias': return this.filteredAssisters().length;
-      case 'tarjetas': return this.filteredCards().length;
     }
   });
 
@@ -273,10 +229,6 @@ export class ScorersViewComponent implements OnInit {
 
   readonly paginatedAssisters = computed(() =>
     this.filteredAssisters().slice(this.startIndex(), this.endIndex())
-  );
-
-  readonly paginatedCards = computed(() =>
-    this.filteredCards().slice(this.startIndex(), this.endIndex())
   );
 
   ngOnInit() {

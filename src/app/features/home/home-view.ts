@@ -528,8 +528,22 @@ export class HomeViewComponent implements OnInit, OnDestroy {
       .filter(m => m.status === 'finished')
       .sort((a, b) => new Date(b.kickoff_at).getTime() - new Date(a.kickoff_at).getTime());
     if (finished.length === 0) return [];
+
     const visible = finished.slice(0, this.finishedVisibleCount());
-    return [{ label: 'Resultados', matches: visible, isLive: false }];
+
+    // Agrupar por fecha
+    const byDate = new Map<string, Match[]>();
+    for (const match of visible) {
+      const date = new Date(match.kickoff_at);
+      const label = date.toLocaleDateString('es', { weekday: 'long', day: 'numeric', month: 'long' });
+      const capitalized = label.charAt(0).toUpperCase() + label.slice(1);
+      if (!byDate.has(capitalized)) byDate.set(capitalized, []);
+      byDate.get(capitalized)!.push(match);
+    }
+
+    return Array.from(byDate.entries()).map(([label, dateMatches]) => ({
+      label, matches: dateMatches, isLive: false,
+    }));
   }
 
   showMoreFinished(): void {

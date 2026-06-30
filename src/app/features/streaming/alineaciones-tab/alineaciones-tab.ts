@@ -245,7 +245,12 @@ export class AlineacionesTabComponent {
     if (lines.length === 0) return this.buildRowsByPosition(starters);
 
     const gk = starters.filter(p => this.isGoalkeeper(p));
-    const outfield = starters.filter(p => !this.isGoalkeeper(p));
+    const def = starters.filter(p => this.isDefender(p));
+    const mid = starters.filter(p => this.isMidfielder(p));
+    const fwd = starters.filter(p => this.isForward(p));
+    // Jugadores que no caen en ninguna categoría conocida
+    const unknown = starters.filter(p => !this.isGoalkeeper(p) && !this.isDefender(p) && !this.isMidfielder(p) && !this.isForward(p));
+    const outfield = [...def, ...mid, ...fwd, ...unknown];
 
     const rows: PositionRow[] = [];
     if (gk.length > 0) rows.push({ players: gk });

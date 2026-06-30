@@ -1,59 +1,99 @@
-# Nexatv
+# FutLive
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 22.0.3.
+Progressive Web Application for live FIFA World Cup 2026 match tracking. Provides real-time scores, live streaming links, lineups, match statistics, standings, and bracket visualization.
 
-## Development server
+## Features
 
-To start a local development server, run:
+- Real-time match scores with automatic polling
+- Live streaming channel aggregation (multi-source, HD/SD quality classification)
+- Interactive formation/lineup visualization with ESPN data
+- Match chronology (goals, cards, substitutions)
+- Live match statistics comparison
+- Group standings with live position updates
+- Bracket view for knockout stages
+- Top scorers leaderboard
+- PWA with offline support and installable on mobile
 
-```bash
-ng serve
+## Tech Stack
+
+| Layer | Technology |
+|-------|------------|
+| Frontend | Angular 22 (standalone, signals, modern control flow) |
+| Styling | Tailwind CSS 4 (inline templates, no component CSS) |
+| API | Vercel Serverless Functions (Node.js) |
+| Data Source | ESPN Summary API |
+| Streaming Proxy | Custom Node.js proxy for stream URL resolution |
+| PWA | Angular Service Worker |
+| Testing | Vitest + fast-check (property-based testing) |
+| Deployment | Vercel |
+
+## Architecture
+
+```
+src/app/
+  core/         Services, models, guards, interceptors, config
+  features/     Feature modules (home, matches, streaming, standings, scorers)
+  shared/       Utilities, pipes, directives, constants
+
+api/            Vercel serverless functions (ESPN proxy, streams, standings, bracket)
+proxy/          Local development stream proxy
 ```
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+Key architectural decisions:
 
-## Code scaffolding
+- Single-file components with inline templates and Tailwind classes
+- Signal-based reactive state (no BehaviorSubject in components)
+- RxJS reserved for HTTP streams, WebSockets, and polling
+- Lazy-loaded routes per feature
+- Strict typing throughout (no `any`)
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+## Prerequisites
 
-```bash
-ng generate component component-name
-```
+- Node.js 20+
+- npm 10+
+- Angular CLI 22
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
-
-```bash
-ng generate --help
-```
-
-## Building
-
-To build the project run:
+## Setup
 
 ```bash
-ng build
+npm install
 ```
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+Create a `.env` file based on `.env.example` with required environment variables.
 
-## Running unit tests
-
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
+## Development
 
 ```bash
-ng test
+# Start Angular dev server + stream proxy
+npm run dev
+
+# Angular dev server only
+npm start
+
+# Stream proxy only
+npm run proxy
 ```
 
-## Running end-to-end tests
+The app runs at `http://localhost:4200`.
 
-For end-to-end (e2e) testing, run:
+## Build
 
 ```bash
-ng e2e
+npm run build
 ```
 
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
+Output goes to `dist/nexatv/browser`.
 
-## Additional Resources
+## Testing
 
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+```bash
+npm test
+```
+
+## Deployment
+
+Deployed on Vercel. The build command injects environment variables at build time via `scripts/write-env.js`.
+
+## License
+
+Private project. All rights reserved.

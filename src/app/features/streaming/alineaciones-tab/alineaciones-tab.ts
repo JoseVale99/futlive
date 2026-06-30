@@ -282,16 +282,19 @@ export class AlineacionesTabComponent {
 
   private isDefender(p: LineupPlayer): boolean {
     const pos = p.position.toLowerCase();
-    return pos === 'defender' || pos === 'def' || pos === 'd' || pos === 'defensa';
+    return pos === 'defender' || pos === 'def' || pos === 'd' || pos === 'defensa' ||
+           pos === 'cb' || pos === 'rb' || pos === 'lb' || pos === 'rwb' || pos === 'lwb' || pos === 'sw';
   }
 
   private isMidfielder(p: LineupPlayer): boolean {
     const pos = p.position.toLowerCase();
-    return pos === 'midfielder' || pos === 'mid' || pos === 'm' || pos === 'medio' || pos === 'centrocampista';
+    return pos === 'midfielder' || pos === 'mid' || pos === 'm' || pos === 'medio' || pos === 'centrocampista' ||
+           pos === 'cm' || pos === 'cdm' || pos === 'cam' || pos === 'rm' || pos === 'lm' || pos === 'dm' || pos === 'am';
   }
 
   private isForward(p: LineupPlayer): boolean {
     const pos = p.position.toLowerCase();
-    return pos === 'forward' || pos === 'fwd' || pos === 'f' || pos === 'delantero' || pos === 'attacker' || pos === 'att';
+    return pos === 'forward' || pos === 'fwd' || pos === 'f' || pos === 'delantero' || pos === 'attacker' || pos === 'att' ||
+           pos === 'rw' || pos === 'lw' || pos === 'cf' || pos === 'st' || pos === 'ss' || pos === 'lf' || pos === 'rf';
   }
 }

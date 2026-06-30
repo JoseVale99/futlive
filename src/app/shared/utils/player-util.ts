@@ -71,11 +71,19 @@ export function getLateralOrder(position: string): number {
   const base = raw.split('-')[0];
   const suffix = raw.split('-')[1] ?? '';
 
-  // Perspectiva visual: R (right) se muestra a la izquierda, L (left) a la derecha
-  if (base.startsWith('r')) return 0;
-  if (base.startsWith('l')) return 4;
-  if (suffix === 'r') return 0;
-  if (suffix === 'l') return 4;
+  // El sufijo -L/-R en ESPN indica posición relativa dentro del par central:
+  // CD-L = central izquierdo (al lado del lateral izquierdo)
+  // CM-R = centrocampista derecho (al lado del extremo derecho)
+  // Así que -L → izquierda visual, -R → derecha visual (mismo lado que L*/R* prefijo)
+
+  // Prefijo: L* = izquierda del equipo, R* = derecha del equipo
+  // En perspectiva TV (cancha vista desde arriba): izquierda del equipo = izquierda visual
+  if (base.startsWith('l')) return 0;
+  if (base.startsWith('r')) return 4;
+
+  // Sufijo: -L = lado izquierdo, -R = lado derecho
+  if (suffix === 'l') return 1;
+  if (suffix === 'r') return 3;
 
   return 2;
 }

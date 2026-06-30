@@ -61,7 +61,32 @@ const TEAM_NAMES_ES: Record<string, string> = {
 
 /**
  * Traduce nombre de equipo al español. Si no encuentra traducción, retorna el original.
+ * También traduce placeholders de ESPN como "Round of 32 5 Winner".
  */
 export function translateTeamName(name: string): string {
-  return TEAM_NAMES_ES[name] ?? name;
+  if (TEAM_NAMES_ES[name]) return TEAM_NAMES_ES[name];
+
+  // Traducir placeholders ESPN de bracket knockout
+  const roundOf = name.match(/^Round of (\d+) (\d+) Winner$/i);
+  if (roundOf) {
+    const round = parseInt(roundOf[1], 10);
+    const matchNum = roundOf[2];
+    const roundName = ROUND_NAMES[round] ?? `Ronda de ${round}`;
+    return `Ganador ${roundName} ${matchNum}`;
+  }
+
+  const qf = name.match(/^Quarterfinal (\d+) Winner$/i);
+  if (qf) return `Ganador Cuartos ${qf[1]}`;
+
+  const sf = name.match(/^Semifinal (\d+) Winner$/i);
+  if (sf) return `Ganador Semi ${sf[1]}`;
+
+  if (/^TBD$/i.test(name)) return 'Por definir';
+
+  return name;
 }
+
+const ROUND_NAMES: Record<number, string> = {
+  16: '16vos',
+  32: '32vos',
+};

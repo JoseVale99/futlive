@@ -468,8 +468,8 @@ export class StandingsViewComponent implements OnInit {
       const match = koMap.get(s.matchNum);
       return {
         ...s,
-        home: match?.home ? { name: match.home.name, logo: match.home.logo, score: match.home.score } : null,
-        away: match?.away ? { name: match.away.name, logo: match.away.logo, score: match.away.score } : null,
+        home: match?.home ? { name: translateTeamName(match.home.name), logo: match.home.logo, score: match.home.score } : null,
+        away: match?.away ? { name: translateTeamName(match.away.name), logo: match.away.logo, score: match.away.score } : null,
         winner: match?.winner ?? null,
         status: match?.status ?? 'STATUS_SCHEDULED',
       };

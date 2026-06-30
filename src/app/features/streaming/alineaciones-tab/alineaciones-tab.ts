@@ -257,7 +257,11 @@ export class AlineacionesTabComponent {
     let idx = 0;
     for (const count of lines) {
       const rowPlayers = outfield.slice(idx, idx + count);
-      if (rowPlayers.length > 0) rows.push({ players: rowPlayers });
+      if (rowPlayers.length > 0) {
+        // Re-ordenar cada fila lateralmente (izq → centro → der) para la visualización
+        const sorted = [...rowPlayers].sort((a, b) => getLateralOrder(a.position) - getLateralOrder(b.position));
+        rows.push({ players: sorted });
+      }
       idx += count;
     }
 

@@ -190,13 +190,20 @@ module.exports = async function handler(req, res) {
       return res.status(200).json(matches);
     }
 
-    // Para obtener TODOS los partidos: hacer requests por semanas para evitar límite ESPN
-    const ranges = [
-      '20260611-20260620', // Jornada 1-2
-      '20260621-20260630', // Jornada 3 + inicio octavos
-      '20260701-20260710', // Octavos + Cuartos
-      '20260711-20260720', // Semis + Final
-    ];
+    // Rango dinámico: 40 días atrás desde hoy hasta 7 días adelante
+    const today = new Date();
+    const startDate = new Date(today.getTime() - 40 * 86400000);
+    const endDate = new Date(today.getTime() + 7 * 86400000);
+
+    const ranges = [];
+    let cursor = new Date(startDate);
+    while (cursor < endDate) {
+      const rangeEnd = new Date(Math.min(cursor.getTime() + 10 * 86400000, endDate.getTime()));
+      const from = cursor.toISOString().slice(0, 10).replace(/-/g, '');
+      const to = rangeEnd.toISOString().slice(0, 10).replace(/-/g, '');
+      ranges.push(`${from}-${to}`);
+      cursor = new Date(rangeEnd.getTime() + 86400000);
+    }
 
     const allMatches = [];
     const fetchPromises = ranges.map(range =>

@@ -92,6 +92,38 @@ export function getLateralOrder(position: string): number {
   return 2;
 }
 
+/**
+ * Determina la profundidad posicional (más defensivo → más ofensivo).
+ * Usado para ordenar dentro de una misma categoría antes de asignar a filas de formación.
+ * Defensas: CB/CD/SW=0, WB/B=1
+ * Medios: DM/CDM=0, CM=1, AM/CAM=2, LM/RM=2
+ * Delanteros: CF/ST=0, SS=0, W/F=1
+ */
+export function getDepthOrder(position: string): number {
+  const pos = normalizePosition(position);
+
+  // Quitar prefijo lateral (l/r) para analizar el core
+  const core = pos.replace(/^[lr]/, '');
+
+  // Defensas
+  if (core === 'cb' || core === 'cd' || core === 'sw' || core === 'd') return 0;
+  if (core === 'wb' || core === 'b') return 1;
+
+  // Mediocampistas - profundidad
+  if (core === 'dm' || core === 'cdm') return 0;
+  if (core === 'cm' || core === 'm') return 1;
+  if (core === 'cam' || core === 'am') return 2;
+
+  // LM/RM son mediocampistas amplios, van después de CM
+  if (pos === 'lm' || pos === 'rm') return 2;
+
+  // Delanteros
+  if (core === 'cf' || core === 'st' || core === 'ss') return 0;
+  if (core === 'w' || core === 'f') return 1;
+
+  return 1; // default: medio
+}
+
 function getPositionOrder(position: string): number {
   return getPositionCategory(position);
 }

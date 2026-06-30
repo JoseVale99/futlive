@@ -1,6 +1,6 @@
 import { Component, computed, input, signal } from '@angular/core';
 import { MatchLineup, LineupPlayer } from '../../../core/models/live-data-model';
-import { filterStarters, filterSubstitutes, sortByPosition, translatePosition, getPositionCategory, getLateralOrder } from '../../../shared/utils/player-util';
+import { filterStarters, filterSubstitutes, sortByPosition, translatePosition, getPositionCategory, getLateralOrder, getDepthOrder } from '../../../shared/utils/player-util';
 
 type LineupTab = 'cancha' | 'titulares' | 'suplentes';
 
@@ -266,7 +266,12 @@ export class AlineacionesTabComponent {
   }
 
   private sortLateral(players: LineupPlayer[]): LineupPlayer[] {
-    return [...players].sort((a, b) => getLateralOrder(a.position) - getLateralOrder(b.position));
+    return [...players].sort((a, b) => {
+      const depthA = getDepthOrder(a.position);
+      const depthB = getDepthOrder(b.position);
+      if (depthA !== depthB) return depthA - depthB;
+      return getLateralOrder(a.position) - getLateralOrder(b.position);
+    });
   }
 
   private buildRowsByPosition(starters: LineupPlayer[]): PositionRow[] {

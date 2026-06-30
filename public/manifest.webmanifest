@@ -3,7 +3,7 @@
   "short_name": "FutLive",
   "description": "Partidos en vivo, estadísticas y transmisiones del Mundial 2026",
   "display": "standalone",
-  "orientation": "portrait",
+  "orientation": "any",
   "scope": "./",
   "start_url": "./",
   "theme_color": "#22c55e",

@@ -1,7 +1,7 @@
 import { Component, computed, inject, input, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
-import { switchMap } from 'rxjs';
+import { switchMap, tap } from 'rxjs';
 import { getLeague } from '../../shared/constants/leagues';
 import { Match } from '../../core/models/match-model';
 import { GroupStanding } from '../../core/models/standings-model';
@@ -448,25 +448,33 @@ export class LeagueDetailComponent {
   /** Slug de la liga, hidratado desde el path param gracias a `withComponentInputBinding()`. */
   readonly slug = input.required<string>();
 
+  /** Tracks si el primer valor del stream ya llegó — separa "cargando" de "vacío legítimo". */
+  private readonly matchesLoaded = signal(false);
+  private readonly standingsLoaded = signal(false);
+  private readonly scorersLoaded = signal(false);
+
   /** Streams per-tab — `toSignal` los activa al navegar a la ruta, sin `ngOnInit`. */
   private readonly matches$ = toObservable(this.slug).pipe(
-    switchMap(s => this.data.sources(s).matches$)
+    switchMap(s => this.data.sources(s).matches$),
+    tap(() => this.matchesLoaded.set(true))
   );
   private readonly standings$ = toObservable(this.slug).pipe(
-    switchMap(s => this.data.sources(s).standings$)
+    switchMap(s => this.data.sources(s).standings$),
+    tap(() => this.standingsLoaded.set(true))
   );
   private readonly scorers$ = toObservable(this.slug).pipe(
-    switchMap(s => this.data.sources(s).scorers$)
+    switchMap(s => this.data.sources(s).scorers$),
+    tap(() => this.scorersLoaded.set(true))
   );
 
   readonly matches = toSignal(this.matches$, { initialValue: [] as Match[] });
   readonly standings = toSignal(this.standings$, { initialValue: [] as GroupStanding[] });
   readonly scorers = toSignal(this.scorers$, { initialValue: [] as ScorerRow[] });
 
-  /** Carga inicial hasta que llegue el primer valor del stream. */
-  readonly matchesLoading = computed(() => this.matches().length === 0);
-  readonly standingsLoading = computed(() => this.standings().length === 0);
-  readonly scorersLoading = computed(() => this.scorers().length === 0);
+  /** Cargando = stream aún no emitió su primer valor. Vacío = datos legítimamente vacíos. */
+  readonly matchesLoading = computed(() => !this.matchesLoaded());
+  readonly standingsLoading = computed(() => !this.standingsLoaded());
+  readonly scorersLoading = computed(() => !this.scorersLoaded());
 
   readonly league = computed(() => getLeague(this.slug()));
   readonly t = translateTeamName;

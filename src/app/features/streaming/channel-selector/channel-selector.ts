@@ -1,4 +1,4 @@
-import { Component, input, output, computed } from '@angular/core';
+import { Component, input, output, computed, signal } from '@angular/core';
 import { MatchStream } from '../../../core/models/stream-model';
 
 export interface StreamGroup {
@@ -52,6 +52,15 @@ export function sectionBorderClass(sourceKey: string): string {
   return 'border-gray-500';
 }
 
+/** Tailwind class for the tab's accent text color */
+export function sourceTextColor(sourceKey: string): string {
+  const k = sourceKey.toLowerCase();
+  if (k === 'balondeportes') return 'text-blue-600 dark:text-blue-400';
+  if (k === 'lacancha') return 'text-emerald-600 dark:text-emerald-400';
+  if (k === 'futbol-libre') return 'text-red-600 dark:text-red-400';
+  return 'text-gray-600 dark:text-gray-400';
+}
+
 /** Pure function: groups streams by source provider for visual clustering */
 export function groupStreamsBySource(streams: MatchStream[]): StreamGroup[] {
   const ORDER = ['balondeportes', 'lacancha', 'futbol-libre'];
@@ -62,19 +71,20 @@ export function groupStreamsBySource(streams: MatchStream[]): StreamGroup[] {
     buckets.get(key)!.push(s);
   }
   const groups: StreamGroup[] = [];
-  for (const key of ORDER) {
+  ORDER.forEach((key, idx) => {
     const list = buckets.get(key);
     if (list && list.length > 0) {
       groups.push({
         sourceKey: key,
-        category: `${sourceLabel({ source: key } as MatchStream)} · ${list.length}`,
+        category: `Opción ${idx + 1} · ${sourceLabel({ source: key } as MatchStream)}`,
         streams: list,
       });
     }
-  }
+  });
   for (const [key, list] of buckets) {
     if (!ORDER.includes(key)) {
-      groups.push({ sourceKey: key, category: `${key} · ${list.length}`, streams: list });
+      const n = ORDER.length + groups.length - ORDER.filter(k => buckets.has(k)).length;
+      groups.push({ sourceKey: key, category: `Opción ${n} · ${key}`, streams: list });
     }
   }
   return groups;
@@ -85,41 +95,50 @@ export function groupStreamsBySource(streams: MatchStream[]): StreamGroup[] {
   standalone: true,
   template: `
     @if (streams().length > 0) {
-      <div [class]="needsScroll() ? 'max-h-[200px] overflow-y-auto space-y-3' : 'space-y-3'">
-        @for (group of groupedStreams(); track group.category) {
-          <div [class]="'pl-2 border-l-2 ' + sectionBorderClass(group.sourceKey)">
-            <span class="text-xs h-3 uppercase tracking-wider text-gray-500 dark:text-gray-400 font-semibold tabular-nums">
-              {{ group.category }}
-            </span>
-            <div class="flex flex-wrap gap-2 mt-1">
-              @for (stream of group.streams; track stream.id) {
-                <button
-                  type="button"
-                  (click)="channelSelected.emit(stream)"
-                  [title]="cleanStreamName(stream.embed_name)"
-                  [class]="active()?.embed_url === stream.embed_url
-                    ? 'inline-flex items-center gap-2 min-w-[80px] max-w-[200px] max-h-8 px-3 py-1 rounded-full border border-blue-500 bg-blue-50 dark:bg-blue-950/30 text-sm font-medium transition-colors'
-                    : 'inline-flex items-center gap-2 min-w-[80px] max-w-[200px] max-h-8 px-3 py-1 rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-blue-300 dark:hover:border-blue-600 text-sm font-medium transition-colors'"
-                >
-                  <span class="truncate text-gray-800 dark:text-gray-100 text-xs flex-1 min-w-0">
-                    {{ cleanStreamName(stream.embed_name) }}
-                  </span>
-                  @if (sourceLabel(stream)) {
-                    <span [class]="sourceBadgeClasses(stream)" title="Origen: {{ stream.source }}">
-                      {{ sourceLabel(stream) }}
-                    </span>
-                  }
-                  <span [class]="classifyStreamQuality(stream.embed_name) === 'HD'
-                    ? 'text-[10px] font-bold px-1.5 py-0.5 rounded tabular-nums bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300'
-                    : 'text-[10px] font-bold px-1.5 py-0.5 rounded tabular-nums bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'"
-                  >
-                    {{ classifyStreamQuality(stream.embed_name) }}
-                  </span>
-                </button>
-              }
-            </div>
-          </div>
+      <!-- Tabs por fuente -->
+      <div class="flex gap-1 mb-2 border-b border-gray-200 dark:border-gray-700">
+        @for (group of groupedStreams(); track group.sourceKey) {
+          <button
+            type="button"
+            (click)="selectTab(group.sourceKey)"
+            [class]="effectiveTab() === group.sourceKey
+              ? 'px-3 py-1.5 text-sm font-semibold border-b-2 ' + sectionBorderClass(group.sourceKey) + ' ' + sourceTextColor(group.sourceKey) + ' -mb-px'
+              : 'px-3 py-1.5 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 -mb-px border-b-2 border-transparent'"
+          >
+            <span class="tabular-nums">{{ group.category }}</span>
+          </button>
         }
+      </div>
+
+      <!-- Pills del tab activo -->
+      <div [class]="needsScroll() ? 'max-h-[280px] overflow-y-auto' : ''">
+        <div class="flex flex-wrap gap-2">
+          @for (stream of currentTabStreams(); track stream.id) {
+            <button
+              type="button"
+              (click)="channelSelected.emit(stream)"
+              [title]="cleanStreamName(stream.embed_name)"
+              [class]="active()?.embed_url === stream.embed_url
+                ? 'inline-flex items-center gap-2 min-w-[80px] max-w-[200px] max-h-8 px-3 py-1 rounded-full border border-blue-500 bg-blue-50 dark:bg-blue-950/30 text-sm font-medium transition-colors'
+                : 'inline-flex items-center gap-2 min-w-[80px] max-w-[200px] max-h-8 px-3 py-1 rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-blue-300 dark:hover:border-blue-600 text-sm font-medium transition-colors'"
+            >
+              <span class="truncate text-gray-800 dark:text-gray-100 text-xs flex-1 min-w-0">
+                {{ cleanStreamName(stream.embed_name) }}
+              </span>
+              @if (sourceLabel(stream)) {
+                <span [class]="sourceBadgeClasses(stream)" title="Origen: {{ stream.source }}">
+                  {{ sourceLabel(stream) }}
+                </span>
+              }
+              <span [class]="classifyStreamQuality(stream.embed_name) === 'HD'
+                ? 'text-[10px] font-bold px-1.5 py-0.5 rounded tabular-nums bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300'
+                : 'text-[10px] font-bold px-1.5 py-0.5 rounded tabular-nums bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'"
+              >
+                {{ classifyStreamQuality(stream.embed_name) }}
+              </span>
+            </button>
+          }
+        </div>
       </div>
     } @else {
       <div class="text-center py-8 text-gray-500 dark:text-gray-400">
@@ -136,12 +155,38 @@ export class ChannelSelectorComponent {
   active = input<MatchStream | null>(null);
   channelSelected = output<MatchStream>();
 
+  /** User-clicked tab. null = follow the sticky rule from `active()`. */
+  private readonly currentTab = signal<string | null>(null);
+
   readonly groupedStreams = computed(() => groupStreamsBySource(this.streams()));
   readonly needsScroll = computed(() => this.streams().length > 20);
+
+  /** Sticky tab: chosen tab → else active stream source → else first group. */
+  readonly effectiveTab = computed(() => {
+    const chosen = this.currentTab();
+    if (chosen !== null) return chosen;
+    const activeSource = this.active()?.source?.toLowerCase();
+    if (activeSource) return activeSource;
+    return this.groupedStreams()[0]?.sourceKey ?? '';
+  });
+
+  /** Streams for the active tab, HD-first. */
+  readonly currentTabStreams = computed(() => {
+    const tab = this.effectiveTab();
+    const filtered = this.streams().filter(s => s.source?.toLowerCase() === tab.toLowerCase());
+    const hd = filtered.filter(s => classifyStreamQuality(s.embed_name) === 'HD');
+    const sd = filtered.filter(s => classifyStreamQuality(s.embed_name) !== 'HD');
+    return [...hd, ...sd];
+  });
+
+  selectTab(sourceKey: string): void {
+    this.currentTab.set(sourceKey);
+  }
 
   classifyStreamQuality = classifyStreamQuality;
   sourceLabel = sourceLabel;
   sourceBadgeClasses = sourceBadgeClasses;
   cleanStreamName = cleanStreamName;
   sectionBorderClass = sectionBorderClass;
+  sourceTextColor = sourceTextColor;
 }

@@ -18,6 +18,7 @@ export class App implements OnInit {
   private readonly loadingService = inject(LoadingService);
 
   readonly headerHidden = signal(false);
+  readonly currentUrl = signal('/');
   private lastScrollY = 0;
 
   @HostListener('window:scroll')
@@ -31,10 +32,18 @@ export class App implements OnInit {
     this.lastScrollY = currentY;
   }
 
+  isActive(path: string): boolean {
+    const url = this.currentUrl();
+    if (path === '/') return url === '/' || url.startsWith('/ligas/worldcup');
+    return url === path || url.startsWith(path + '/');
+  }
+
   ngOnInit() {
+    this.currentUrl.set(this.router.url);
     this.router.events.subscribe(event => {
       if (event instanceof NavigationStart) {
         this.loadingService.setRouteLoading(true);
+        this.currentUrl.set(event.url);
       } else if (
         event instanceof NavigationEnd ||
         event instanceof NavigationCancel ||

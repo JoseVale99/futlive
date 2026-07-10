@@ -19,10 +19,56 @@
       <div class="flex items-center gap-4">
         <!-- Desktop Navigation -->
         <nav class="hidden md:flex items-center gap-1">
-          <a [routerLink]="['/']" routerLinkActive="bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400" [routerLinkActiveOptions]="{exact: true}" class="px-3 py-1.5 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors">
+          <a
+            [routerLink]="['/']"
+            [class.text-blue-600]="isActive('/')"
+            [class.dark:text-blue-400]="isActive('/')"
+            [class.text-gray-600]="!isActive('/')"
+            [class.dark:text-gray-400]="!isActive('/')"
+            [class.bg-blue-50]="isActive('/')"
+            [class.dark:bg-blue-900/20]="isActive('/')"
+            [class.font-black]="isActive('/')"
+            [class.font-semibold]="!isActive('/')"
+            class="relative px-3 py-1.5 rounded-lg text-sm transition-all flex items-center gap-1.5 cursor-pointer"
+          >
+            <svg
+              [attr.fill]="isActive('/') ? 'currentColor' : 'none'"
+              [attr.stroke]="isActive('/') ? 'none' : 'currentColor'"
+              [attr.stroke-width]="isActive('/') ? 0 : 2"
+              class="w-4 h-4 transition-transform shrink-0"
+              [class.scale-110]="isActive('/')"
+              viewBox="0 0 24 24"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" [attr.d]="isActive('/')
+                ? 'M5 4h14a1 1 0 0 1 1 1v2a4 4 0 0 1-3 3.87V12a5 5 0 0 1-5 5h-1a5 5 0 0 1-5-5v-1.13A4 4 0 0 1 3 7V5a1 1 0 0 1 1-1zm2 4a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V6H7zm5 11a3 3 0 0 0 3-3v-1H9v1a3 3 0 0 0 3 3zm-3 1h6v2H9z'
+                : 'M5 4h14a1 1 0 0 1 1 1v2a4 4 0 0 1-3 3.87V12a5 5 0 0 1-5 5h-1a5 5 0 0 1-5-5v-1.13A4 4 0 0 1 3 7V5a1 1 0 0 1 1-1z'"/>
+            </svg>
             Inicio
           </a>
-          <a [routerLink]="['/ligas']" routerLinkActive="bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400" [routerLinkActiveOptions]="{exact: true}" class="px-3 py-1.5 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors">
+          <a
+            [routerLink]="['/ligas']"
+            [class.text-blue-600]="isActive('/ligas')"
+            [class.dark:text-blue-400]="isActive('/ligas')"
+            [class.text-gray-600]="!isActive('/ligas')"
+            [class.dark:text-gray-400]="!isActive('/ligas')"
+            [class.bg-blue-50]="isActive('/ligas')"
+            [class.dark:bg-blue-900/20]="isActive('/ligas')"
+            [class.font-black]="isActive('/ligas')"
+            [class.font-semibold]="!isActive('/ligas')"
+            class="relative px-3 py-1.5 rounded-lg text-sm transition-all flex items-center gap-1.5 cursor-pointer"
+          >
+            <svg
+              [attr.fill]="isActive('/ligas') ? 'currentColor' : 'none'"
+              [attr.stroke]="isActive('/ligas') ? 'none' : 'currentColor'"
+              [attr.stroke-width]="isActive('/ligas') ? 0 : 2"
+              class="w-4 h-4 transition-transform shrink-0"
+              [class.scale-110]="isActive('/ligas')"
+              viewBox="0 0 24 24"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" [attr.d]="isActive('/ligas')
+                ? 'M3 3h18v18H3V3zm2 2v14h14V5H5zm2 2h10v2H7V7zm0 4h10v2H7v-2zm0 4h7v2H7v-2z'
+                : 'M3 21h18M5 21V10l7-4 7 4v11M9 21v-6h6v6M3 10h18'"/>
+            </svg>
             Ligas
           </a>
         </nav>
@@ -42,18 +88,64 @@
   <router-outlet />
 
   <!-- Mobile Navigation -->
-  <nav class="md:hidden fixed bottom-0 left-0 right-0 z-40 backdrop-blur-xl bg-white/95 dark:bg-gray-900/95 border-t border-gray-200 dark:border-gray-800 px-4 py-2 flex justify-around items-center shadow-xl">
-    <a [routerLink]="['/']" routerLinkActive="!text-blue-600 dark:!text-blue-400" [routerLinkActiveOptions]="{exact: true}" class="flex flex-col items-center min-h-12 min-w-12 justify-center transition-colors text-gray-400 dark:text-gray-500 relative">
-      <svg class="w-5 h-5 mb-0.5" fill="currentColor" viewBox="0 0 24 24">
-        <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+  <nav class="md:hidden fixed bottom-0 left-0 right-0 z-40 backdrop-blur-xl bg-white/95 dark:bg-gray-900/95 border-t border-gray-200 dark:border-gray-800 px-2 py-2 flex justify-around items-center shadow-xl">
+    <a
+      [routerLink]="['/']"
+      [class.text-blue-600]="isActive('/')"
+      [class.dark:text-blue-400]="isActive('/')"
+      [class.text-gray-400]="!isActive('/')"
+      [class.dark:text-gray-500]="!isActive('/')"
+      class="flex flex-col items-center min-h-12 min-w-16 justify-center transition-colors relative px-3 py-1.5 rounded-xl cursor-pointer"
+    >
+      <span
+        [class.opacity-100]="isActive('/')"
+        [class.scale-100]="isActive('/')"
+        [class.opacity-0]="!isActive('/')"
+        [class.scale-50]="!isActive('/')"
+        class="absolute -top-0.5 left-1/2 -translate-x-1/2 w-8 h-1 rounded-full bg-blue-500 transition-all duration-200"
+      ></span>
+      <svg
+        [attr.fill]="isActive('/') ? 'currentColor' : 'none'"
+        [attr.stroke]="isActive('/') ? 'none' : 'currentColor'"
+        [attr.stroke-width]="isActive('/') ? 0 : 2"
+        class="w-6 h-6 mb-0.5 transition-transform"
+        [class.scale-110]="isActive('/')"
+        viewBox="0 0 24 24"
+      >
+        <path stroke-linecap="round" stroke-linejoin="round" [attr.d]="isActive('/')
+          ? 'M5 4h14a1 1 0 0 1 1 1v2a4 4 0 0 1-3 3.87V12a5 5 0 0 1-5 5h-1a5 5 0 0 1-5-5v-1.13A4 4 0 0 1 3 7V5a1 1 0 0 1 1-1zm2 4a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V6H7zm5 11a3 3 0 0 0 3-3v-1H9v1a3 3 0 0 0 3 3zm-3 1h6v2H9z'
+          : 'M5 4h14a1 1 0 0 1 1 1v2a4 4 0 0 1-3 3.87V12a5 5 0 0 1-5 5h-1a5 5 0 0 1-5-5v-1.13A4 4 0 0 1 3 7V5a1 1 0 0 1 1-1z'"/>
       </svg>
-      <span class="text-[10px] font-bold uppercase tracking-wide">Inicio</span>
+      <span [class.font-black]="isActive('/')" [class.font-bold]="!isActive('/')" class="text-[10px] uppercase tracking-wide">Inicio</span>
     </a>
-    <a [routerLink]="['/ligas']" routerLinkActive="!text-blue-600 dark:!text-blue-400" [routerLinkActiveOptions]="{exact: true}" class="flex flex-col items-center min-h-12 min-w-12 justify-center transition-colors text-gray-400 dark:text-gray-500 relative">
-      <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+    <a
+      [routerLink]="['/ligas']"
+      [class.text-blue-600]="isActive('/ligas')"
+      [class.dark:text-blue-400]="isActive('/ligas')"
+      [class.text-gray-400]="!isActive('/ligas')"
+      [class.dark:text-gray-500]="!isActive('/ligas')"
+      class="flex flex-col items-center min-h-12 min-w-16 justify-center transition-colors relative px-3 py-1.5 rounded-xl cursor-pointer"
+    >
+      <span
+        [class.opacity-100]="isActive('/ligas')"
+        [class.scale-100]="isActive('/ligas')"
+        [class.opacity-0]="!isActive('/ligas')"
+        [class.scale-50]="!isActive('/ligas')"
+        class="absolute -top-0.5 left-1/2 -translate-x-1/2 w-8 h-1 rounded-full bg-blue-500 transition-all duration-200"
+      ></span>
+      <svg
+        [attr.fill]="isActive('/ligas') ? 'currentColor' : 'none'"
+        [attr.stroke]="isActive('/ligas') ? 'none' : 'currentColor'"
+        [attr.stroke-width]="isActive('/ligas') ? 0 : 2"
+        class="w-6 h-6 mb-0.5 transition-transform"
+        [class.scale-110]="isActive('/ligas')"
+        viewBox="0 0 24 24"
+      >
+        <path stroke-linecap="round" stroke-linejoin="round" [attr.d]="isActive('/ligas')
+          ? 'M3 3h18v18H3V3zm2 2v14h14V5H5zm2 2h10v2H7V7zm0 4h10v2H7v-2zm0 4h7v2H7v-2z'
+          : 'M3 21h18M5 21V10l7-4 7 4v11M9 21v-6h6v6M3 10h18'"/>
       </svg>
-      <span class="text-[10px] font-bold uppercase tracking-wide">Ligas</span>
+      <span [class.font-black]="isActive('/ligas')" [class.font-bold]="!isActive('/ligas')" class="text-[10px] uppercase tracking-wide">Ligas</span>
     </a>
   </nav>
 </main>

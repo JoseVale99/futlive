@@ -23,6 +23,7 @@ export function classifyStreamQuality(embedName: string): 'HD' | 'SD' {
 export function sourceLabel(stream: MatchStream): string {
   const s = stream.source?.toLowerCase() ?? '';
   if (s === 'balondeportes') return 'BD';
+  if (s === 'futbollibrex') return 'FX';
   if (s === 'futbol-libre') return 'FL';
   if (s === 'lacancha') return 'LC';
   return '';
@@ -33,20 +34,22 @@ export function sourceBadgeClasses(stream: MatchStream): string {
   const s = stream.source?.toLowerCase() ?? '';
   const base = 'text-[10px] font-bold px-1.5 py-0.5 rounded tabular-nums';
   if (s === 'balondeportes') return `${base} bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300`;
+  if (s === 'futbollibrex') return `${base} bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300`;
   if (s === 'futbol-libre') return `${base} bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300`;
   if (s === 'lacancha') return `${base} bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300`;
   return `${base} bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300`;
 }
 
-/** Strip redundant (BD)/(FL)/(LC) suffix — duplicates the source badge */
+/** Strip redundant (BD)/(FL)/(LC)/(FX) suffix — duplicates the source badge */
 export function cleanStreamName(name: string): string {
-  return name.replace(/\s*\((?:BD|FL|LC)\)\s*$/i, '').trim();
+  return name.replace(/\s*\((?:BD|FL|LC|FX)\)\s*$/i, '').trim();
 }
 
 /** Tailwind class for the colored left-border on the section header */
 export function sectionBorderClass(sourceKey: string): string {
   const k = sourceKey.toLowerCase();
   if (k === 'balondeportes') return 'border-blue-500';
+  if (k === 'futbollibrex') return 'border-amber-500';
   if (k === 'lacancha') return 'border-emerald-500';
   if (k === 'futbol-libre') return 'border-red-500';
   return 'border-gray-500';
@@ -56,6 +59,7 @@ export function sectionBorderClass(sourceKey: string): string {
 export function sourceTextColor(sourceKey: string): string {
   const k = sourceKey.toLowerCase();
   if (k === 'balondeportes') return 'text-blue-600 dark:text-blue-400';
+  if (k === 'futbollibrex') return 'text-amber-600 dark:text-amber-400';
   if (k === 'lacancha') return 'text-emerald-600 dark:text-emerald-400';
   if (k === 'futbol-libre') return 'text-red-600 dark:text-red-400';
   return 'text-gray-600 dark:text-gray-400';
@@ -65,6 +69,7 @@ export function sourceTextColor(sourceKey: string): string {
 export function sourceMonogramClasses(stream: MatchStream): string {
   const s = stream.source?.toLowerCase() ?? '';
   if (s === 'balondeportes') return 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300';
+  if (s === 'futbollibrex') return 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300';
   if (s === 'futbol-libre') return 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300';
   if (s === 'lacancha') return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300';
   return 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300';
@@ -74,6 +79,7 @@ export function sourceMonogramClasses(stream: MatchStream): string {
 export function sourceBgFill(sourceKey: string): string {
   const k = sourceKey.toLowerCase();
   if (k === 'balondeportes') return 'bg-blue-500';
+  if (k === 'futbollibrex') return 'bg-amber-500';
   if (k === 'lacancha') return 'bg-emerald-500';
   if (k === 'futbol-libre') return 'bg-red-500';
   return 'bg-gray-500';
@@ -81,7 +87,7 @@ export function sourceBgFill(sourceKey: string): string {
 
 /** Pure function: groups streams by source provider for visual clustering */
 export function groupStreamsBySource(streams: MatchStream[]): StreamGroup[] {
-  const ORDER = ['balondeportes', 'lacancha', 'futbol-libre'];
+  const ORDER = ['futbollibrex', 'balondeportes', 'lacancha', 'futbol-libre'];
   const buckets = new Map<string, MatchStream[]>();
   for (const s of streams) {
     const key = s.source?.toLowerCase() || 'other';

@@ -1,6 +1,7 @@
 /**
  * Vercel Serverless Function — Proxy de streams.
  * Scrapea canales desde lacancha.tv (embed_url + embed_name).
+ * Fallbacks extra: balondeportes.com, futbol-libres.su, futbollibrex.net.
  * Todo lo demás (partidos, stats, lineups) viene de ESPN.
  *
  * Endpoint: /api/streams?matchId={id}
@@ -165,6 +166,83 @@ function parseRSCStreams(rscText, matchId) {
   return streams.slice(0, 40);
 }
 
+/**
+ * Scrape the la12hd.com player page for a channel and extract the .m3u8 URL.
+ * Returns null if extraction fails (caller falls back to iframe embed).
+ */
+async function resolveLa12hdStream(slug) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 4000);
+  try {
+    const res = await fetch(`https://la12hd.com/vivo/canal.php?stream=${slug}`, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36',
+        'Referer': 'https://futbollibrex.net/',
+        'Origin': 'https://futbollibrex.net',
+        'Accept': 'text/html,application/xhtml+xml,*/*',
+      },
+    });
+    const html = await res.text();
+
+    const m3u8Match = html.match(/(https?:\/\/[^\s"'<>]+\.m3u8(?:\?[^\s"'<>]*)?)/);
+    return m3u8Match ? m3u8Match[1] : null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+/**
+ * Scrape futbollibrex.net homepage for per-event channels.
+ * Returns flat list of channels (name + decoded la16hd/la20hd/tarjetarojita URL).
+ */
+async function scrapeFutbollibrexEvents() {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 5000);
+  try {
+    const res = await fetch('https://futbollibrex.net/', {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36',
+        'Accept': 'text/html',
+      },
+    });
+    const html = await res.text();
+
+    const events = html.split(/<div class="evento"/).slice(1);
+    const channels = [];
+    const seen = new Set();
+
+    for (const ev of events) {
+      if (!ev.includes('canales-lista')) continue;
+      const linkRe = /<a href="\/embed\/eventos\.php\?r=([^"&\s]+)[^"]*"[\s\S]*?<strong>([^<]+)<\/strong>/g;
+      let m;
+      while ((m = linkRe.exec(ev)) !== null) {
+        try {
+          const d1 = Buffer.from(m[1], 'base64').toString();
+          const inner = d1.match(/[?&]r=([^&\s]+)/);
+          if (!inner) continue;
+          const url = Buffer.from(inner[1], 'base64').toString().trim();
+          if (!url.startsWith('http')) continue;
+          const name = m[2].trim().replace(/\s+/g, ' ');
+          if (seen.has(name)) continue;
+          seen.add(name);
+          channels.push({ name, url });
+        } catch {
+          // skip malformed entries
+        }
+      }
+    }
+    return channels;
+  } catch {
+    return [];
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
@@ -264,6 +342,23 @@ module.exports = async function handler(req, res) {
           created_at: new Date().toISOString(),
         });
       }
+    }
+
+// Agregar canales per-evento de futbollibrex.net (Telemundo, TVE, Dsports, etc.)
+    const fxChannels = await scrapeFutbollibrexEvents();
+    const existingNamesFX = new Set(streams.map(s => s.embed_name.toLowerCase()));
+    for (const ch of fxChannels) {
+      if (existingNamesFX.has(ch.name.toLowerCase())) continue;
+      streams.push({
+        id: `fx-${streams.length}`,
+        match_id: matchId,
+        channel_id: null,
+        embed_name: ch.name,
+        embed_url: ch.url,
+        source: 'futbollibrex',
+        stream_param: null,
+        created_at: new Date().toISOString(),
+      });
     }
 
     return res.status(200).json({ streams, matchId, count: streams.length });

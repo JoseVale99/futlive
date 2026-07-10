@@ -133,6 +133,82 @@ function transformEspnEvent(event, leagueSlug) {
 }
 
 // --- Streams: lacancha.tv scrape + fallback futbol-libre ---
+
+/**
+ * Scrape futbollibrex.net homepage for per-event channels.
+ * Returns flat list of channels (name + decoded la16hd/la20hd/tarjetarojita URL).
+ */
+async function scrapeFutbollibrexEvents() {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 5000);
+  try {
+    const res = await fetch('https://futbollibrex.net/', {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36',
+        'Accept': 'text/html',
+      },
+    });
+    const html = await res.text();
+
+    const events = html.split(/<div class="evento"/).slice(1);
+    const channels = [];
+    const seen = new Set();
+
+    for (const ev of events) {
+      if (!ev.includes('canales-lista')) continue;
+      const linkRe = /<a href="\/embed\/eventos\.php\?r=([^"&\s]+)[^"]*"[\s\S]*?<strong>([^<]+)<\/strong>/g;
+      let m;
+      while ((m = linkRe.exec(ev)) !== null) {
+        try {
+          const d1 = Buffer.from(m[1], 'base64').toString();
+          const inner = d1.match(/[?&]r=([^&\s]+)/);
+          if (!inner) continue;
+          const url = Buffer.from(inner[1], 'base64').toString().trim();
+          if (!url.startsWith('http')) continue;
+          const name = m[2].trim().replace(/\s+/g, ' ');
+          if (seen.has(name)) continue;
+          seen.add(name);
+          channels.push({ name, url });
+        } catch {
+          // skip malformed entries
+        }
+      }
+    }
+    return channels;
+  } catch {
+    return [];
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+/**
+ * Scrape the la12hd.com player page for a channel and extract the .m3u8 URL.
+ * Returns null if extraction fails (caller falls back to iframe embed).
+ */
+async function resolveLa12hdStream(slug) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 4000);
+  try {
+    const res = await fetch(`https://la12hd.com/vivo/canal.php?stream=${slug}`, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36',
+        'Referer': 'https://futbollibrex.net/',
+        'Origin': 'https://futbollibrex.net',
+        'Accept': 'text/html,application/xhtml+xml,*/*',
+      },
+    });
+    const html = await res.text();
+    const m3u8Match = html.match(/(https?:\/\/[^\s"'<>]+\.m3u8(?:\?[^\s"'<>]*)?)/);
+    return m3u8Match ? m3u8Match[1] : null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
 function parseMatchPageStreams(html, matchId) {
   const streams = [];
   const seen = new Set();
@@ -369,6 +445,23 @@ async function buildStreams(matchId) {
     }
   }
 
+  // Agregar canales per-evento de futbollibrex.net (Telemundo, TVE, Dsports, etc.)
+  const fxChannels = await scrapeFutbollibrexEvents();
+  const existingNamesFX = new Set(streams.map(s => s.embed_name.toLowerCase()));
+  for (const ch of fxChannels) {
+    if (existingNamesFX.has(ch.name.toLowerCase())) continue;
+    streams.push({
+      id: `fx-${streams.length}`,
+      match_id: matchId,
+      channel_id: null,
+      embed_name: ch.name,
+      embed_url: ch.url,
+      source: 'futbollibrex',
+      stream_param: null,
+      created_at: new Date().toISOString(),
+    });
+  }
+
   return streams;
 }
 
@@ -432,7 +525,36 @@ const server = http.createServer(async (req, res) => {
 
   const parsed = url.parse(req.url, true);
 
-  if (parsed.pathname === '/api/streams') {
+  if (parsed.pathname === '/api/embed') {
+    const targetUrl = parsed.query.url;
+    if (!targetUrl) { res.writeHead(400); res.end(JSON.stringify({ error: 'url parameter required' })); return; }
+
+    const ALLOWED_HOSTS = new Set(['la12hd.com', 'la16hd.com', 'futbollibrex.net']);
+    let target;
+    try { target = new URL(targetUrl); } catch { res.writeHead(400); res.end(JSON.stringify({ error: 'invalid url' })); return; }
+    if (!ALLOWED_HOSTS.has(target.hostname)) { res.writeHead(403); res.end(JSON.stringify({ error: 'host not allowed' })); return; }
+
+    try {
+      console.log(`[${new Date().toISOString()}] embed proxy → ${targetUrl}`);
+      const upstream = await fetch(targetUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,*/*',
+          'Referer': 'https://futbollibrex.net/',
+          'Origin': 'https://futbollibrex.net',
+          'Accept-Language': 'es-ES,es;q=0.9',
+        },
+        redirect: 'follow',
+      });
+      const body = await upstream.text();
+      const ct = upstream.headers.get('content-type') || 'text/html; charset=utf-8';
+      res.writeHead(upstream.status, { 'Content-Type': ct });
+      res.end(body);
+    } catch (err) {
+      res.writeHead(502); res.end(JSON.stringify({ error: 'upstream fetch failed', detail: err.message }));
+    }
+
+  } else if (parsed.pathname === '/api/streams') {
     const matchId = parsed.query.matchId;
     if (!matchId) { res.writeHead(400); res.end(JSON.stringify({ error: 'matchId parameter required' })); return; }
 

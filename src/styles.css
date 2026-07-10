@@ -78,6 +78,17 @@
   animation: loadingBar 1.5s ease-in-out infinite;
 }
 
+/* Pointer cursor on every clickable element. `cursor-not-allowed` classes already used
+   in templates win on specificity, so disabled states stay correct. */
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="tab"],
+  a {
+    @apply cursor-pointer;
+  }
+}
+
 /* Slim themed scrollbars. CSS custom is unavoidable — Tailwind 4 has no scrollbar utilities. */
 * {
   scrollbar-width: thin;

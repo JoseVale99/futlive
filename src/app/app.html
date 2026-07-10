@@ -22,6 +22,9 @@
           <a [routerLink]="['/']" routerLinkActive="bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400" [routerLinkActiveOptions]="{exact: true}" class="px-3 py-1.5 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors">
             Inicio
           </a>
+          <a [routerLink]="['/ligas']" routerLinkActive="bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400" [routerLinkActiveOptions]="{exact: true}" class="px-3 py-1.5 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors">
+            Ligas
+          </a>
           <a [routerLink]="['/posiciones']" routerLinkActive="bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400" class="px-3 py-1.5 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors">
             Posiciones
           </a>
@@ -51,6 +54,12 @@
         <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
       </svg>
       <span class="text-[10px] font-bold uppercase tracking-wide">Inicio</span>
+    </a>
+    <a [routerLink]="['/ligas']" routerLinkActive="!text-blue-600 dark:!text-blue-400" [routerLinkActiveOptions]="{exact: true}" class="flex flex-col items-center min-h-12 min-w-12 justify-center transition-colors text-gray-400 dark:text-gray-500 relative">
+      <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+      </svg>
+      <span class="text-[10px] font-bold uppercase tracking-wide">Ligas</span>
     </a>
     <a [routerLink]="['/posiciones']" routerLinkActive="!text-blue-600 dark:!text-blue-400" class="flex flex-col items-center min-h-12 min-w-12 justify-center transition-colors text-gray-400 dark:text-gray-500 relative">
       <svg class="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

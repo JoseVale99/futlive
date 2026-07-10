@@ -18,6 +18,14 @@ export const routes: Routes = [
     loadComponent: () => import('./features/scorers/scorers-view').then(m => m.ScorersViewComponent)
   },
   {
+    path: 'ligas',
+    loadComponent: () => import('./features/leagues/leagues-landing').then(m => m.LeaguesLandingComponent)
+  },
+  {
+    path: 'ligas/:slug',
+    loadComponent: () => import('./features/leagues/league-detail').then(m => m.LeagueDetailComponent)
+  },
+  {
     path: '**',
     loadComponent: () => import('./features/not-found/not-found').then(m => m.NotFoundComponent)
   }

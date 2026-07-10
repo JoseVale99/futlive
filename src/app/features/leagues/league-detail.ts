@@ -290,7 +290,7 @@ interface ScorerRow {
                   }
                   <div class="flex-1 min-w-0">
                     <p class="text-sm font-semibold text-gray-900 dark:text-white truncate">{{ scorer.name }}</p>
-                    <p class="text-xs text-gray-500 dark:text-gray-400 truncate">{{ scorer.team }}</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 truncate">{{ t(scorer.team) }}</p>
                   </div>
                   <div class="text-right shrink-0">
                     <p class="text-lg font-black text-gray-900 dark:text-white tabular-nums leading-none">{{ scorer.value }}</p>

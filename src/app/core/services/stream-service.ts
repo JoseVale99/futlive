@@ -53,7 +53,7 @@ export class StreamService {
     const cached = this.streamsCache.get(matchId);
     if (cached && Date.now() - cached.timestamp < this.STREAMS_TTL) {
       this._streams.set(cached.data);
-      this._activeStream.set(this.preferHd(cached.data));
+      this._activeStream.set(this.pickDefault(cached.data));
       this._loading.set(false);
       return;
     }
@@ -62,14 +62,21 @@ export class StreamService {
       const streams = response.streams ?? [];
       this.streamsCache.set(matchId, { data: streams, timestamp: Date.now() });
       this._streams.set(streams);
-      this._activeStream.set(this.preferHd(streams));
+      this._activeStream.set(this.pickDefault(streams));
       this._loading.set(false);
     });
   }
 
-  /** Helper: pick first HD stream if any, else first, else null. */
-  private preferHd(streams: MatchStream[]): MatchStream | null {
+  /** Source priority matches channel-selector tab order — first option wins.
+   *  Within that source, prefer HD, else the first stream of that source. */
+  private pickDefault(streams: MatchStream[]): MatchStream | null {
     if (streams.length === 0) return null;
+    const ORDER = ['futbollibrex', 'balondeportes', 'lacancha', 'futbol-libre'];
+    for (const key of ORDER) {
+      const inGroup = streams.filter(s => s.source?.toLowerCase() === key);
+      if (inGroup.length === 0) continue;
+      return inGroup.find(s => /hd|4k|1080|720|hevc/i.test(s.embed_name)) ?? inGroup[0];
+    }
     return streams.find(s => /hd|4k|1080|720|hevc/i.test(s.embed_name)) ?? streams[0];
   }
 

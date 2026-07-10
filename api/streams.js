@@ -195,6 +195,52 @@ async function resolveLa12hdStream(slug) {
 }
 
 /**
+ * Scrape futbol-libres.su /agenda/ for per-event channels.
+ * Returns flat list of channels (name + decoded esvidzypro/vidzenvivo/esvidzy99 URL).
+ */
+async function scrapeFutbolLibresEvents() {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 5000);
+  try {
+    const res = await fetch('https://futbol-libres.su/agenda/', {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36',
+        'Accept': 'text/html',
+      },
+    });
+    const html = await res.text();
+
+    const events = html.split(/<li class="[A-Z]+">/);
+    const channels = [];
+    const seen = new Set();
+
+    for (const ev of events) {
+      if (!ev.includes('eventos.html?r=')) continue;
+      const linkRe = /href="https?:\/\/futbol-libres\.su\/eventos\.html\?r=([^"&]+)[^"]*"[^>]*>([^<]+)<span>/g;
+      let m;
+      while ((m = linkRe.exec(ev)) !== null) {
+        try {
+          const url = Buffer.from(m[1], 'base64').toString().trim();
+          if (!url.startsWith('http')) continue;
+          const name = m[2].trim().replace(/\s+/g, ' ');
+          if (seen.has(name)) continue;
+          seen.add(name);
+          channels.push({ name, url });
+        } catch {
+          // skip malformed entries
+        }
+      }
+    }
+    return channels;
+  } catch {
+    return [];
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+/**
  * Scrape futbollibrex.net homepage for per-event channels.
  * Returns flat list of channels (name + decoded la16hd/la20hd/tarjetarojita URL).
  */
@@ -317,31 +363,21 @@ module.exports = async function handler(req, res) {
       }
     }
 
-    // Agregar futbol-libres.su como canales extra al final
-    const fallbackChannels = [
-      { name: 'ESPN (FL)', slug: 'espn-1' },
-      { name: 'ESPN Premium (FL)', slug: 'espn-premium' },
-      { name: 'DSports (FL)', slug: 'directv-sports' },
-      { name: 'Fox Sports (FL)', slug: 'fox-sports' },
-      { name: 'TUDN (FL)', slug: 'tudn' },
-      { name: 'TNT Sports (FL)', slug: 'tnt-sports' },
-      { name: 'TyC Sports (FL)', slug: 'tyc-sports' },
-      { name: 'Telemundo (FL)', slug: 'telemundo' },
-    ];
+    // Agregar canales per-evento de futbol-libres.su/agenda/ (DSports, TVE, FOX, etc.)
+    const flChannels = await scrapeFutbolLibresEvents();
     const existingNamesFL = new Set(streams.map(s => s.embed_name.toLowerCase()));
-    for (const ch of fallbackChannels) {
-      if (!existingNamesFL.has(ch.name.toLowerCase())) {
-        streams.push({
-          id: `fb-${streams.length}`,
-          match_id: matchId,
-          channel_id: null,
-          embed_name: ch.name,
-          embed_url: `https://futbol-libres.su/${ch.slug}/`,
-          source: 'futbol-libre',
-          stream_param: null,
-          created_at: new Date().toISOString(),
-        });
-      }
+    for (const ch of flChannels) {
+      if (existingNamesFL.has(ch.name.toLowerCase())) continue;
+      streams.push({
+        id: `fb-${streams.length}`,
+        match_id: matchId,
+        channel_id: null,
+        embed_name: ch.name,
+        embed_url: ch.url,
+        source: 'futbol-libre',
+        stream_param: null,
+        created_at: new Date().toISOString(),
+      });
     }
 
 // Agregar canales per-evento de futbollibrex.net (Telemundo, TVE, Dsports, etc.)

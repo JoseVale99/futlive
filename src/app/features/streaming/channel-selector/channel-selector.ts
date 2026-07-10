@@ -18,22 +18,49 @@ export function classifyStreamQuality(embedName: string): 'HD' | 'SD' {
     : 'SD';
 }
 
-/** Pure function: groups streams by quality category */
-export function groupStreamsByQuality(streams: MatchStream[]): StreamGroup[] {
-  const hd: MatchStream[] = [];
-  const sd: MatchStream[] = [];
+/** Pure function: short label for a stream's source provider */
+export function sourceLabel(stream: MatchStream): string {
+  const s = stream.source?.toLowerCase() ?? '';
+  if (s === 'balondeportes') return 'BD';
+  if (s === 'futbol-libre') return 'FL';
+  if (s === 'lacancha') return 'LC';
+  return '';
+}
 
-  for (const stream of streams) {
-    if (classifyStreamQuality(stream.embed_name) === 'HD') {
-      hd.push(stream);
-    } else {
-      sd.push(stream);
+/** Tailwind classes for the source badge */
+export function sourceBadgeClasses(stream: MatchStream): string {
+  const s = stream.source?.toLowerCase() ?? '';
+  const base = 'text-[10px] font-bold px-1.5 py-0.5 rounded';
+  if (s === 'balondeportes') return `${base} bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300`;
+  if (s === 'futbol-libre') return `${base} bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300`;
+  if (s === 'lacancha') return `${base} bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300`;
+  return `${base} bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300`;
+}
+
+/** Pure function: groups streams by source provider for visual clustering */
+export function groupStreamsBySource(streams: MatchStream[]): StreamGroup[] {
+  const ORDER = ['balondeportes', 'lacancha', 'futbol-libre'];
+  const buckets = new Map<string, MatchStream[]>();
+  for (const s of streams) {
+    const key = s.source?.toLowerCase() || 'other';
+    if (!buckets.has(key)) buckets.set(key, []);
+    buckets.get(key)!.push(s);
+  }
+  const groups: StreamGroup[] = [];
+  for (const key of ORDER) {
+    const list = buckets.get(key);
+    if (list && list.length > 0) {
+      groups.push({
+        category: `${sourceLabel({ source: key } as MatchStream)} · ${list.length}`,
+        streams: list,
+      });
     }
   }
-
-  const groups: StreamGroup[] = [];
-  if (hd.length > 0) groups.push({ category: 'HD', streams: hd });
-  if (sd.length > 0) groups.push({ category: 'SD', streams: sd });
+  for (const [key, list] of buckets) {
+    if (!ORDER.includes(key)) {
+      groups.push({ category: `${key} · ${list.length}`, streams: list });
+    }
+  }
   return groups;
 }
 
@@ -60,6 +87,11 @@ export function groupStreamsByQuality(streams: MatchStream[]): StreamGroup[] {
                   <span class="truncate text-gray-800 dark:text-gray-100 text-xs">
                     {{ stream.embed_name }}
                   </span>
+                  @if (sourceLabel(stream)) {
+                    <span [class]="sourceBadgeClasses(stream)" title="Origen: {{ stream.source }}">
+                      {{ sourceLabel(stream) }}
+                    </span>
+                  }
                   <span [class]="classifyStreamQuality(stream.embed_name) === 'HD'
                     ? 'text-[10px] font-bold px-1.5 py-0.5 rounded bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300'
                     : 'text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'"
@@ -87,8 +119,10 @@ export class ChannelSelectorComponent {
   active = input<MatchStream | null>(null);
   channelSelected = output<MatchStream>();
 
-  readonly groupedStreams = computed(() => groupStreamsByQuality(this.streams()));
+  readonly groupedStreams = computed(() => groupStreamsBySource(this.streams()));
   readonly needsScroll = computed(() => this.streams().length > 20);
 
   classifyStreamQuality = classifyStreamQuality;
+  sourceLabel = sourceLabel;
+  sourceBadgeClasses = sourceBadgeClasses;
 }

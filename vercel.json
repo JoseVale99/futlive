@@ -11,6 +11,7 @@
     { "source": "/api/v1", "destination": "/api/espn" },
     { "source": "/api/streams", "destination": "/api/streams" },
     { "source": "/api/embed", "destination": "/api/embed" },
+    { "source": "/api/scorers", "destination": "/api/scorers" },
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }

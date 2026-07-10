@@ -6,14 +6,18 @@ import { environment } from '../../../environments/environment';
 import { leagueHttpParams } from '../../shared/constants/leagues';
 import { Match } from '../models/match-model';
 import { GroupStanding } from '../models/standings-model';
+import { getFlagUrl } from '../../shared/utils/flag-util';
+
+export type ScorerCategory = 'goals' | 'assists';
 
 export interface ScorerRow {
   rank: number;
   name: string;
   team: string;
   teamCode: string;
-  photo: string;
+  teamFlag: string;
   value: number;
+  category: ScorerCategory;
 }
 
 export interface LeagueDataSources {
@@ -72,17 +76,17 @@ export class LeagueDataService {
     }).pipe(
       timeout(10000),
       map(res => (res.players ?? [])
-        .filter((p: any) => p.category === 'goals')
+        .filter((p: any) => p.category === 'goals' || p.category === 'assists')
         .sort((a: any, b: any) => a.rank - b.rank)
         .map((p: any) => ({
           rank: p.rank,
           name: p.player_name,
           team: p.team,
           teamCode: p.team_code,
-          photo: p.player_photo,
+          teamFlag: getFlagUrl(p.team_code),
           value: p.value,
-        })))
-      ,
+          category: p.category as ScorerCategory,
+        }))),
       catchError(() => of([] as ScorerRow[]))
     );
   }

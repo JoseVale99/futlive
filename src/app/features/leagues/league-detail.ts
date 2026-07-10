@@ -11,6 +11,7 @@ import { translateTeamName } from '../../shared/utils/team-name-util';
 
 type MatchTabId = 'live' | 'scheduled' | 'finished';
 type LeagueTabId = 'matches' | 'standings' | 'scorers';
+type ScorerCategoryId = 'goals' | 'assists';
 
 @Component({
   selector: 'app-league-detail',
@@ -363,31 +364,63 @@ type LeagueTabId = 'matches' | 'standings' | 'scorers';
               [attr.tabindex]="0"
               class="focus:outline-none"
             >
+              <!-- Sub-tabs Goles / Asistencias -->
+              <div class="flex gap-1 mb-4 bg-white dark:bg-[#111827] border border-gray-200 dark:border-white/5 rounded-lg p-1">
+                @for (st of scorerTabs; track st.id) {
+                  <button
+                    type="button"
+                    (click)="scorerCategory.set(st.id)"
+                    [class.flex-1]="true"
+                    [class.px-3]="true"
+                    [class.py-2]="true"
+                    [class.text-xs]="true"
+                    [class.rounded-md]="true"
+                    [class.transition-all]="true"
+                    [class.text-gray-900]="scorerCategory() === st.id"
+                    [class.dark:text-white]="scorerCategory() === st.id"
+                    [class.bg-gray-100]="scorerCategory() === st.id"
+                    [class.dark:bg-white/5]="scorerCategory() === st.id"
+                    [class.font-semibold]="scorerCategory() === st.id"
+                    [class.text-gray-500]="scorerCategory() !== st.id"
+                    [class.dark:text-gray-400]="scorerCategory() !== st.id"
+                    [class.font-medium]="scorerCategory() !== st.id"
+                    [class.hover:text-gray-700]="scorerCategory() !== st.id"
+                    [class.dark:hover:text-gray-200]="scorerCategory() !== st.id"
+                    [class.cursor-pointer]="scorerCategory() !== st.id"
+                  >
+                    {{ st.label }}
+                    @if (scorerCountByCategory()[st.id] > 0) {
+                      <span class="ml-1 text-[10px] text-gray-400 dark:text-gray-500">({{ scorerCountByCategory()[st.id] }})</span>
+                    }
+                  </button>
+                }
+              </div>
+
               @if (scorersLoading()) {
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
                   @for (i of [1,2,3,4,5,6]; track i) {
                     <div class="bg-white dark:bg-[#111827] border border-gray-200 dark:border-white/5 rounded-xl p-3 animate-pulse h-16"></div>
                   }
                 </div>
-              } @else if (scorers().length === 0) {
+              } @else if (filteredScorers().length === 0) {
                 <div class="text-center py-20 bg-white dark:bg-[#111827] rounded-2xl border border-gray-200 dark:border-white/5">
                   <div class="w-14 h-14 mx-auto mb-3 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
                     <span class="material-symbols-outlined text-gray-400 text-2xl">sports_soccer</span>
                   </div>
-                  <p class="text-gray-500 dark:text-gray-400 text-sm font-medium">Sin goleadores todavía</p>
+                  <p class="text-gray-500 dark:text-gray-400 text-sm font-medium">Sin datos de {{ scorerCategory() === 'goals' ? 'goleadores' : 'asistencias' }} todavía</p>
                   <p class="text-gray-400 dark:text-gray-500 text-xs mt-1">Los datos aparecen cuando arranca la temporada</p>
                 </div>
               } @else {
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                  @for (scorer of scorers(); track scorer.rank + '-' + scorer.name) {
+                  @for (scorer of filteredScorers(); track scorer.category + '-' + scorer.rank + '-' + scorer.name) {
                     <div [class]="scorer.rank === 1
                       ? 'flex items-center gap-3 p-3 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-700/30 rounded-xl border-l-4'
                       : 'flex items-center gap-3 p-3 bg-white dark:bg-[#111827] border border-gray-200 dark:border-white/5 rounded-xl'">
                       <span class="text-base font-black text-gray-400 dark:text-gray-500 tabular-nums w-6 text-center">{{ scorer.rank }}</span>
-                      @if (scorer.photo) {
-                        <img [src]="scorer.photo" [alt]="scorer.name" loading="lazy" (error)="handleImgError($event)" class="w-10 h-10 rounded-full object-cover bg-gray-100 dark:bg-gray-800 shrink-0">
+                      @if (scorer.teamFlag) {
+                        <img [src]="scorer.teamFlag" [alt]="scorer.team" loading="lazy" (error)="handleImgError($event)" class="w-7 h-5 rounded-sm object-cover bg-gray-100 dark:bg-gray-800 shrink-0">
                       } @else {
-                        <div class="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 shrink-0"></div>
+                        <div class="w-7 h-5 rounded-sm bg-gray-200 dark:bg-gray-700 shrink-0"></div>
                       }
                       <div class="flex-1 min-w-0">
                         <p class="text-sm font-semibold text-gray-900 dark:text-white truncate">{{ scorer.name }}</p>
@@ -395,7 +428,7 @@ type LeagueTabId = 'matches' | 'standings' | 'scorers';
                       </div>
                       <div class="text-right shrink-0">
                         <p class="text-lg font-black text-gray-900 dark:text-white tabular-nums leading-none">{{ scorer.value }}</p>
-                        <p class="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">goles</p>
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">{{ scorer.category === 'goals' ? 'goles' : 'asist.' }}</p>
                       </div>
                     </div>
                   }
@@ -444,12 +477,31 @@ export class LeagueDetailComponent {
     { id: 'finished', label: 'Resultados' },
   ];
 
+  readonly scorerTabs: { id: ScorerCategoryId; label: string }[] = [
+    { id: 'goals', label: 'Goles' },
+    { id: 'assists', label: 'Asistencias' },
+  ];
+
   readonly activeTab = signal<LeagueTabId>('matches');
   readonly matchStatus = signal<MatchTabId>('live');
+  readonly scorerCategory = signal<ScorerCategoryId>('goals');
 
   readonly filteredMatches = computed(() => {
     const status = this.matchStatus();
     return this.matches().filter(m => m.status === status);
+  });
+
+  readonly filteredScorers = computed(() => {
+    const cat = this.scorerCategory();
+    return this.scorers().filter(s => s.category === cat);
+  });
+
+  readonly scorerCountByCategory = computed(() => {
+    const all = this.scorers();
+    return {
+      goals: all.filter(s => s.category === 'goals').length,
+      assists: all.filter(s => s.category === 'assists').length,
+    };
   });
 
   readonly countByStatus = computed(() => {
@@ -508,7 +560,7 @@ export class LeagueDetailComponent {
 
   handleImgError(event: Event) {
     const img = event.target as HTMLImageElement;
-    img.src = APP_CONSTANTS.IMAGES.FLAG_PLACEHOLDER;
+    img.style.display = 'none';
   }
 
   goToMatch(match: Match) {

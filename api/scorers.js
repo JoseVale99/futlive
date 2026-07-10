@@ -2,10 +2,16 @@
  * Vercel Serverless Function — Top scorers desde ESPN Statistics API
  * Se despliega automáticamente en /api/scorers
  *
+ * Endpoint: /api/scorers?league=<slug>
  * Devuelve formato { players: ScorersApiPlayer[] } compatible con el frontend.
  */
 
-const ESPN_STATS_URL = `${process.env.ESPN_API_BASE}/apis/site/v2/sports/soccer/fifa.world/statistics`;
+const { resolvePath } = require('./leagues');
+
+function buildUrl(leagueSlug) {
+  const path = resolvePath(leagueSlug);
+  return `${process.env.ESPN_API_BASE}/apis/site/v2/sports/soccer/${path}/statistics`;
+}
 
 async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -18,7 +24,9 @@ async function handler(req, res) {
   }
 
   try {
-    const response = await fetch(ESPN_STATS_URL, {
+    const { league } = req.query;
+    const url = buildUrl(league);
+    const response = await fetch(url, {
       headers: { 'User-Agent': 'NexaTV/1.0' }
     });
 

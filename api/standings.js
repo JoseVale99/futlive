@@ -1,9 +1,19 @@
 /**
  * Vercel Serverless Function — Posiciones desde ESPN API (datos en tiempo real).
  * Transforma la respuesta de ESPN al formato GroupStanding[] que espera el frontend.
+ *
+ * Endpoint: /api/standings?league=<slug>
+ *
+ * Sin `league` resuelve al mundial. Las copas (`uefa.champions`, `libertadores`)
+ * no tienen standings por grupo — devuelven array vacío y el frontend debe manejarlo.
  */
 
-const ESPN_STANDINGS_URL = `${process.env.ESPN_API_BASE}/apis/v2/sports/soccer/fifa.world/standings`;
+const { resolvePath } = require('./leagues');
+
+function buildUrl(leagueSlug) {
+  const path = resolvePath(leagueSlug);
+  return `${process.env.ESPN_API_BASE}/apis/v2/sports/soccer/${path}/standings`;
+}
 
 function getStat(stats, name) {
   const stat = stats.find(s => s.name === name);
@@ -61,7 +71,9 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const response = await fetch(ESPN_STANDINGS_URL, {
+    const { league } = req.query;
+    const url = buildUrl(league);
+    const response = await fetch(url, {
       headers: { 'Accept': 'application/json' },
     });
 

@@ -52,7 +52,7 @@ function fetchJson(targetUrl, headers = {}) {
 }
 
 // --- ESPN Transform ---
-function transformEspnEvent(event) {
+function transformEspnEvent(event, leagueSlug) {
   const comp = event.competitions?.[0];
   if (!comp) return null;
 
@@ -85,7 +85,7 @@ function transformEspnEvent(event) {
 
     const teamSide = d.team?.id === home.id ? 'home' : 'away';
     const athlete = d.athletesInvolved?.[0];
-    if (!athlete) return null; // Sin jugador identificado, no mostrar
+    if (!athlete) return null;
     const clockVal = d.clock?.displayValue || '';
     const minute = parseInt(clockVal, 10) || 0;
     return {
@@ -117,7 +117,8 @@ function transformEspnEvent(event) {
 
   return {
     id: event.id, external_id: event.uid || event.id,
-    competition: 'FIFA World Cup 2026', stage, group_name: null,
+    competition: resolveName(leagueSlug), stage, group_name: null,
+    league_slug: leagueSlug || 'worldcup',
     home_team: home.team?.displayName || '', away_team: away.team?.displayName || '',
     home_flag: getFlag(home.team), away_flag: getFlag(away.team),
     kickoff_at: comp.startDate || event.date, status,
@@ -406,6 +407,20 @@ function transformBracketEvent(event) {
   };
 }
 
+// --- ESPN URL builders (parametrizados por liga) ---
+const { resolvePath, resolveName } = require('../api/leagues');
+const ESPN_API_BASE = process.env.ESPN_API_BASE || 'https://site.api.espn.com';
+
+function espnScoreboardUrl(leagueSlug) {
+  return `${ESPN_API_BASE}/apis/site/v2/sports/soccer/${resolvePath(leagueSlug)}/scoreboard`;
+}
+function espnStandingsUrl(leagueSlug) {
+  return `${ESPN_API_BASE}/apis/v2/sports/soccer/${resolvePath(leagueSlug)}/standings`;
+}
+function espnStatsUrl(leagueSlug) {
+  return `${ESPN_API_BASE}/apis/site/v2/sports/soccer/${resolvePath(leagueSlug)}/statistics`;
+}
+
 // --- Server ---
 const server = http.createServer(async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -434,8 +449,9 @@ const server = http.createServer(async (req, res) => {
 
   } else if (parsed.pathname === '/api/standings') {
     try {
-      console.log(`[${new Date().toISOString()}] Fetching standings from ESPN`);
-      const espnUrl = `${process.env.ESPN_API_BASE}/apis/v2/sports/soccer/fifa.world/standings`;
+      const league = parsed.query.league;
+      const espnUrl = espnStandingsUrl(league);
+      console.log(`[${new Date().toISOString()}] Fetching standings (league=${league || 'worldcup'}) from ${espnUrl}`);
       const espnRes = await fetchJson(espnUrl);
 
       const standings = [];
@@ -508,10 +524,10 @@ const server = http.createServer(async (req, res) => {
 
   } else if (parsed.pathname === '/api/scorers' || parsed.pathname === '/api/scorers/board') {
     try {
-      console.log(`[${new Date().toISOString()}] Fetching scorers from ESPN statistics`);
-      const ESPN_API_BASE = process.env.ESPN_API_BASE || 'https://site.api.espn.com';
-      const espnStatsUrl = `${ESPN_API_BASE}/apis/site/v2/sports/soccer/fifa.world/statistics`;
-      const data = await fetchJson(espnStatsUrl, { 'User-Agent': 'NexaTV/1.0' });
+      const league = parsed.query.league;
+      const espnStatsUrlFinal = espnStatsUrl(league);
+      console.log(`[${new Date().toISOString()}] Fetching scorers (league=${league || 'worldcup'}) from ${espnStatsUrlFinal}`);
+      const data = await fetchJson(espnStatsUrlFinal, { 'User-Agent': 'NexaTV/1.0' });
 
       const goalsCategory = (data.stats || []).find(s => s.name === 'goalsLeaders');
       const assistsCategory = (data.stats || []).find(s => s.name === 'assistsLeaders');
@@ -620,9 +636,8 @@ const server = http.createServer(async (req, res) => {
     }
 
   } else if (parsed.pathname === '/api/v1') {
-    const { status, id, dates } = parsed.query;
-    const ESPN_API_BASE = process.env.ESPN_API_BASE || 'https://site.api.espn.com';
-    const ESPN_SCOREBOARD = `${ESPN_API_BASE}/apis/site/v2/sports/soccer/fifa.world/scoreboard`;
+    const { status, id, dates, league } = parsed.query;
+    const ESPN_SCOREBOARD = espnScoreboardUrl(league);
 
     try {
       const params = new URLSearchParams();
@@ -630,10 +645,10 @@ const server = http.createServer(async (req, res) => {
       else if (status === 'scheduled' || status === 'finished' || !status) params.set('dates', '20260611-20260720');
 
       const targetUrl = params.toString() ? `${ESPN_SCOREBOARD}?${params.toString()}` : ESPN_SCOREBOARD;
-      console.log(`[${new Date().toISOString()}] ESPN: status=${status || 'all'}, id=${id || 'none'}`);
+      console.log(`[${new Date().toISOString()}] ESPN: status=${status || 'all'}, id=${id || 'none'}, league=${league || 'worldcup'}`);
 
       const espnData = await fetchJson(targetUrl, { 'User-Agent': 'NexaTV/1.0' });
-      let matches = (espnData.events || []).map(transformEspnEvent).filter(Boolean);
+      let matches = (espnData.events || []).map(e => transformEspnEvent(e, league)).filter(Boolean);
 
       if (status) matches = matches.filter(m => m.status === status);
       if (id) matches = matches.filter(m => m.id === id);

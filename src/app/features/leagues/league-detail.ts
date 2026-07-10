@@ -145,7 +145,7 @@ interface ScorerRow {
                       <button type="button" (click)="goToMatch(match)" class="w-full flex items-center gap-3 cursor-pointer">
                         <div class="flex flex-col items-center gap-1 flex-1 min-w-0">
                           <img [src]="match.home_flag" [alt]="match.home_team" (error)="handleImgError($event)" class="w-9 h-9 rounded-lg object-cover">
-                          <span class="text-xs font-semibold text-gray-900 dark:text-white text-center truncate max-w-full">{{ match.home_team }}</span>
+                          <span class="text-xs font-semibold text-gray-900 dark:text-white text-center truncate max-w-full">{{ t(match.home_team) }}</span>
                         </div>
                         <div class="flex items-center gap-2 shrink-0">
                           <span class="text-2xl font-black text-gray-900 dark:text-white tabular-nums">{{ match.home_score ?? 0 }}</span>
@@ -154,7 +154,7 @@ interface ScorerRow {
                         </div>
                         <div class="flex flex-col items-center gap-1 flex-1 min-w-0">
                           <img [src]="match.away_flag" [alt]="match.away_team" (error)="handleImgError($event)" class="w-9 h-9 rounded-lg object-cover">
-                          <span class="text-xs font-semibold text-gray-900 dark:text-white text-center truncate max-w-full">{{ match.away_team }}</span>
+                          <span class="text-xs font-semibold text-gray-900 dark:text-white text-center truncate max-w-full">{{ t(match.away_team) }}</span>
                         </div>
                       </button>
                     </div>
@@ -175,14 +175,14 @@ interface ScorerRow {
                     <div class="flex-1 min-w-0 space-y-1">
                       <div class="flex items-center gap-2">
                         <img [src]="match.home_flag" [alt]="match.home_team" (error)="handleImgError($event)" class="w-4 h-4 rounded-sm object-cover shrink-0">
-                        <span class="text-[13px] font-medium text-gray-900 dark:text-gray-100 truncate">{{ match.home_team }}</span>
+                        <span class="text-[13px] font-medium text-gray-900 dark:text-gray-100 truncate">{{ t(match.home_team) }}</span>
                         @if (match.status === 'finished') {
                           <span class="ml-auto text-sm font-bold text-gray-900 dark:text-white tabular-nums">{{ match.home_score }}</span>
                         }
                       </div>
                       <div class="flex items-center gap-2">
                         <img [src]="match.away_flag" [alt]="match.away_team" (error)="handleImgError($event)" class="w-4 h-4 rounded-sm object-cover shrink-0">
-                        <span class="text-[13px] font-medium text-gray-900 dark:text-gray-100 truncate">{{ match.away_team }}</span>
+                        <span class="text-[13px] font-medium text-gray-900 dark:text-gray-100 truncate">{{ t(match.away_team) }}</span>
                         @if (match.status === 'finished') {
                           <span class="ml-auto text-sm font-bold text-gray-900 dark:text-white tabular-nums">{{ match.away_score }}</span>
                         }

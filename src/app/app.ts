@@ -5,6 +5,13 @@ import { LoadingBarComponent } from './shared/components/loading-bar/loading-bar
 import { ThemeService } from './core/services/theme-service';
 import { LoadingService } from './core/services/loading-service';
 
+interface NavLink {
+  path: string;
+  label: string;
+  iconActive: string;
+  iconInactive: string;
+}
+
 @Component({
   selector: 'app-root',
   standalone: true,
@@ -32,9 +39,25 @@ export class App implements OnInit {
     this.lastScrollY = currentY;
   }
 
+  readonly links: NavLink[] = [
+    {
+      path: '/',
+      label: 'Inicio',
+      iconActive: 'M5 4h14a1 1 0 0 1 1 1v2a4 4 0 0 1-3 3.87V12a5 5 0 0 1-5 5h-1a5 5 0 0 1-5-5v-1.13A4 4 0 0 1 3 7V5a1 1 0 0 1 1-1zm2 4a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V6H7zm5 11a3 3 0 0 0 3-3v-1H9v1a3 3 0 0 0 3 3zm-3 1h6v2H9z',
+      iconInactive: 'M5 4h14a1 1 0 0 1 1 1v2a4 4 0 0 1-3 3.87V12a5 5 0 0 1-5 5h-1a5 5 0 0 1-5-5v-1.13A4 4 0 0 1 3 7V5a1 1 0 0 1 1-1z',
+    },
+    {
+      path: '/ligas',
+      label: 'Ligas',
+      iconActive: 'M3 3h18v18H3V3zm2 2v14h14V5H5zm2 2h10v2H7V7zm0 4h10v2H7v-2zm0 4h7v2H7v-2z',
+      iconInactive: 'M3 21h18M5 21V10l7-4 7 4v11M9 21v-6h6v6M3 10h18',
+    },
+  ];
+
   isActive(path: string): boolean {
     const url = this.currentUrl();
     if (path === '/') return url === '/' || url.startsWith('/ligas/worldcup');
+    if (path === '/ligas') return (url === '/ligas' || url.startsWith('/ligas/')) && !url.startsWith('/ligas/worldcup');
     return url === path || url.startsWith(path + '/');
   }
 

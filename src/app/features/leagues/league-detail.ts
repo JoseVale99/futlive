@@ -55,7 +55,7 @@ type ScorerCategoryId = 'goals' | 'assists';
           class="bg-gray-50 dark:bg-[#0a0e17] border-b border-gray-200 dark:border-white/5 sticky top-0 z-20 backdrop-blur-md"
         >
           <div class="max-w-6xl mx-auto px-4">
-            <nav class="flex gap-1">
+            <nav class="flex gap-1 overflow-x-auto scrollbar-hide snap-x">
               <button
                 type="button"
                 role="tab"

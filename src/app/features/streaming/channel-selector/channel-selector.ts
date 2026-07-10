@@ -225,12 +225,10 @@ export class ChannelSelectorComponent {
   readonly groupedStreams = computed(() => groupStreamsBySource(this.streams()));
   readonly needsScroll = computed(() => this.streams().length > 20);
 
-  /** Sticky tab: chosen tab → else active stream source → else first group. */
+  /** Sticky tab: chosen tab → else Opción 1 (first group). */
   readonly effectiveTab = computed(() => {
     const chosen = this.currentTab();
     if (chosen !== null) return chosen;
-    const activeSource = this.active()?.source?.toLowerCase();
-    if (activeSource) return activeSource;
     return this.groupedStreams()[0]?.sourceKey ?? '';
   });
 

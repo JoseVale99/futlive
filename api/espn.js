@@ -230,12 +230,10 @@ module.exports = async function handler(req, res) {
       matches = matches.filter(m => m.status === status);
     }
 
-    // Cache headers
-    if (status === 'live') {
-      res.setHeader('Cache-Control', 'no-store');
-    } else {
-      res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=30');
-    }
+    // Cache headers — live sigue cambiando pero ESPN actualiza cada 30–60s.
+    // s-maxage=15 hace que el CDN de Vercel deduplique los N polls de los usuarios;
+    // stale-while-revalidate amortigua la ráfaga cuando expira.
+    res.setHeader('Cache-Control', 's-maxage=15, stale-while-revalidate=30');
 
     return res.status(200).json(matches);
   } catch (err) {

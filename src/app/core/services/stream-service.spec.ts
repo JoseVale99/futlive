@@ -59,5 +59,21 @@ describe('StreamService', () => {
       expect(service.loading()).toBe(false);
       expect(service.streams()).toEqual([]);
     });
+
+    it('should serve from cache within TTL without a new HTTP request', () => {
+      const mockStreams: Partial<MatchStream>[] = [
+        { id: '1', embed_name: 'Stream 1', embed_url: 'https://example.com/1' },
+      ];
+
+      service.fetchStreams('match-123');
+      httpMock.expectOne(r => r.url.includes('streams')).flush({ streams: mockStreams, count: 1 });
+
+      // Segunda llamada dentro del TTL → no debe hacer otra petición HTTP
+      service.fetchStreams('match-123');
+      httpMock.expectNone(r => r.url.includes('streams'));
+
+      expect(service.streams().length).toBe(1);
+      expect(service.activeStream()?.id).toBe('1');
+    });
   });
 });

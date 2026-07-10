@@ -1,7 +1,7 @@
 import { Injectable, inject, signal, OnDestroy } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { ENVIRONMENT_TOKEN } from '../config/environment';
-import { Subscription, timer, switchMap, catchError, of, timeout, Observable, map, retry } from 'rxjs';
+import { Subscription, timer, switchMap, catchError, of, timeout, Observable, map, retry, shareReplay } from 'rxjs';
 import { MatchEvent, MatchStats, MatchStatus, Match } from '../models/match-model';
 import { LiveScoreData, MatchLineup, POLLING_CONFIG } from '../models/live-data-model';
 import { mergeEventsById } from '../../shared/utils/event-sort-util';
@@ -128,6 +128,10 @@ export class LiveDataService implements OnDestroy {
       .get<Match[]>(this.env.apiBase, { params })
       .pipe(
         timeout(POLLING_CONFIG.httpTimeout),
+        // shareReplay cachea 30s y dedupea subscribers concurrentes del mismo matchId:
+        // evita N llamadas paralelas cuando un partido se monta en varios sitios a la vez.
+        // windowTime=30s < pollInterval=90s garantiza que cada poll traiga datos frescos.
+        shareReplay({ refCount: true, bufferSize: 1, windowTime: 30_000 }),
         map(matches => {
           const match = matches[0] ?? null;
           if (!match) return null;

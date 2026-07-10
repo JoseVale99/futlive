@@ -2,7 +2,7 @@ import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http'
 import { inject, Injectable, signal, computed } from '@angular/core';
 import { ENVIRONMENT_TOKEN } from '../config/environment';
 import { Match, MatchStatus, MatchEvent, MatchStats } from '../models/match-model';
-import { catchError, finalize, map, Observable, of, retry, Subscription, switchMap, timeout, timer, shareReplay } from 'rxjs';
+import { catchError, finalize, map, Observable, of, retry, Subscription, switchMap, timeout, timer, shareReplay, tap } from 'rxjs';
 import { sortMatchesByKickoff } from '../../shared/utils/match-sort-util';
 
 interface CacheEntry<T> {
@@ -43,6 +43,11 @@ export class MatchService {
     scheduled: 5 * 60 * 1000,
     finished: 30 * 60 * 1000
   };
+
+  // Cache por id de partido (para fetchMatchById). 30s — cubre re-aperturas y
+  // tabs duplicados sin chocar con el polling de 90s.
+  private readonly matchByIdCache = new Map<string, CacheEntry<Match | null>>();
+  private readonly MATCH_BY_ID_TTL = 30_000;
 
   /**
    * Obtiene los partidos desde la API proxy.
@@ -93,12 +98,18 @@ export class MatchService {
     const found = this._matches().find(m => m.id === matchId);
     if (found) return of(found);
 
+    const cached = this.matchByIdCache.get(matchId);
+    if (cached && Date.now() - cached.timestamp < this.MATCH_BY_ID_TTL) {
+      return of(cached.data);
+    }
+
     const params = new HttpParams().set('id', matchId);
 
     return this.http.get<Match[]>(this.env.apiBase, { params }).pipe(
       timeout(10000),
       retry(1),
       map(matches => matches.length > 0 ? matches[0] : null),
+      tap(match => this.matchByIdCache.set(matchId, { data: match, timestamp: Date.now() })),
       catchError((err: unknown) => {
         let errorMsg = 'Error al obtener el partido';
         if (err instanceof HttpErrorResponse) {
@@ -215,5 +226,6 @@ export class MatchService {
   clearCache() {
     this.matchesCache.clear();
     this.finishedEventsCache.clear();
+    this.matchByIdCache.clear();
   }
 }

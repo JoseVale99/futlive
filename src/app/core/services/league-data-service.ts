@@ -15,6 +15,7 @@ export interface ScorerRow {
   name: string;
   team: string;
   teamCode: string;
+  teamLogo: string;
   teamFlag: string;
   value: number;
   category: ScorerCategory;
@@ -83,6 +84,7 @@ export class LeagueDataService {
           name: p.player_name,
           team: p.team,
           teamCode: p.team_code,
+          teamLogo: p.team_logo ?? '',
           teamFlag: getFlagUrl(p.team_code),
           value: p.value,
           category: p.category as ScorerCategory,

@@ -443,7 +443,9 @@ type ScorerCategoryId = 'goals' | 'assists';
                       ? 'flex items-center gap-3 p-3 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-700/30 rounded-xl border-l-4'
                       : 'flex items-center gap-3 p-3 bg-white dark:bg-[#111827] border border-gray-200 dark:border-white/5 rounded-xl'">
                       <span class="text-base font-black text-gray-400 dark:text-gray-500 tabular-nums w-6 text-center">{{ scorer.rank }}</span>
-                      @if (scorer.teamFlag) {
+                      @if (scorer.teamLogo) {
+                        <img [src]="scorer.teamLogo" [alt]="scorer.team" loading="lazy" (error)="handleImgError($event)" class="w-7 h-7 rounded-full object-cover bg-gray-100 dark:bg-gray-800 shrink-0">
+                      } @else if (scorer.teamFlag) {
                         <img [src]="scorer.teamFlag" [alt]="scorer.team" loading="lazy" (error)="handleImgError($event)" class="w-7 h-5 rounded-sm object-cover bg-gray-100 dark:bg-gray-800 shrink-0">
                       } @else {
                         <div class="w-7 h-5 rounded-sm bg-gray-200 dark:bg-gray-700 shrink-0"></div>

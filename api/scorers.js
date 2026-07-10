@@ -42,6 +42,7 @@ async function handler(req, res) {
 
     if (goalsCategory && goalsCategory.leaders) {
       goalsCategory.leaders.slice(0, 20).forEach((leader, idx) => {
+        const teamLogos = leader.athlete.team?.logos || [];
         players.push({
           category: 'goals',
           rank: idx + 1,
@@ -49,6 +50,7 @@ async function handler(req, res) {
           player_photo: leader.athlete.headshot?.href || '',
           team: leader.athlete.team.displayName,
           team_code: leader.athlete.team.abbreviation || '',
+          team_logo: teamLogos[0]?.href || '',
           value: leader.value,
           updated_at: data.timestamp || new Date().toISOString(),
           player_external_id: parseInt(leader.athlete.id, 10) || 0,
@@ -58,6 +60,7 @@ async function handler(req, res) {
 
     if (assistsCategory && assistsCategory.leaders) {
       assistsCategory.leaders.slice(0, 20).forEach((leader, idx) => {
+        const teamLogos = leader.athlete.team?.logos || [];
         players.push({
           category: 'assists',
           rank: idx + 1,
@@ -65,6 +68,7 @@ async function handler(req, res) {
           player_photo: leader.athlete.headshot?.href || '',
           team: leader.athlete.team.displayName,
           team_code: leader.athlete.team.abbreviation || '',
+          team_logo: teamLogos[0]?.href || '',
           value: leader.value,
           updated_at: data.timestamp || new Date().toISOString(),
           player_external_id: parseInt(leader.athlete.id, 10) || 0,

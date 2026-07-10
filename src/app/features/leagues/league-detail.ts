@@ -6,16 +6,17 @@ import { getLeague } from '../../shared/constants/leagues';
 import { Match } from '../../core/models/match-model';
 import { GroupStanding } from '../../core/models/standings-model';
 import { LeagueDataService, ScorerRow } from '../../core/services/league-data-service';
+import { BracketComponent } from '../bracket/bracket-view';
 import { APP_CONSTANTS } from '../../shared/constants/app-constants';
 import { translateTeamName } from '../../shared/utils/team-name-util';
 
 type MatchTabId = 'live' | 'scheduled' | 'finished';
-type LeagueTabId = 'matches' | 'standings' | 'scorers';
+type LeagueTabId = 'matches' | 'standings' | 'scorers' | 'cruces';
 type ScorerCategoryId = 'goals' | 'assists';
 
 @Component({
   selector: 'app-league-detail',
-  imports: [RouterLink],
+  imports: [RouterLink, BracketComponent],
   template: `
     <div class="min-h-screen bg-gray-50 dark:bg-[#0a0e17] pb-24">
       @if (league(); as lg) {
@@ -124,6 +125,31 @@ type ScorerCategoryId = 'goals' | 'assists';
               >
                 Goleadores
               </button>
+              @if (slug() === 'worldcup') {
+                <button
+                  type="button"
+                  role="tab"
+                  [id]="tabId('cruces')"
+                  [attr.aria-selected]="activeTab() === 'cruces'"
+                  [attr.aria-controls]="panelId('cruces')"
+                  [attr.tabindex]="activeTab() === 'cruces' ? 0 : -1"
+                  (click)="activeTab.set('cruces')"
+                  (keydown)="onTabKey($event, 'cruces')"
+                  [class.text-gray-900]="activeTab() === 'cruces'"
+                  [class.dark:text-white]="activeTab() === 'cruces'"
+                  [class.font-semibold]="activeTab() === 'cruces'"
+                  [class.border-blue-500]="activeTab() === 'cruces'"
+                  [class.text-gray-500]="activeTab() !== 'cruces'"
+                  [class.dark:text-gray-400]="activeTab() !== 'cruces'"
+                  [class.font-medium]="activeTab() !== 'cruces'"
+                  [class.hover:text-gray-700]="activeTab() !== 'cruces'"
+                  [class.dark:hover:text-gray-200]="activeTab() !== 'cruces'"
+                  [class.cursor-pointer]="activeTab() !== 'cruces'"
+                  class="relative px-5 py-3.5 text-sm border-b-2 border-transparent transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                >
+                  Cruces
+                </button>
+              }
             </nav>
           </div>
         </div>
@@ -436,6 +462,17 @@ type ScorerCategoryId = 'goals' | 'assists';
               }
             </section>
           }
+          @case ('cruces') {
+            <section
+              role="tabpanel"
+              [id]="panelId('cruces')"
+              [attr.aria-labelledby]="tabId('cruces')"
+              [attr.tabindex]="0"
+              class="focus:outline-none"
+            >
+              <app-bracket />
+            </section>
+          }
         }
       </div>
     </div>
@@ -548,7 +585,7 @@ export class LeagueDetailComponent {
   onTabKey(event: KeyboardEvent, current: LeagueTabId) {
     if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
     event.preventDefault();
-    const order: LeagueTabId[] = ['matches', 'standings', 'scorers'];
+    const order: LeagueTabId[] = ['matches', 'standings', 'scorers', 'cruces'];
     const idx = order.indexOf(current);
     const next = event.key === 'ArrowRight'
       ? order[(idx + 1) % order.length]

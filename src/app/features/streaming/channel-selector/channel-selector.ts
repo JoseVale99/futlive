@@ -100,7 +100,7 @@ export function groupStreamsBySource(streams: MatchStream[]): StreamGroup[] {
     if (list && list.length > 0) {
       groups.push({
         sourceKey: key,
-        category: `Opción ${idx + 1} · ${sourceLabel({ source: key } as MatchStream)} · ${list.length}`,
+        category: `${idx + 1}`,
         streams: list,
       });
     }
@@ -108,7 +108,7 @@ export function groupStreamsBySource(streams: MatchStream[]): StreamGroup[] {
   for (const [key, list] of buckets) {
     if (!ORDER.includes(key)) {
       const n = ORDER.length + groups.length - ORDER.filter(k => buckets.has(k)).length;
-      groups.push({ sourceKey: key, category: `Opción ${n} · ${key}`, streams: list });
+      groups.push({ sourceKey: key, category: `${n}`, streams: list });
     }
   }
   return groups;
@@ -137,17 +137,22 @@ export function groupStreamsBySource(streams: MatchStream[]): StreamGroup[] {
       }
 
       <!-- Tabs por fuente -->
-      <div class="inline-flex gap-1 p-1 mb-3 bg-gray-100 dark:bg-gray-800/60 rounded-xl">
+      <div class="flex gap-1.5 mb-3 overflow-x-auto scrollbar-hide -mx-4 px-4 pb-1 snap-x snap-mandatory">
         @for (group of groupedStreams(); track group.sourceKey) {
           <button
             type="button"
             (click)="selectTab(group.sourceKey)"
             [class]="effectiveTab() === group.sourceKey
-              ? 'flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-white dark:bg-gray-900 shadow-sm ' + sourceTextColor(group.sourceKey)
-              : 'flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors'"
+              ? 'shrink-0 snap-start flex flex-col items-start gap-1 min-w-[88px] px-3 py-2 rounded-xl bg-white dark:bg-gray-900 shadow-sm border border-current/30 ' + sourceTextColor(group.sourceKey)
+              : 'shrink-0 snap-start flex flex-col items-start gap-1 min-w-[88px] px-3 py-2 rounded-xl bg-gray-100/60 dark:bg-gray-800/60 text-gray-600 dark:text-gray-400 border border-transparent hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors'"
           >
-            <span [class]="'w-1.5 h-1.5 rounded-full ' + sourceBgFill(group.sourceKey)"></span>
-            <span class="tabular-nums">{{ group.category }}</span>
+            <span class="flex items-center gap-1.5">
+              <span [class]="'w-1.5 h-1.5 rounded-full ' + sourceBgFill(group.sourceKey)"></span>
+              <span class="text-xs font-bold whitespace-nowrap">Opción {{ group.category }}</span>
+            </span>
+            <span class="text-[10px] font-medium tabular-nums opacity-80 whitespace-nowrap">
+              {{ sourceLabelForKey(group.sourceKey) }} · {{ group.streams.length }}
+            </span>
           </button>
         }
       </div>
@@ -253,4 +258,8 @@ export class ChannelSelectorComponent {
   sourceTextColor = sourceTextColor;
   sourceMonogramClasses = sourceMonogramClasses;
   sourceBgFill = sourceBgFill;
+
+  sourceLabelForKey(key: string): string {
+    return sourceLabel({ source: key } as MatchStream);
+  }
 }

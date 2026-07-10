@@ -34,6 +34,7 @@ export interface Match {
   id: string;
   external_id: string;
   competition: string;
+  league_slug?: string;
   stage: string;
   group_name: string | null;
   home_team: string;

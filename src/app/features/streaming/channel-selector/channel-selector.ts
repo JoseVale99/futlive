@@ -61,6 +61,24 @@ export function sourceTextColor(sourceKey: string): string {
   return 'text-gray-600 dark:text-gray-400';
 }
 
+/** Tailwind classes for the colored source monogram square */
+export function sourceMonogramClasses(stream: MatchStream): string {
+  const s = stream.source?.toLowerCase() ?? '';
+  if (s === 'balondeportes') return 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300';
+  if (s === 'futbol-libre') return 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300';
+  if (s === 'lacancha') return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300';
+  return 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300';
+}
+
+/** Tailwind classes for source's solid background fill (active tab indicator) */
+export function sourceBgFill(sourceKey: string): string {
+  const k = sourceKey.toLowerCase();
+  if (k === 'balondeportes') return 'bg-blue-500';
+  if (k === 'lacancha') return 'bg-emerald-500';
+  if (k === 'futbol-libre') return 'bg-red-500';
+  return 'bg-gray-500';
+}
+
 /** Pure function: groups streams by source provider for visual clustering */
 export function groupStreamsBySource(streams: MatchStream[]): StreamGroup[] {
   const ORDER = ['balondeportes', 'lacancha', 'futbol-libre'];
@@ -76,7 +94,7 @@ export function groupStreamsBySource(streams: MatchStream[]): StreamGroup[] {
     if (list && list.length > 0) {
       groups.push({
         sourceKey: key,
-        category: `Opción ${idx + 1} · ${sourceLabel({ source: key } as MatchStream)}`,
+        category: `Opción ${idx + 1} · ${sourceLabel({ source: key } as MatchStream)} · ${list.length}`,
         streams: list,
       });
     }
@@ -95,50 +113,90 @@ export function groupStreamsBySource(streams: MatchStream[]): StreamGroup[] {
   standalone: true,
   template: `
     @if (streams().length > 0) {
+      <!-- "En vivo" del stream activo -->
+      @if (active()) {
+        <div class="mb-3 px-3 py-2 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 flex items-center gap-2">
+          <span class="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-green-600 dark:text-green-400 tabular-nums">
+            <span class="relative flex w-2 h-2">
+              <span class="absolute inline-flex w-full h-full rounded-full bg-green-500 opacity-75 animate-ping"></span>
+              <span class="relative inline-flex w-2 h-2 rounded-full bg-green-500"></span>
+            </span>
+            En vivo
+          </span>
+          <span class="text-sm font-semibold text-gray-900 dark:text-white truncate flex-1 min-w-0">
+            {{ cleanStreamName(active()!.embed_name) }}
+          </span>
+          <span [class]="sourceBadgeClasses(active()!)">{{ sourceLabel(active()!) }}</span>
+        </div>
+      }
+
       <!-- Tabs por fuente -->
-      <div class="flex gap-1 mb-2 border-b border-gray-200 dark:border-gray-700">
+      <div class="inline-flex gap-1 p-1 mb-3 bg-gray-100 dark:bg-gray-800/60 rounded-xl">
         @for (group of groupedStreams(); track group.sourceKey) {
           <button
             type="button"
             (click)="selectTab(group.sourceKey)"
             [class]="effectiveTab() === group.sourceKey
-              ? 'px-3 py-1.5 text-sm font-semibold border-b-2 ' + sectionBorderClass(group.sourceKey) + ' ' + sourceTextColor(group.sourceKey) + ' -mb-px'
-              : 'px-3 py-1.5 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 -mb-px border-b-2 border-transparent'"
+              ? 'flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-white dark:bg-gray-900 shadow-sm ' + sourceTextColor(group.sourceKey)
+              : 'flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors'"
           >
+            <span [class]="'w-1.5 h-1.5 rounded-full ' + sourceBgFill(group.sourceKey)"></span>
             <span class="tabular-nums">{{ group.category }}</span>
           </button>
         }
       </div>
 
-      <!-- Pills del tab activo -->
-      <div [class]="needsScroll() ? 'max-h-[280px] overflow-y-auto' : ''">
-        <div class="flex flex-wrap gap-2">
-          @for (stream of currentTabStreams(); track stream.id) {
-            <button
-              type="button"
-              (click)="channelSelected.emit(stream)"
-              [title]="cleanStreamName(stream.embed_name)"
-              [class]="active()?.embed_url === stream.embed_url
-                ? 'inline-flex items-center gap-2 min-w-[80px] max-w-[200px] max-h-8 px-3 py-1 rounded-full border border-blue-500 bg-blue-50 dark:bg-blue-950/30 text-sm font-medium transition-colors'
-                : 'inline-flex items-center gap-2 min-w-[80px] max-w-[200px] max-h-8 px-3 py-1 rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-blue-300 dark:hover:border-blue-600 text-sm font-medium transition-colors'"
-            >
-              <span class="truncate text-gray-800 dark:text-gray-100 text-xs flex-1 min-w-0">
-                {{ cleanStreamName(stream.embed_name) }}
+      <!-- Cards del tab activo -->
+      <div [class]="needsScroll() ? 'max-h-[320px] overflow-y-auto space-y-1.5 pr-1' : 'space-y-1.5'">
+        @for (stream of currentTabStreams(); track stream.id) {
+          <button
+            type="button"
+            (click)="channelSelected.emit(stream)"
+            [title]="cleanStreamName(stream.embed_name)"
+            [class]="active()?.embed_url === stream.embed_url
+              ? 'group w-full flex items-center gap-3 px-3 py-2 rounded-lg ring-1 ring-green-500 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/40 dark:to-emerald-950/40 shadow-sm'
+              : 'group w-full flex items-center gap-3 px-3 py-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-sm hover:-translate-y-px transition-all'"
+          >
+            <!-- Monograma de fuente -->
+            @if (sourceLabel(stream)) {
+              <span [class]="'shrink-0 w-9 h-9 rounded-lg flex items-center justify-center font-bold text-sm shadow-sm ' + sourceMonogramClasses(stream)">
+                {{ sourceLabel(stream) }}
               </span>
-              @if (sourceLabel(stream)) {
-                <span [class]="sourceBadgeClasses(stream)" title="Origen: {{ stream.source }}">
-                  {{ sourceLabel(stream) }}
-                </span>
-              }
+            } @else {
+              <span class="shrink-0 w-9 h-9 rounded-lg bg-gray-100 dark:bg-gray-700"></span>
+            }
+
+            <!-- Nombre -->
+            <div class="flex-1 min-w-0 text-left">
+              <div class="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
+                {{ cleanStreamName(stream.embed_name) }}
+              </div>
+            </div>
+
+            <!-- Quality + estado activo -->
+            @if (active()?.embed_url === stream.embed_url) {
               <span [class]="classifyStreamQuality(stream.embed_name) === 'HD'
-                ? 'text-[10px] font-bold px-1.5 py-0.5 rounded tabular-nums bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300'
-                : 'text-[10px] font-bold px-1.5 py-0.5 rounded tabular-nums bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'"
+                ? 'shrink-0 text-[10px] font-bold px-2 py-0.5 rounded tabular-nums bg-green-500 text-white'
+                : 'shrink-0 text-[10px] font-bold px-2 py-0.5 rounded tabular-nums bg-emerald-500 text-white'"
               >
                 {{ classifyStreamQuality(stream.embed_name) }}
               </span>
-            </button>
-          }
-        </div>
+              <svg class="shrink-0 w-4 h-4 text-green-600 dark:text-green-400" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M8 5v14l11-7z"/>
+              </svg>
+            } @else {
+              <span [class]="classifyStreamQuality(stream.embed_name) === 'HD'
+                ? 'shrink-0 text-[10px] font-bold px-2 py-0.5 rounded tabular-nums bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
+                : 'shrink-0 text-[10px] font-bold px-2 py-0.5 rounded tabular-nums bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'"
+              >
+                {{ classifyStreamQuality(stream.embed_name) }}
+              </span>
+              <svg class="shrink-0 w-3.5 h-3.5 text-gray-300 dark:text-gray-600 group-hover:text-gray-400 transition-colors" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M8 5v14l11-7z"/>
+              </svg>
+            }
+          </button>
+        }
       </div>
     } @else {
       <div class="text-center py-8 text-gray-500 dark:text-gray-400">
@@ -189,4 +247,6 @@ export class ChannelSelectorComponent {
   cleanStreamName = cleanStreamName;
   sectionBorderClass = sectionBorderClass;
   sourceTextColor = sourceTextColor;
+  sourceMonogramClasses = sourceMonogramClasses;
+  sourceBgFill = sourceBgFill;
 }

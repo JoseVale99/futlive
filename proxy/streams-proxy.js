@@ -361,6 +361,34 @@ function parseRSCStreams(rscText, matchId) {
     });
   }
 
+  // Canales extra de lacancha.tv que el RSC no incluye (cargados on-demand en su web)
+  // Usan URLs genéricas en embedindia.st que sirven para cualquier partido.
+  const lazyChannels = [
+    { name: 'DSports', url: 'https://embedindia.st/embed/dsports' },
+    { name: 'DSports | OP2', url: 'https://embedindia.st/embed/dsports-2' },
+    { name: 'TUDN', url: 'https://embedindia.st/embed/tudn' },
+    { name: 'TyC Sports', url: 'https://embedindia.st/embed/tyc-sports' },
+    { name: 'TyC Sports | OP2', url: 'https://embedindia.st/embed/tyc-sports-2' },
+    { name: 'ESPN Argentina', url: 'https://embedindia.st/embed/espn-argentina' },
+    { name: 'ESPN Disney+', url: 'https://embedindia.st/embed/espn-disney-plus' },
+  ];
+  const existingNames = new Set(streams.map(s => s.embed_name.toLowerCase()));
+  for (const ch of lazyChannels) {
+    if (existingNames.has(ch.name.toLowerCase())) continue;
+    if (seenUrls.has(ch.url)) continue;
+    seenUrls.add(ch.url);
+    streams.push({
+      id: `lc-lazy-${streams.length}`,
+      match_id: matchId,
+      channel_id: null,
+      embed_name: ch.name,
+      embed_url: ch.url,
+      source: 'lacancha',
+      stream_param: null,
+      created_at: new Date().toISOString(),
+    });
+  }
+
   return streams.slice(0, 40);
 }
 

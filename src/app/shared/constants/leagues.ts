@@ -14,9 +14,11 @@ export interface League {
   accent: string;
   iconBg: string;
   shortName: string;
+  featured?: boolean;
 }
 
 export const LEAGUES: Record<string, League> = {
+  worldcup:     { slug: 'worldcup',    name: 'Mundial 2026',      country: 'FIFA',           espnPath: 'fifa.world',             accent: 'from-amber-500 to-yellow-600', iconBg: 'bg-amber-500',   shortName: 'WC 2026', featured: true },
   premier:      { slug: 'premier',     name: 'Premier League',    country: 'Inglaterra',     espnPath: 'eng.1',                  accent: 'from-purple-600 to-indigo-600', iconBg: 'bg-purple-600',  shortName: 'PREMIER' },
   laliga:       { slug: 'laliga',      name: 'La Liga',           country: 'España',         espnPath: 'esp.1',                  accent: 'from-red-600 to-orange-600',   iconBg: 'bg-red-600',     shortName: 'LALIGA' },
   bundesliga:   { slug: 'bundesliga',  name: 'Bundesliga',        country: 'Alemania',       espnPath: 'ger.1',                  accent: 'from-red-500 to-amber-500',    iconBg: 'bg-red-500',     shortName: 'BUNDES' },

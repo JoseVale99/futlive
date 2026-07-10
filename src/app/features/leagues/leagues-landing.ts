@@ -45,7 +45,9 @@ interface LeagueCardData {
               <button
                 type="button"
                 (click)="openLeague(card.league)"
-                [class]="'group relative overflow-hidden rounded-2xl bg-white dark:bg-[#111827] border border-gray-200 dark:border-white/5 hover:border-blue-400 dark:hover:border-blue-500/40 hover:shadow-xl hover:shadow-blue-500/5 hover:-translate-y-0.5 transition-all duration-200 text-left cursor-pointer'"
+                [class]="card.league.featured
+                  ? 'group relative overflow-hidden rounded-2xl sm:col-span-2 lg:col-span-3 bg-linear-to-br from-amber-500/10 via-yellow-500/5 to-transparent dark:from-amber-500/15 dark:via-yellow-500/8 border-2 border-amber-400/40 dark:border-amber-500/30 hover:border-amber-400 hover:shadow-2xl hover:shadow-amber-500/10 hover:-translate-y-0.5 transition-all duration-200 text-left cursor-pointer'
+                  : 'group relative overflow-hidden rounded-2xl bg-white dark:bg-[#111827] border border-gray-200 dark:border-white/5 hover:border-blue-400 dark:hover:border-blue-500/40 hover:shadow-xl hover:shadow-blue-500/5 hover:-translate-y-0.5 transition-all duration-200 text-left cursor-pointer'"
               >
                 <!-- Gradient header strip -->
                 <div [class]="'h-1.5 w-full bg-linear-to-r ' + card.league.accent"></div>
@@ -54,11 +56,22 @@ interface LeagueCardData {
                   <!-- League badge + name -->
                   <div class="flex items-start justify-between gap-3 mb-4">
                     <div class="flex items-center gap-3 min-w-0">
-                      <div [class]="'shrink-0 w-12 h-12 rounded-xl flex items-center justify-center font-black text-white text-sm shadow-lg ' + card.league.iconBg">
-                        {{ card.league.shortName.slice(0, 3) }}
+                      <div [class]="card.league.featured
+                        ? 'shrink-0 w-14 h-14 rounded-xl flex items-center justify-center font-black text-white text-lg shadow-lg ring-2 ring-amber-400/40 ' + card.league.iconBg
+                        : 'shrink-0 w-12 h-12 rounded-xl flex items-center justify-center font-black text-white text-sm shadow-lg ' + card.league.iconBg">
+                        @if (card.league.featured) {
+                          <span class="text-xl">🏆</span>
+                        } @else {
+                          {{ card.league.shortName.slice(0, 3) }}
+                        }
                       </div>
                       <div class="min-w-0">
-                        <h2 class="text-base font-black text-gray-900 dark:text-white truncate">{{ card.league.name }}</h2>
+                        <div class="flex items-center gap-2">
+                          <h2 class="text-base font-black text-gray-900 dark:text-white truncate">{{ card.league.name }}</h2>
+                          @if (card.league.featured) {
+                            <span class="shrink-0 text-[9px] font-black uppercase tracking-wider text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-500/15 px-1.5 py-0.5 rounded">Destacado</span>
+                          }
+                        </div>
                         <p class="text-xs text-gray-500 dark:text-gray-400">{{ card.league.country }}</p>
                       </div>
                     </div>

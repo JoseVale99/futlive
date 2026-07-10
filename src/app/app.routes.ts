@@ -3,19 +3,20 @@ import { Routes } from '@angular/router';
 export const routes: Routes = [
   {
     path: '',
-    loadComponent: () => import('./features/home/home-view').then(m => m.HomeViewComponent)
+    pathMatch: 'full',
+    redirectTo: '/ligas/worldcup'
+  },
+  {
+    path: 'posiciones',
+    redirectTo: '/ligas/worldcup'
+  },
+  {
+    path: 'estadisticas',
+    redirectTo: '/ligas/worldcup'
   },
   {
     path: 'stream/:matchId',
     loadComponent: () => import('./features/streaming/streaming-view/streaming-view').then(m => m.StreamingViewComponent)
-  },
-  {
-    path: 'posiciones',
-    loadComponent: () => import('./features/standings/standings-view/standings-view').then(m => m.StandingsViewComponent)
-  },
-  {
-    path: 'estadisticas',
-    loadComponent: () => import('./features/scorers/scorers-view').then(m => m.ScorersViewComponent)
   },
   {
     path: 'ligas',

@@ -444,13 +444,21 @@ type ScorerCategoryId = 'goals' | 'assists';
                       ? 'flex items-center gap-3 p-3 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-700/30 rounded-xl border-l-4'
                       : 'flex items-center gap-3 p-3 bg-white dark:bg-[#111827] border border-gray-200 dark:border-white/5 rounded-xl'">
                       <span class="text-base font-black text-gray-400 dark:text-gray-500 tabular-nums w-6 text-center">{{ scorer.rank }}</span>
-                      @if (scorer.teamLogo) {
-                        <img [src]="scorer.teamLogo" [alt]="scorer.team" loading="lazy" (error)="handleImgError($event)" class="w-7 h-7 rounded-full object-cover bg-gray-100 dark:bg-gray-800 shrink-0">
-                      } @else if (scorer.teamFlag) {
-                        <img [src]="scorer.teamFlag" [alt]="scorer.team" loading="lazy" (error)="handleImgError($event)" class="w-7 h-5 rounded-sm object-cover bg-gray-100 dark:bg-gray-800 shrink-0">
-                      } @else {
-                        <div class="w-7 h-5 rounded-sm bg-gray-200 dark:bg-gray-700 shrink-0"></div>
-                      }
+                      <div class="relative shrink-0">
+                        @if (scorer.playerPhoto) {
+                          <img [src]="scorer.playerPhoto" [alt]="scorer.name" loading="lazy" (error)="handleImgError($event)" class="w-9 h-9 rounded-full object-cover bg-gray-100 dark:bg-gray-800 ring-1 ring-gray-200 dark:ring-white/10">
+                        } @else {
+                          <div class="w-9 h-9 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center ring-1 ring-gray-200 dark:ring-white/10 overflow-hidden">
+                            <svg viewBox="0 0 36 36" class="w-full h-full" aria-hidden="true">
+                              <circle cx="18" cy="14" r="6" fill="#9ca3af"/>
+                              <path d="M6 32c0-6.627 5.373-12 12-12s12 5.373 12 12" fill="#9ca3af"/>
+                            </svg>
+                          </div>
+                        }
+                        @if (scorer.teamLogo || scorer.teamFlag) {
+                          <img [src]="scorer.teamLogo || scorer.teamFlag" [alt]="scorer.team" loading="lazy" class="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full object-cover ring-2 ring-white dark:ring-[#111827]">
+                        }
+                      </div>
                       <div class="flex-1 min-w-0">
                         <p class="text-sm font-semibold text-gray-900 dark:text-white truncate">{{ scorer.name }}</p>
                         <p class="text-xs text-gray-500 dark:text-gray-400 truncate">{{ t(scorer.team) }}</p>

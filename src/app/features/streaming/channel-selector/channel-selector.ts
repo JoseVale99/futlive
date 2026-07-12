@@ -87,7 +87,7 @@ export function sourceBgFill(sourceKey: string): string {
 
 /** Pure function: groups streams by source provider for visual clustering */
 export function groupStreamsBySource(streams: MatchStream[]): StreamGroup[] {
-  const ORDER = ['futbollibrex', 'balondeportes', 'lacancha', 'futbol-libre'];
+  const ORDER = ['futbollibrex', 'lacancha', 'futbol-libre'];
   const buckets = new Map<string, MatchStream[]>();
   for (const s of streams) {
     const key = s.source?.toLowerCase() || 'other';

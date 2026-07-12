@@ -6,8 +6,7 @@ Documenta cómo se scrapean canales en `api/streams.js` y `proxy/streams-proxy.j
 
 ```
 streams response = [
-  ...lacancha (LC)        // scrape HTML/RSC de lacancha.tv
-  ...balondeportes (BD)    // lista hardcoded de URLs conocidas
+  ...lacancha (LC)        // scrape HTML/RSC de lacancha.tv (match-specific embedindia.st URLs)
   ...futbol-libre (FL)     // scrape agenda de futbol-libres.su
   ...futbollibrex (FX)     // scrape home de futbollibrex.net
 ]
@@ -36,13 +35,12 @@ Las funciones scrapean HTML/JSON público, **sin auth**. Todas tienen timeout 4-
 | futbol-libres | `/eventos.html?r={base64}` | doble base64 → `https://esvidzypro.sbs/...` |
 | lacancha RSC | `embed_url` en JSON serializado | ya viene como URL final (`embedindia.st`) |
 | lacancha lazy | `https://embedindia.st/embed/{slug}` | directo, sin encoding |
-| balondeportes | `globalm.php?channel=X` / `dsn31.php?channel=X` | directo, con parámetro |
 
 Cuando una URL viene encoded, **siempre doble base64** (lvl1 = wrapper HTML, lvl2 = URL final del player).
 
 ## Deduplicación
 
-Deduplicamos por `embed_name.toLowerCase()` después de normalizar sufijos `(BD|FL|LC|FX)` en el front (`channel-selector.ts:42`). Si una fuente ya tiene "Telemundo", otra con "Telemundo" se descarta. Esto evita confusión visual pero **oculta streams alternativos** del mismo canal desde fuentes distintas.
+Deduplicamos por `embed_name.toLowerCase()` después de normalizar sufijos `(FL|LC|FX)` en el front (`channel-selector.ts:42`). Si una fuente ya tiene "Telemundo", otra con "Telemundo" se descarta. Esto evita confusión visual pero **oculta streams alternativos** del mismo canal desde fuentes distintas.
 
 ## Frontend (player)
 
@@ -149,7 +147,7 @@ for (const ch of newChannels) {
 
 En `channel-selector.ts`:
 - `sourceLabel(stream)` → label corto (ej. "NF")
-- `sourceBadgeClasses(stream)` → colores Tailwind de la badge (no chocar con BD=azul, FL=rojo, LC=esmeralda, FX=ámbar)
+- `sourceBadgeClasses(stream)` → colores Tailwind de la badge (no chocar con FL=rojo, LC=esmeralda, FX=ámbar)
 - `sectionBorderClass(sourceKey)` → color del border de la sección
 - `sourceTextColor(sourceKey)` → color del texto del tab
 - `sourceMonogramClasses(stream)` → fondo del monograma
@@ -206,8 +204,8 @@ curl -sIk "https://embed-url" | grep -iE "HTTP|x-frame|content-security"
 
 ## Historial de cambios
 
-- **LC**: 10 canales RSC + 7 canales lazy (DSports, TUDN, TyC, ESPN Argentina, Disney+) — agregados tras notar que lacancha solo expone 10 de 17 en su RSC
-- **BD**: 17 canales hardcoded desde el inicio
+- **LC**: 10 canales RSC + 7 canales lazy (DSports, TUDN, TyC, ESPN Argentina, Disney+) — agregados tras notar que lacancha solo expone 10 de 17 en su RSC. Estos son los canales match-specific que SÍ funcionan (URLs del estilo `embedindia.st/embed/wc/{date}/{match-slug}/{channel}`).
 - **FL**: 14 canales per-evento (reemplazó lista hardcoded de 8)
 - **FX**: 10-14 canales per-evento (reemplazó lista hardcoded de 15)
 - **SSL/X-Frame**: la12hd.com tiene cert para la16hd.com → iframe bloqueado en browser. Solución: scrapear eventos directamente a `la16hd.com`/`la20hd.com`/`tarjetarojita.xyz` que sí tienen certs válidos
+- **BD eliminado**: balondeportes.com dejó de funcionar y un reemplazo con embedindia.st genérico (`/embed/{slug}`) tampoco — solo `/embed/wc/{date}/{match-slug}/{channel}` responde, y la lista de canales válidos por partido viene del RSC de lacancha.

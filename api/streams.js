@@ -1,7 +1,7 @@
 /**
  * Vercel Serverless Function — Proxy de streams.
  * Scrapea canales desde lacancha.tv (embed_url + embed_name).
- * Fallbacks extra: balondeportes.com, futbol-libres.su, futbollibrex.net.
+ * Fallbacks extra: futbol-libres.su, futbollibrex.net.
  * Todo lo demás (partidos, stats, lineups) viene de ESPN.
  *
  * Endpoint: /api/streams?matchId={id}
@@ -352,42 +352,6 @@ module.exports = async function handler(req, res) {
           streams.push(s);
           existingNames.add(s.embed_name);
         }
-      }
-    }
-
-    // Agregar balondeportes.com — canales vía endpoints propios (sin protección iframe)
-    const balonChannels = [
-      { name: 'DSports (BD)', url: 'https://www.balondeportes.com/globalm.php?channel=dsports' },
-      { name: 'DSports 2 (BD)', url: 'https://www.balondeportes.com/globalm.php?channel=dsports2' },
-      { name: 'DSports+ (BD)', url: 'https://www.balondeportes.com/globalm.php?channel=dsportsplus' },
-      { name: 'ESPN (BD)', url: 'https://www.balondeportes.com/dsn31.php?channel=espn-1' },
-      { name: 'ESPN 2 (BD)', url: 'https://www.balondeportes.com/dsn31.php?channel=espn-2' },
-      { name: 'ESPN 3 (BD)', url: 'https://www.balondeportes.com/dsn31.php?channel=espn-3' },
-      { name: 'ESPN Premium (BD)', url: 'https://www.balondeportes.com/dsn31.php?channel=espnpremium' },
-      { name: 'Fox Sports (BD)', url: 'https://www.balondeportes.com/dsn31.php?channel=foxsports' },
-      { name: 'Fox Sports 2 (BD)', url: 'https://www.balondeportes.com/dsn31.php?channel=foxsports2' },
-      { name: 'Fox Sports 3 (BD)', url: 'https://www.balondeportes.com/dsn31.php?channel=foxsports3' },
-      { name: 'TNT Sports (BD)', url: 'https://www.balondeportes.com/dsn31.php?channel=tntsports' },
-      { name: 'TyC Sports (BD)', url: 'https://www.balondeportes.com/dsn31.php?channel=tycsports' },
-      { name: 'VTV+ (BD)', url: 'https://www.balondeportes.com/dsn31.php?channel=vtvplus' },
-      { name: 'TUDN (BD)', url: 'https://www.balondeportes.com/globalp.php?channel=tudnmx1' },
-      { name: 'TUDN Op2 (BD)', url: 'https://www.balondeportes.com/globalp.php?channel=tudnmx' },
-      { name: 'Azteca 7 (BD)', url: 'https://www.balondeportes.com/globalm.php?channel=azteca7' },
-      { name: 'Canal 5 (BD)', url: 'https://www.balondeportes.com/globalp.php?channel=canal5' },
-    ];
-    const existingNamesBD = new Set(streams.map(s => s.embed_name.toLowerCase()));
-    for (const ch of balonChannels) {
-      if (!existingNamesBD.has(ch.name.toLowerCase())) {
-        streams.push({
-          id: `bd-${streams.length}`,
-          match_id: matchId,
-          channel_id: null,
-          embed_name: ch.name,
-          embed_url: ch.url,
-          source: 'balondeportes',
-          stream_param: null,
-          created_at: new Date().toISOString(),
-        });
       }
     }
 

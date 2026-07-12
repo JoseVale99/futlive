@@ -795,8 +795,16 @@ const server = http.createServer(async (req, res) => {
 
     try {
       const params = new URLSearchParams();
-      if (dates) params.set('dates', dates);
-      else if (status === 'scheduled' || status === 'finished' || !status) params.set('dates', '20260611-20260720');
+      if (dates) {
+        params.set('dates', dates);
+      } else if (status === 'scheduled') {
+        const today = new Date();
+        const start = today.toISOString().slice(0, 10).replace(/-/g, '');
+        const end = new Date(today.getTime() + 14 * 86400000).toISOString().slice(0, 10).replace(/-/g, '');
+        params.set('dates', `${start}-${end}`);
+      } else if (status === 'finished' || !status) {
+        params.set('dates', '20260611-20260720');
+      }
 
       const targetUrl = params.toString() ? `${ESPN_SCOREBOARD}?${params.toString()}` : ESPN_SCOREBOARD;
       console.log(`[${new Date().toISOString()}] ESPN: status=${status || 'all'}, id=${id || 'none'}, league=${league || 'worldcup'}`);

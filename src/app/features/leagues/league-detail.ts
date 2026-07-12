@@ -265,10 +265,11 @@ type ScorerCategoryId = 'goals' | 'assists';
                         (click)="goToMatch(match)"
                         class="group w-full bg-white dark:bg-[#111827] hover:bg-gray-50 dark:hover:bg-[#1a2236] border border-gray-200 dark:border-white/5 hover:border-blue-300 dark:hover:border-blue-500/30 rounded-lg p-3.5 flex items-center gap-3 transition-all duration-200 cursor-pointer text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                       >
-                        <div class="w-12 text-center shrink-0">
+                        <div class="w-20 text-center shrink-0">
                           @if (match.status === 'finished') {
                             <div class="text-[9px] font-bold text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded uppercase">Fin</div>
                           } @else {
+                            <div class="text-[10px] font-semibold text-gray-500 dark:text-gray-400 leading-tight">{{ formatDate(match.kickoff_at) }}</div>
                             <div class="text-[11px] font-bold text-gray-700 dark:text-gray-300">{{ formatTime(match.kickoff_at) }}</div>
                           }
                         </div>
@@ -603,6 +604,11 @@ export class LeagueDetailComponent {
   formatTime(iso: string): string {
     const d = new Date(iso);
     return d.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  formatDate(iso: string): string {
+    const d = new Date(iso);
+    return d.toLocaleDateString('es', { day: 'numeric', month: 'long', year: 'numeric' });
   }
 
   handleImgError(event: Event) {

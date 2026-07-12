@@ -165,7 +165,20 @@ module.exports = async function handler(req, res) {
         return res.status(response.status).json({ error: `ESPN API error: ${response.status}` });
       }
       const data = await response.json();
-      const matches = (data.events || []).map(e => transformEvent(e, league)).filter(Boolean).filter(m => m.id === id);
+      let matches = (data.events || []).map(e => transformEvent(e, league)).filter(Boolean);
+      if (!matches.find(m => m.id === id)) {
+        const today = new Date();
+        const start = today.toISOString().slice(0, 10).replace(/-/g, '');
+        const end = new Date(today.getTime() + 14 * 86400000).toISOString().slice(0, 10).replace(/-/g, '');
+        const upcomingRes = await fetch(`${baseUrl}?dates=${start}-${end}`, {
+          headers: { 'User-Agent': 'NexaTV/1.0', 'Accept': 'application/json' },
+        }).catch(() => null);
+        if (upcomingRes?.ok) {
+          const upcomingData = await upcomingRes.json();
+          matches = [...matches, ...(upcomingData.events || []).map(e => transformEvent(e, league)).filter(Boolean)];
+        }
+      }
+      matches = matches.filter(m => m.id === id);
       res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=30');
       return res.status(200).json(matches);
     }

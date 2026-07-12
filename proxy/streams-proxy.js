@@ -812,6 +812,18 @@ const server = http.createServer(async (req, res) => {
       const espnData = await fetchJson(targetUrl, { 'User-Agent': 'NexaTV/1.0' });
       let matches = (espnData.events || []).map(e => transformEspnEvent(e, league)).filter(Boolean);
 
+      if (id) {
+        const found = matches.find(m => m.id === id);
+        if (!found) {
+          const today = new Date();
+          const start = today.toISOString().slice(0, 10).replace(/-/g, '');
+          const end = new Date(today.getTime() + 14 * 86400000).toISOString().slice(0, 10).replace(/-/g, '');
+          const upcomingData = await fetchJson(`${ESPN_SCOREBOARD}?dates=${start}-${end}`, { 'User-Agent': 'NexaTV/1.0' }).catch(() => ({ events: [] }));
+          const upcoming = (upcomingData.events || []).map(e => transformEspnEvent(e, league)).filter(Boolean);
+          matches = [...matches, ...upcoming];
+        }
+      }
+
       if (status) matches = matches.filter(m => m.status === status);
       if (id) matches = matches.filter(m => m.id === id);
 

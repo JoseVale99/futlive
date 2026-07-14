@@ -158,16 +158,22 @@ export function groupStreamsBySource(streams: MatchStream[]): StreamGroup[] {
       </div>
 
       <!-- Cards del tab activo -->
-      <div [class]="needsScroll() ? 'max-h-[320px] overflow-y-auto space-y-1.5 pr-1' : 'space-y-1.5'">
+      <div [class]="needsScroll()
+        ? 'max-h-[320px] overflow-y-auto pl-1 pr-1.5 space-y-2'
+        : 'pl-1 pr-1 space-y-2'">
         @for (stream of currentTabStreams(); track stream.id) {
           <button
             type="button"
             (click)="channelSelected.emit(stream)"
             [title]="cleanStreamName(stream.embed_name)"
             [class]="active()?.embed_url === stream.embed_url
-              ? 'group w-full flex items-center gap-3 px-3 py-2 rounded-lg ring-1 ring-green-500 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/40 dark:to-emerald-950/40 shadow-sm'
-              : 'group w-full flex items-center gap-3 px-3 py-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-sm hover:-translate-y-px transition-all'"
+              ? 'group relative w-full flex items-center gap-3 pl-5 pr-3 py-2.5 rounded-xl bg-gradient-to-r from-green-500/15 via-emerald-500/10 to-transparent dark:from-green-500/20 dark:via-emerald-500/10 dark:to-transparent border border-green-500/40 dark:border-green-400/40 border-l-[4px] border-l-green-500 dark:border-l-green-400 shadow-md shadow-green-500/10'
+              : 'group w-full flex items-center gap-3 px-3 py-2.5 rounded-xl bg-gray-100 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700/60 hover:border-gray-300 dark:hover:border-gray-600 hover:bg-white dark:hover:bg-gray-800 hover:shadow-sm hover:-translate-y-px transition-all'"
           >
+            <!-- Acento izquierdo: barra extra solo cuando NO hay border-l visible por rounded corners extremos -->
+            @if (active()?.embed_url === stream.embed_url) {
+              <span class="absolute left-[3px] top-1/2 -translate-y-1/2 h-7 w-[3px] rounded-full bg-green-500 dark:bg-green-400 pointer-events-none"></span>
+            }
             <!-- Monograma de fuente -->
             @if (sourceLabel(stream)) {
               <span [class]="'shrink-0 w-9 h-9 rounded-lg flex items-center justify-center font-bold text-sm shadow-sm ' + sourceMonogramClasses(stream)">

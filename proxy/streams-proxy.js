@@ -172,7 +172,10 @@ async function scrapeFutbolLibresEvents() {
         }
       }
     }
-    return channels;
+    return channels.map(ch => ({
+      ...ch,
+      url: ch.url.replace('vidzenvivo.cc/canal.php', 'streamtp.sbs/global1.php'),
+    }));
   } catch {
     return [];
   } finally {

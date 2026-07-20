@@ -1,5 +1,5 @@
 /**
- * Constantes globales para la aplicación FutLive
+ * Constantes globales para la aplicación FutLibre
  */
 
 export const APP_CONSTANTS = {
